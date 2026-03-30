@@ -1,34 +1,85 @@
-# dependencies (bun install)
-node_modules
-
-# output
-out
-dist
-*.tgz
-
-# code coverage
-coverage
-*.lcov
-
-# logs
+# Logs
 logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun.log
+pnpm-debug.log*
+lerna-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# dotenv environment variable files
+# Diagnostic reports
+node_modules/
+jspm_packages/
+.npm
+.yarn
+.pnpm-store
+
+# Environment variables
 .env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env.local
+.env.vault
 
-# caches
+# Dependencies
+node_modules/
+
+# Caches
+.npm
 .eslintcache
 .cache
 *.tsbuildinfo
+.stylelintcache
+.vite
+.nx/cache
 
-# IntelliJ based IDEs
-.idea
+# Build & Release Output
+out/
+dist/
+dist-electron/
+release/
+build/
+*.tgz
+*.zip
+*.tar.gz
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
 
-# Finder (MacOS) folder config
+# Coverage directories
+coverage/
+*.lcov
+.nyc_output
+
+# IDEs and Editors
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS metadata
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Optional: Bytenode
+*.jsc
