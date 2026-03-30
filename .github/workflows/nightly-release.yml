@@ -6,9 +6,6 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch: # Allows you to manually trigger the workflow from the GitHub UI for testing
 
-permissions:
-  contents: write # Minimum permission required to create tags and releases
-
 jobs:
   check-version:
     name: Check if Release Exists
@@ -44,6 +41,8 @@ jobs:
     name: Build & Package (${{ matrix.os }})
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
+    permissions:
+      contents: write
     strategy:
       matrix:
         # Build across all major OS automatically!
