@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   confirmOpenUrl: (url: string) => ipcRenderer.send('confirm-open-url', url),
 });
 
-window.addEventListener('DOMContentLoaded', () => {
+globalThis.addEventListener('DOMContentLoaded', () => {
   const replaceText = (selector: string, text: string) => {
     const element = document.getElementById(selector);
     if (element) element.innerText = text;

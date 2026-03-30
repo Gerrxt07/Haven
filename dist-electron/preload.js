@@ -10,7 +10,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	confirmOpenUrl: (url) => electron.ipcRenderer.send("confirm-open-url", url)
 });
-window.addEventListener("DOMContentLoaded", () => {
+globalThis.addEventListener("DOMContentLoaded", () => {
 	const replaceText = (selector, text) => {
 		const element = document.getElementById(selector);
 		if (element) element.innerText = text;
