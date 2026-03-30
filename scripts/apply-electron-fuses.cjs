@@ -1,5 +1,5 @@
 const { flipFuses, FuseVersion, FuseV1Options } = require('@electron/fuses');
-const path = require('path');
+const path = require('node:path');
 
 exports.default = async function(context) {
   const ext = {
