@@ -1,7 +1,7 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const bytenode = require('bytenode');
-const v8 = require('v8');
+const v8 = require('node:v8');
 
 v8.setFlagsFromString('--no-lazy');
 
