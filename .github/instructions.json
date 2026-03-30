@@ -1,0 +1,20 @@
+{
+  "project_context": "Electron + Bun + TypeScript",
+  "behavior": "Autonomous Agent",
+  "rules": [
+    "Always initiate 'sequentialthinking' to plan modular file distribution before writing.",
+    "Use 'context7' to maintain strict type alignment across Main and Renderer processes.",
+    "Utilize 'playwright' for automated verification of the Electron window state.",
+    "Prioritize Bun native APIs (Bun.serve, Bun.password, etc.) for performance.",
+    "Files must be atomic and single-purpose. Maximize code splitting.",
+    "Silent execution: Do not explain code in chat; modify the filesystem directly.",
+    "Workflow hygiene: keep GitHub Actions minimal, define explicit permissions, and pin actions to major versions.",
+    "Security scanning: prefer CodeQL for JS/TS when adding security checks.",
+    "Dependabot: ensure npm and github-actions ecosystems are configured at repository root."
+  ],
+  "performance_targets": {
+    "ipc_overhead": "minimal",
+    "bundle_size": "optimized",
+    "memory_usage": "low"
+  }
+}
