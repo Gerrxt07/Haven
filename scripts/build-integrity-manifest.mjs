@@ -16,21 +16,25 @@ const manifest = {};
 
 function generateHashes(dir) {
   if (!fs.existsSync(dir)) return;
-  const files = fs.readdirSync(dir);
+  const files = fs.readdirSync(dir, { withFileTypes: true });
   for (const file of files) {
-    const fullPath = path.join(dir, file);
-    if (fs.statSync(fullPath).isDirectory()) {
+    const fullPath = path.join(dir, file.name);
+    if (file.isDirectory()) {
       generateHashes(fullPath);
     } else {
       if (fullPath !== manifestPath) {
-        const fileBuffer = fs.readFileSync(fullPath);
-        const hashSum = crypto.createHash('sha256');
-        hashSum.update(fileBuffer);
-        const hex = hashSum.digest('hex');
-        
-        // Use relative path as key
-        const relativePath = path.relative(path.resolve(__dirname, '..'), fullPath).replace(/\\/g, '/');
-        manifest[relativePath] = hex;
+        try {
+          const fileBuffer = fs.readFileSync(fullPath);
+          const hashSum = crypto.createHash('sha256');
+          hashSum.update(fileBuffer);
+          const hex = hashSum.digest('hex');
+          
+          // Use relative path as key
+          const relativePath = path.relative(path.resolve(__dirname, '..'), fullPath).replace(/\\/g, '/');
+          manifest[relativePath] = hex;
+        } catch (error) {
+          console.warn(`[Integrity] Skipping ${fullPath}: ${error.message}`);
+        }
       }
     }
   }
