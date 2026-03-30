@@ -34,7 +34,7 @@ function createWindow() {
 		minHeight: 600,
 		title: "Haven",
 		frame: false,
-		icon: node_path.default.join(__dirname, "../public/logo.png"),
+		icon: !!process.env.VITE_DEV_SERVER_URL ? node_path.default.join(__dirname, "../public/logo.png") : node_path.default.join(__dirname, "../dist/logo.png"),
 		webPreferences: {
 			preload: node_path.default.join(__dirname, "preload.js"),
 			nodeIntegration: false,
@@ -43,9 +43,30 @@ function createWindow() {
 	});
 	if (process.env.VITE_DEV_SERVER_URL) mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
 	else mainWindow.loadFile(node_path.default.join(__dirname, "../dist/index.html"));
+	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+		if (url.startsWith("http:") || url.startsWith("https:")) mainWindow?.webContents.send("show-external-link-warning", url);
+		return { action: "deny" };
+	});
+	mainWindow.webContents.on("will-navigate", (event, url) => {
+		if (!url.startsWith(process.env.VITE_DEV_SERVER_URL || "file://")) {
+			event.preventDefault();
+			mainWindow?.webContents.send("show-external-link-warning", url);
+		}
+	});
 }
 electron.app.whenReady().then(() => {
+	electron.session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+		if ([
+			"media",
+			"audioCapture",
+			"videoCapture"
+		].includes(permission)) callback(true);
+		else callback(false);
+	});
 	createWindow();
+	electron.ipcMain.on("confirm-open-url", (_event, url) => {
+		electron.shell.openExternal(url);
+	});
 	electron.ipcMain.on("window-minimize", () => {
 		mainWindow?.minimize();
 	});

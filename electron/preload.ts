@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+  
+  // External Link Handling Methods
+  onExternalLinkWarning: (callback: (url: string) => void) => {
+    ipcRenderer.on('show-external-link-warning', (_event, url) => callback(url));
+  },
+  confirmOpenUrl: (url: string) => ipcRenderer.send('confirm-open-url', url),
 });
 
 window.addEventListener('DOMContentLoaded', () => {

@@ -31,12 +31,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Try to view the release for this version tag
-          if gh release view "v${{ steps.get_version.outputs.version }}" > /dev/null 2>&1; then
-            echo "Release v${{ steps.get_version.outputs.version }} already exists. Skipping build."
+          # Try to view the release for this nightly version tag
+          if gh release view "v${{ steps.get_version.outputs.version }}-nightly" > /dev/null 2>&1; then
+            echo "Release v${{ steps.get_version.outputs.version }}-nightly already exists. Skipping build."
             echo "should_release=false" >> $GITHUB_OUTPUT
           else
-            echo "Release v${{ steps.get_version.outputs.version }} does not exist. Proceeding with build."
+            echo "Release v${{ steps.get_version.outputs.version }}-nightly does not exist. Proceeding with build."
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
@@ -76,8 +76,8 @@ jobs:
       - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}
-          name: Release v${{ needs.check-version.outputs.version }}
+          tag_name: v${{ needs.check-version.outputs.version }}-nightly
+          name: Nightly Build v${{ needs.check-version.outputs.version }}
           # Glob patterns point to where electron-builder dumps the installers as configured in package.json
           files: |
             release/*.exe
@@ -86,6 +86,6 @@ jobs:
             release/*.deb
             release/*.zip
           draft: false
-          prerelease: false
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

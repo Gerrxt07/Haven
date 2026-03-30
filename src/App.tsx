@@ -14,6 +14,19 @@ export default function App() {
     document.getElementById('close-btn')?.addEventListener('click', () => {
       window.electronAPI.close();
     });
+
+    // Listen for external link clicks intercepted by Electron
+    window.electronAPI.onExternalLinkWarning((url) => {
+      // TODO: Replace this native confirm with a beautifully styled SolidJS Modal / Dialog later
+      console.log(`[Link Intercepted]: ${url}`);
+      const userConfirmed = window.confirm(
+        `Warning: You are leaving Haven to visit an external website:\n\n${url}\n\nDo you want to continue?`
+      );
+      
+      if (userConfirmed) {
+        window.electronAPI.confirmOpenUrl(url);
+      }
+    });
   });
 
   return (
@@ -46,6 +59,13 @@ export default function App() {
       {/* Main Content Content */}
       <div class="flex-1 p-5">
         <p>Welcome to Haven with SolidJS + Tailwind v4!</p>
+        
+        {/* Placeholder link for testing the interception */}
+        <div class="mt-4">
+          <a href="https://github.com/Haven" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
+            Test External Link Interception
+          </a>
+        </div>
       </div>
     </div>
   );
