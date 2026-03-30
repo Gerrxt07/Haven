@@ -4,27 +4,27 @@ export default function App() {
   onMount(() => {
     // Hook up the titlebar buttons to their respective IPC events
     document.getElementById('min-btn')?.addEventListener('click', () => {
-      window.electronAPI.minimize();
+      globalThis.electronAPI.minimize();
     });
 
     document.getElementById('max-btn')?.addEventListener('click', () => {
-      window.electronAPI.maximize();
+      globalThis.electronAPI.maximize();
     });
 
     document.getElementById('close-btn')?.addEventListener('click', () => {
-      window.electronAPI.close();
+      globalThis.electronAPI.close();
     });
 
     // Listen for external link clicks intercepted by Electron
-    window.electronAPI.onExternalLinkWarning((url) => {
+    globalThis.electronAPI.onExternalLinkWarning((url) => {
       // TODO: Replace this native confirm with a beautifully styled SolidJS Modal / Dialog later
       console.log(`[Link Intercepted]: ${url}`);
-      const userConfirmed = window.confirm(
+      const userConfirmed = globalThis.confirm(
         `Warning: You are leaving Haven to visit an external website:\n\n${url}\n\nDo you want to continue?`
       );
       
       if (userConfirmed) {
-        window.electronAPI.confirmOpenUrl(url);
+        globalThis.electronAPI.confirmOpenUrl(url);
       }
     });
   });
