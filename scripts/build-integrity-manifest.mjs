@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,20 +21,18 @@ function generateHashes(dir) {
     const fullPath = path.join(dir, file.name);
     if (file.isDirectory()) {
       generateHashes(fullPath);
-    } else {
-      if (fullPath !== manifestPath) {
-        try {
-          const fileBuffer = fs.readFileSync(fullPath);
-          const hashSum = crypto.createHash('sha256');
-          hashSum.update(fileBuffer);
-          const hex = hashSum.digest('hex');
-          
-          // Use relative path as key
-          const relativePath = path.relative(path.resolve(__dirname, '..'), fullPath).replace(/\\/g, '/');
-          manifest[relativePath] = hex;
-        } catch (error) {
-          console.warn(`[Integrity] Skipping ${fullPath}: ${error.message}`);
-        }
+    } else if (fullPath !== manifestPath) {
+      try {
+        const fileBuffer = fs.readFileSync(fullPath);
+        const hashSum = crypto.createHash('sha256');
+        hashSum.update(fileBuffer);
+        const hex = hashSum.digest('hex');
+        
+        // Use relative path as key
+        const relativePath = path.relative(path.resolve(__dirname, '..'), fullPath).replaceAll('\\', '/');
+        manifest[relativePath] = hex;
+      } catch (error) {
+        console.warn(`[Integrity] Skipping ${fullPath}: ${error.message}`);
       }
     }
   }
