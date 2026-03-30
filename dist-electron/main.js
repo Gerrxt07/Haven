@@ -26,9 +26,14 @@ node_path = __toESM(node_path);
 //#region electron/main.ts
 var mainWindow = null;
 function createWindow() {
+	const { width: screenWidth, height: screenHeight } = electron.screen.getPrimaryDisplay().workAreaSize;
 	mainWindow = new electron.BrowserWindow({
-		width: 800,
-		height: 600,
+		width: Math.max(1280, Math.floor(screenWidth * .8)),
+		height: Math.max(720, Math.floor(screenHeight * .8)),
+		minWidth: 800,
+		minHeight: 600,
+		title: "Haven",
+		frame: false,
 		icon: node_path.default.join(__dirname, "../public/logo.png"),
 		webPreferences: {
 			preload: node_path.default.join(__dirname, "preload.js"),
@@ -41,6 +46,16 @@ function createWindow() {
 }
 electron.app.whenReady().then(() => {
 	createWindow();
+	electron.ipcMain.on("window-minimize", () => {
+		mainWindow?.minimize();
+	});
+	electron.ipcMain.on("window-maximize", () => {
+		if (mainWindow?.isMaximized()) mainWindow.unmaximize();
+		else mainWindow?.maximize();
+	});
+	electron.ipcMain.on("window-close", () => {
+		mainWindow?.close();
+	});
 	electron.app.on("activate", () => {
 		if (electron.BrowserWindow.getAllWindows().length === 0) createWindow();
 	});

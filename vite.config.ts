@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
+import solidPlugin from 'vite-plugin-solid';
 import { resolve } from 'node:path';
 
 export default defineConfig({
@@ -11,6 +12,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    solidPlugin(),
     electron([
       {
         entry: 'electron/main.ts',

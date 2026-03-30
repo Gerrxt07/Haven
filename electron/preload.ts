@@ -1,5 +1,5 @@
 // Electron preload script
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Example IPC method
   // send: (channel: string, data: any) => ipcRenderer.send(channel, data)
   platform: process.platform,
+  minimize: () => ipcRenderer.send('window-minimize'),
+  maximize: () => ipcRenderer.send('window-maximize'),
+  close: () => ipcRenderer.send('window-close'),
 });
 
 window.addEventListener('DOMContentLoaded', () => {
