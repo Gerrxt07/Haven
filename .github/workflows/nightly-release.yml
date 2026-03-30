@@ -1,0 +1,91 @@
+name: Nightly Release
+
+on:
+  schedule:
+    # Runs at 02:00 AM every night
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allows you to manually trigger the workflow from the GitHub UI for testing
+
+permissions:
+  contents: write # Minimum permission required to create tags and releases
+
+jobs:
+  check-version:
+    name: Check if Release Exists
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Get package.json version
+        id: get_version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Check GitHub Releases
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Try to view the release for this version tag
+          if gh release view "v${{ steps.get_version.outputs.version }}" > /dev/null 2>&1; then
+            echo "Release v${{ steps.get_version.outputs.version }} already exists. Skipping build."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Release v${{ steps.get_version.outputs.version }} does not exist. Proceeding with build."
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-release:
+    name: Build & Package (${{ matrix.os }})
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    strategy:
+      matrix:
+        # Build across all major OS automatically!
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build for Windows
+        if: matrix.os == 'windows-latest'
+        run: bun run package:win
+
+      - name: Build for Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: bun run package:linux
+
+      - name: Build for MacOS
+        if: matrix.os == 'macos-latest'
+        run: bun run package:mac
+
+      - name: Upload Artifacts to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
+          # Glob patterns point to where electron-builder dumps the installers as configured in package.json
+          files: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.deb
+            release/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
