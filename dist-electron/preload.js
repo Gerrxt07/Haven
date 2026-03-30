@@ -1,6 +1,5 @@
-import { contextBridge } from "electron";
 //#region electron/preload.ts
-contextBridge.exposeInMainWorld("electronAPI", { platform: process.platform });
+require("electron").contextBridge.exposeInMainWorld("electronAPI", { platform: process.platform });
 window.addEventListener("DOMContentLoaded", () => {
 	const replaceText = (selector, text) => {
 		const element = document.getElementById(selector);

@@ -1,0 +1,20 @@
+# bunfig.toml
+
+# Specify default install behavior
+[install]
+# Prefer using cached packages when possible to speed up installations
+preferOffline = true
+# Ensure exact versions in package.json by default, or you can stick to semver
+exact = true
+
+[run]
+# Enable Bun's incredibly fast cross-platform shell 
+# This makes bash-like scripts (`rm -rf dist && ...`) in package.json natively work on Windows!
+
+[test]
+# Default test environment variables
+coverage = false
+
+[telemetry]
+# Disable bun's telemetry for privacy
+disable = true

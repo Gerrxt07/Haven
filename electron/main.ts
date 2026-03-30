@@ -1,10 +1,6 @@
 // Electron main process
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-// Convert import.meta.url since we might compile this to ESM
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let mainWindow: BrowserWindow | null = null;
 
