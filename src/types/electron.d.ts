@@ -8,6 +8,7 @@ export interface IElectronAPI {
 }
 
 declare global {
+  var electronAPI: IElectronAPI;
   interface Window {
     electronAPI: IElectronAPI;
   }
