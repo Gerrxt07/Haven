@@ -114,8 +114,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width,
     height,
-    minWidth: 800,
-    minHeight: 600,
+    minWidth: 1280,
+    minHeight: 720,
     title: 'Haven',
     show: false,
     frame: false, // Disables the default OS frame
