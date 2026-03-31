@@ -1,61 +1,30 @@
 import { defineConfig } from 'vite';
-import electron from 'vite-plugin-electron';
-import renderer from 'vite-plugin-electron-renderer';
 import solidPlugin from 'vite-plugin-solid';
 import { resolve } from 'node:path';
+
+const isTauriDebug = process.env.TAURI_DEBUG === 'true';
+const isWindowsTarget = process.env.TAURI_ENV_PLATFORM === 'windows';
 
 export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
-      '@electron': resolve(__dirname, './electron'),
     },
   },
-  plugins: [
-    solidPlugin(),
-    electron([
-      {
-        entry: 'electron/main.ts',
-        vite: {
-          build: {
-            outDir: 'dist-electron',
-            minify: false,
-            rollupOptions: {
-              output: {
-                format: 'cjs',
-              },
-            },
-          },
-          resolve: {
-            alias: {
-              '@electron': resolve(__dirname, './electron'),
-            },
-          },
-        },
-      },
-      {
-        entry: 'electron/preload.ts',
-        onstart(options) {
-          options.reload();
-        },
-        vite: {
-          build: {
-            outDir: 'dist-electron',
-            minify: false,
-            rollupOptions: {
-              output: {
-                format: 'cjs',
-              },
-            },
-          },
-          resolve: {
-            alias: {
-              '@electron': resolve(__dirname, './electron'),
-            },
-          },
-        },
-      },
-    ]),
-    renderer(),
-  ],
+  plugins: [solidPlugin()],
+  clearScreen: false,
+  envPrefix: ['VITE_', 'TAURI_'],
+  server: {
+    port: 1420,
+    strictPort: true,
+  },
+  preview: {
+    port: 1420,
+    strictPort: true,
+  },
+  build: {
+    target: isWindowsTarget ? 'chrome105' : 'safari13',
+    minify: isTauriDebug ? false : 'esbuild',
+    sourcemap: isTauriDebug,
+  },
 });

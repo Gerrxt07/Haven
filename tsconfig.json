@@ -21,16 +21,12 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@electron/*": [
-        "./electron/*"
       ]
     },
     "jsx": "preserve",
     "jsxImportSource": "solid-js"
   },
   "include": [
-    "src",
-    "electron"
+    "src"
   ]
 }
