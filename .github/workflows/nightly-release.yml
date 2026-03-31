@@ -63,14 +63,20 @@ jobs:
       - name: Build for Windows
         if: matrix.os == 'windows-latest'
         run: bun run package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build for Linux
         if: matrix.os == 'ubuntu-latest'
         run: bun run package:linux
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build for MacOS
         if: matrix.os == 'macos-latest'
         run: bun run package:mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v2
