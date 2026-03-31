@@ -25,7 +25,7 @@ exports.default = async function(context) {
     candidates.push(path.join(appOutDir, 'haven'));
   }
 
-  const electronExecutablePath = candidates.find(p => fs.existsSync(p));
+  const electronExecutablePath = candidates.find(p => fs.existsSync(p) && fs.statSync(p).isFile());
 
   if (!electronExecutablePath) {
     console.log("afterPack appOutDir:", appOutDir);
