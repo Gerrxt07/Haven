@@ -30,7 +30,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check": "bun run typecheck && bun run lint",
-    "dev": "bun run check && vite",
+    "dev": "vite",
+    "dev:strict": "bun run check && vite",
     "build": "bun run check && vite build",
     "package": "bun run build && bun run protect && electron-builder",
     "package:win": "bun run build && bun run protect && electron-builder --win",
@@ -71,7 +72,7 @@
         "deb"
       ]
     },
-    "afterSign": "./scripts/apply-electron-fuses.cjs",
+    "afterPack": "./scripts/apply-electron-fuses.cjs",
     "asar": true
   },
   "dependencies": {

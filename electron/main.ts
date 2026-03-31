@@ -5,8 +5,35 @@ import path from 'node:path';
 
 let mainWindow: BrowserWindow | null = null;
 
+function getCurrentWindowState() {
+  return {
+    isMaximized: mainWindow?.isMaximized() ?? false,
+    isFullScreen: mainWindow?.isFullScreen() ?? false,
+  };
+}
+
+function notifyWindowStateChanged() {
+  if (!mainWindow) {
+    return;
+  }
+
+  mainWindow.webContents.send('window-state-changed', getCurrentWindowState());
+}
+
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
-const trustedDevOrigin = devServerUrl ? new URL(devServerUrl).origin : null;
+const trustedDevOrigin = (() => {
+  if (!devServerUrl) {
+    return null;
+  }
+
+  try {
+    const parsedUrl = new URL(devServerUrl);
+    const isLocalHost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+    return isLocalHost ? parsedUrl.origin : null;
+  } catch {
+    return null;
+  }
+})();
 
 function isTrustedAppUrl(url: string): boolean {
   try {
@@ -60,7 +87,7 @@ function getContentSecurityPolicy(): string {
       ...commonDirectives,
       "script-src 'self' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline'",
-      `connect-src 'self' ${trustedDevOrigin} ws: wss: http: https: stun: turn:`,
+      `connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* stun: turn:`,
     ].join('; ');
   }
 
@@ -68,7 +95,7 @@ function getContentSecurityPolicy(): string {
     ...commonDirectives,
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "connect-src 'self' https: wss: stun: turn:",
+    "connect-src 'self' stun: turn:",
   ].join('; ');
 }
 
@@ -90,7 +117,9 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     title: 'Haven',
+    show: false,
     frame: false, // Disables the default OS frame
+    backgroundColor: '#272727',
     icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -104,6 +133,16 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+    notifyWindowStateChanged();
+  });
+
+  mainWindow.on('maximize', notifyWindowStateChanged);
+  mainWindow.on('unmaximize', notifyWindowStateChanged);
+  mainWindow.on('enter-full-screen', notifyWindowStateChanged);
+  mainWindow.on('leave-full-screen', notifyWindowStateChanged);
 
   // Prevent links from navigating inside the app
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -166,6 +205,10 @@ app.whenReady().then(() => {
   });
 
   createWindow();
+
+  ipcMain.handle('get-window-state', () => {
+    return getCurrentWindowState();
+  });
 
   // Listen for user confirming to open an external link from the UI warning
   ipcMain.on('confirm-open-url', (_event, url) => {

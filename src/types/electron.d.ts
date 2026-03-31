@@ -3,6 +3,8 @@ export interface IElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
+  getWindowState: () => Promise<{ isMaximized: boolean; isFullScreen: boolean }>;
+  onWindowStateChanged: (callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void) => void;
   onExternalLinkWarning: (callback: (url: string) => void) => void;
   confirmOpenUrl: (url: string) => void;
 }

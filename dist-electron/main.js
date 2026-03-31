@@ -25,6 +25,73 @@ let node_path = require("node:path");
 node_path = __toESM(node_path);
 //#region electron/main.ts
 var mainWindow = null;
+function getCurrentWindowState() {
+	return {
+		isMaximized: mainWindow?.isMaximized() ?? false,
+		isFullScreen: mainWindow?.isFullScreen() ?? false
+	};
+}
+function notifyWindowStateChanged() {
+	if (!mainWindow) return;
+	mainWindow.webContents.send("window-state-changed", getCurrentWindowState());
+}
+var devServerUrl = process.env.VITE_DEV_SERVER_URL;
+var trustedDevOrigin = (() => {
+	if (!devServerUrl) return null;
+	try {
+		const parsedUrl = new URL(devServerUrl);
+		return parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1" ? parsedUrl.origin : null;
+	} catch {
+		return null;
+	}
+})();
+function isTrustedAppUrl(url) {
+	try {
+		const parsedUrl = new URL(url);
+		if (parsedUrl.protocol === "file:") return true;
+		return trustedDevOrigin !== null && parsedUrl.origin === trustedDevOrigin;
+	} catch {
+		return url.startsWith("file://");
+	}
+}
+function isTrustedOrigin(origin) {
+	if (origin === "file://") return true;
+	if (!trustedDevOrigin) return false;
+	return origin === trustedDevOrigin;
+}
+function isSafeExternalHttpUrl(url) {
+	try {
+		const parsedUrl = new URL(url);
+		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+function getContentSecurityPolicy() {
+	const commonDirectives = [
+		"default-src 'self'",
+		"base-uri 'self'",
+		"frame-ancestors 'none'",
+		"form-action 'self'",
+		"object-src 'none'",
+		"img-src 'self' data: https:",
+		"font-src 'self' data:",
+		"media-src 'self' blob:",
+		"worker-src 'self' blob:"
+	];
+	if (trustedDevOrigin) return [
+		...commonDirectives,
+		"script-src 'self' 'unsafe-eval'",
+		"style-src 'self' 'unsafe-inline'",
+		`connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* stun: turn:`
+	].join("; ");
+	return [
+		...commonDirectives,
+		"script-src 'self'",
+		"style-src 'self' 'unsafe-inline'",
+		"connect-src 'self' stun: turn:"
+	].join("; ");
+}
 function createWindow() {
 	const { width: screenWidth, height: screenHeight } = electron.screen.getPrimaryDisplay().workAreaSize;
 	mainWindow = new electron.BrowserWindow({
@@ -33,7 +100,9 @@ function createWindow() {
 		minWidth: 800,
 		minHeight: 600,
 		title: "Haven",
+		show: false,
 		frame: false,
+		backgroundColor: "#272727",
 		icon: !!process.env.VITE_DEV_SERVER_URL ? node_path.default.join(__dirname, "../public/logo.png") : node_path.default.join(__dirname, "../dist/logo.png"),
 		webPreferences: {
 			preload: node_path.default.join(__dirname, "preload.js"),
@@ -43,29 +112,58 @@ function createWindow() {
 	});
 	if (process.env.VITE_DEV_SERVER_URL) mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
 	else mainWindow.loadFile(node_path.default.join(__dirname, "../dist/index.html"));
+	mainWindow.once("ready-to-show", () => {
+		mainWindow?.show();
+		notifyWindowStateChanged();
+	});
+	mainWindow.on("maximize", notifyWindowStateChanged);
+	mainWindow.on("unmaximize", notifyWindowStateChanged);
+	mainWindow.on("enter-full-screen", notifyWindowStateChanged);
+	mainWindow.on("leave-full-screen", notifyWindowStateChanged);
 	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-		if (url.startsWith("http:") || url.startsWith("https:")) mainWindow?.webContents.send("show-external-link-warning", url);
+		if (isSafeExternalHttpUrl(url)) mainWindow?.webContents.send("show-external-link-warning", url);
 		return { action: "deny" };
 	});
 	mainWindow.webContents.on("will-navigate", (event, url) => {
-		if (!url.startsWith(process.env.VITE_DEV_SERVER_URL || "file://")) {
+		if (!isTrustedAppUrl(url)) {
 			event.preventDefault();
-			mainWindow?.webContents.send("show-external-link-warning", url);
+			if (isSafeExternalHttpUrl(url)) mainWindow?.webContents.send("show-external-link-warning", url);
 		}
 	});
 }
 electron.app.whenReady().then(() => {
-	electron.session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-		if ([
+	const contentSecurityPolicy = getContentSecurityPolicy();
+	electron.session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+		const responseHeaders = details.responseHeaders ?? {};
+		if (details.resourceType === "mainFrame" || isTrustedAppUrl(details.url)) responseHeaders["Content-Security-Policy"] = [contentSecurityPolicy];
+		callback({ responseHeaders });
+	});
+	electron.session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
+		if (![
 			"media",
 			"audioCapture",
 			"videoCapture"
-		].includes(permission)) callback(true);
+		].includes(permission)) return false;
+		if (!requestingOrigin) return false;
+		return isTrustedOrigin(requestingOrigin);
+	});
+	electron.session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+		const allowedPermissions = [
+			"media",
+			"audioCapture",
+			"videoCapture"
+		];
+		const requestUrl = webContents.getURL();
+		if (allowedPermissions.includes(permission) && isTrustedAppUrl(requestUrl)) callback(true);
 		else callback(false);
 	});
 	createWindow();
+	electron.ipcMain.handle("get-window-state", () => {
+		return getCurrentWindowState();
+	});
 	electron.ipcMain.on("confirm-open-url", (_event, url) => {
-		electron.shell.openExternal(url);
+		if (typeof url !== "string") return;
+		if (isSafeExternalHttpUrl(url)) electron.shell.openExternal(url);
 	});
 	electron.ipcMain.on("window-minimize", () => {
 		mainWindow?.minimize();

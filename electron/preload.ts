@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
+  getWindowState: () => ipcRenderer.invoke('get-window-state') as Promise<{ isMaximized: boolean; isFullScreen: boolean }>,
+  onWindowStateChanged: (callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void) => {
+    ipcRenderer.on('window-state-changed', (_event, state) => callback(state));
+  },
   
   // External Link Handling Methods
   onExternalLinkWarning: (callback: (url: string) => void) => {

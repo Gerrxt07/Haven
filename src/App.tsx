@@ -1,7 +1,9 @@
-import { onMount } from 'solid-js';
+import { createSignal, onMount } from 'solid-js';
 import { Minus, Square, X } from 'lucide-solid';
 
 export default function App() {
+  const [isExpanded, setIsExpanded] = createSignal(false);
+
   onMount(() => {
     // Hook up the titlebar buttons to their respective IPC events
     document.getElementById('min-btn')?.addEventListener('click', () => {
@@ -28,6 +30,14 @@ export default function App() {
         globalThis.electronAPI.confirmOpenUrl(url);
       }
     });
+
+    globalThis.electronAPI.onWindowStateChanged((state) => {
+      setIsExpanded(state.isMaximized || state.isFullScreen);
+    });
+
+    globalThis.electronAPI.getWindowState().then((state) => {
+      setIsExpanded(state.isMaximized || state.isFullScreen);
+    });
   });
 
   return (
@@ -49,7 +59,14 @@ export default function App() {
             <Minus size={14} stroke-width={2} aria-hidden="true" />
           </button>
           <button id="max-btn" class="w-11.5 h-full border-none bg-transparent text-[#b9bbbe] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-white/10">
-            <Square size={12} stroke-width={2} aria-hidden="true" />
+            {isExpanded() ? (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="1.5" y="3.5" width="7" height="7" stroke="currentColor" stroke-width="1.2" />
+                <path d="M4 1.5H10.5V8" stroke="currentColor" stroke-width="1.2" />
+              </svg>
+            ) : (
+              <Square size={12} stroke-width={2} aria-hidden="true" />
+            )}
           </button>
           <button id="close-btn" class="w-11.5 h-full border-none bg-transparent text-[#b9bbbe] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-[#e81123] hover:text-white">
             <X size={14} stroke-width={2} aria-hidden="true" />

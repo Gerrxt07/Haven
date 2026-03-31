@@ -5,6 +5,10 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
 	minimize: () => electron.ipcRenderer.send("window-minimize"),
 	maximize: () => electron.ipcRenderer.send("window-maximize"),
 	close: () => electron.ipcRenderer.send("window-close"),
+	getWindowState: () => electron.ipcRenderer.invoke("get-window-state"),
+	onWindowStateChanged: (callback) => {
+		electron.ipcRenderer.on("window-state-changed", (_event, state) => callback(state));
+	},
 	onExternalLinkWarning: (callback) => {
 		electron.ipcRenderer.on("show-external-link-warning", (_event, url) => callback(url));
 	},
