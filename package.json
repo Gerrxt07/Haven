@@ -29,7 +29,11 @@
     "dev:strict": "bun run check && bun run dev",
     "tauri:dev": "tauri dev",
     "build": "bun run check && vite build",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "package": "bun run build && bun run tauri:build",
+    "package:win": "bun run build && bun run tauri:build",
+    "package:mac": "bun run build && bun run tauri:build",
+    "package:linux": "bun run build && bun run tauri:build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
