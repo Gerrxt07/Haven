@@ -1,3 +1,4 @@
+// Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron preload script
 import { contextBridge, ipcRenderer } from 'electron';
 

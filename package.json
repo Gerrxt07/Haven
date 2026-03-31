@@ -1,9 +1,9 @@
 {
   "name": "haven",
-  "version": "2026.03.30",
+  "version": "2026.03.31",
   "description": "Your new Voice, Video and Chat application to connect with your friends!",
   "author": "Cloudly <haven@becloudly.eu>",
-  "license": "AGPL-3.0-only",
+  "license": "LicenseRef-Haven-SAL-1.0",
   "main": "dist-electron/main.js",
   "private": true,
   "devDependencies": {

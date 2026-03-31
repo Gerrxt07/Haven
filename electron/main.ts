@@ -1,8 +1,76 @@
+// Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron main process
 import { app, BrowserWindow, screen, ipcMain, shell, session } from 'electron';
 import path from 'node:path';
 
 let mainWindow: BrowserWindow | null = null;
+
+const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+const trustedDevOrigin = devServerUrl ? new URL(devServerUrl).origin : null;
+
+function isTrustedAppUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol === 'file:') {
+      return true;
+    }
+
+    return trustedDevOrigin !== null && parsedUrl.origin === trustedDevOrigin;
+  } catch {
+    return url.startsWith('file://');
+  }
+}
+
+function isTrustedOrigin(origin: string): boolean {
+  if (origin === 'file://') {
+    return true;
+  }
+
+  if (!trustedDevOrigin) {
+    return false;
+  }
+
+  return origin === trustedDevOrigin;
+}
+
+function isSafeExternalHttpUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function getContentSecurityPolicy(): string {
+  const commonDirectives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "img-src 'self' data: https:",
+    "font-src 'self' data:",
+    "media-src 'self' blob:",
+    "worker-src 'self' blob:",
+  ];
+
+  if (trustedDevOrigin) {
+    return [
+      ...commonDirectives,
+      "script-src 'self' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      `connect-src 'self' ${trustedDevOrigin} ws: wss: http: https: stun: turn:`,
+    ].join('; ');
+  }
+
+  return [
+    ...commonDirectives,
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "connect-src 'self' https: wss: stun: turn:",
+  ].join('; ');
+}
 
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
@@ -39,7 +107,7 @@ function createWindow() {
 
   // Prevent links from navigating inside the app
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http:') || url.startsWith('https:')) {
+    if (isSafeExternalHttpUrl(url)) {
       // Trigger a warning in the frontend UI instead of opening immediately
       mainWindow?.webContents.send('show-external-link-warning', url);
     }
@@ -48,21 +116,49 @@ function createWindow() {
 
   // Prevent drag-and-drop navigation (e.g., dropping an HTML file into the chat)
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(process.env.VITE_DEV_SERVER_URL || 'file://')) {
+    if (!isTrustedAppUrl(url)) {
       event.preventDefault();
       // Trigger a warning in the frontend UI instead of opening immediately
-      mainWindow?.webContents.send('show-external-link-warning', url);
+      if (isSafeExternalHttpUrl(url)) {
+        mainWindow?.webContents.send('show-external-link-warning', url);
+      }
     }
   });
 }
 
 app.whenReady().then(() => {
+  const contentSecurityPolicy = getContentSecurityPolicy();
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = details.responseHeaders ?? {};
+
+    if (details.resourceType === 'mainFrame' || isTrustedAppUrl(details.url)) {
+      responseHeaders['Content-Security-Policy'] = [contentSecurityPolicy];
+    }
+
+    callback({ responseHeaders });
+  });
+
   // Handle WebRTC Permissions for Voice/Video calls
-  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
     const allowedPermissions = ['media', 'audioCapture', 'videoCapture'];
+
+    if (!allowedPermissions.includes(permission)) {
+      return false;
+    }
+
+    if (!requestingOrigin) {
+      return false;
+    }
+
+    return isTrustedOrigin(requestingOrigin);
+  });
+
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'audioCapture', 'videoCapture'];
+    const requestUrl = webContents.getURL();
     
-    if (allowedPermissions.includes(permission)) {
-      // You can add logic here to prompt the user or check against a safe domain
+    if (allowedPermissions.includes(permission) && isTrustedAppUrl(requestUrl)) {
       callback(true);
     } else {
       callback(false);
@@ -73,7 +169,13 @@ app.whenReady().then(() => {
 
   // Listen for user confirming to open an external link from the UI warning
   ipcMain.on('confirm-open-url', (_event, url) => {
-    shell.openExternal(url);
+    if (typeof url !== 'string') {
+      return;
+    }
+
+    if (isSafeExternalHttpUrl(url)) {
+      shell.openExternal(url);
+    }
   });
 
   // IPC listeners for the custom title bar
