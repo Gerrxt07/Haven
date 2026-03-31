@@ -7,30 +7,51 @@ v8.setFlagsFromString('--no-lazy');
 
 const mainDir = path.resolve(__dirname, '../dist-electron');
 
-if (fs.existsSync(mainDir)) {
+async function buildBytecode() {
+  if (!fs.existsSync(mainDir)) {
+    console.log('Main build directory not found. Please run the build script first.');
+    return;
+  }
+
   const files = fs.readdirSync(mainDir);
-  
-  files.forEach(file => {
-    if (file.endsWith('.js')) {
-      const filePath = path.join(mainDir, file);
-      const outputJsc = filePath.replace(/\.js$/, '.jsc');
-      
-      console.log(`Compiling ${file} to bytecode...`);
-      bytenode.compileFile({
-        filename: filePath,
-        output: outputJsc,
-        compileAsModule: true
-      });
-      
-      // Replace the JS file content to just require the bytecode
-      // Need a loader format since Vite/Electron runs this. 
-      // Ensure 'bytenode' is required.
-      const loaderCode = `require('bytenode');\nrequire('./${file.replace(/\.js$/, '.jsc')}');\n`;
-      fs.writeFileSync(filePath, loaderCode);
+  const bytecodeTargets = new Set(['main.js']);
+
+  for (const file of files) {
+    if (!file.endsWith('.js')) {
+      continue;
     }
-  });
+
+    if (!bytecodeTargets.has(file)) {
+      console.log(`Skipping ${file} (kept as plain JS for runtime compatibility).`);
+      const staleJscPath = path.join(mainDir, file.replace(/\.js$/, '.jsc'));
+      if (fs.existsSync(staleJscPath)) {
+        fs.unlinkSync(staleJscPath);
+      }
+      continue;
+    }
+
+    const filePath = path.join(mainDir, file);
+    const outputJsc = filePath.replace(/\.js$/, '.jsc');
+
+    console.log(`Compiling ${file} to bytecode...`);
+    await bytenode.compileFile({
+      filename: filePath,
+      output: outputJsc,
+      compileAsModule: true,
+      electron: true
+    });
+
+    // Replace the JS file content to just require the bytecode
+    // Need a loader format since Vite/Electron runs this.
+    // Ensure 'bytenode' is required.
+    const loaderCode = `require('bytenode');\nrequire('./${file.replace(/\.js$/, '.jsc')}');\n`;
+    fs.writeFileSync(filePath, loaderCode);
+  }
 
   console.log('Bytecode compilation complete.');
-} else {
-  console.log('Main build directory not found. Please run the build script first.');
 }
+
+buildBytecode().catch((error) => {
+  console.error('Bytecode compilation failed:', error);
+  process.exitCode = 1;
+});
