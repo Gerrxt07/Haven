@@ -18,7 +18,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Add to your existing electronAPI context bridge
   storeToken: (token: string) => ipcRenderer.invoke('secure-store-token', token),
-  getToken: () => ipcRenderer.invoke('secure-get-token'),
 
   // External Link Handling Methods
   onExternalLinkWarning: (callback: (url: string) => void) => {

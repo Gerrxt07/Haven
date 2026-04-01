@@ -2,6 +2,7 @@
 // Electron main process
 import { app, BrowserWindow, screen, ipcMain, safeStorage, shell, session, Menu } from 'electron';
 import path from 'node:path';
+import fs from 'node:fs/promises';
 
 // Set up a path to store your encrypted auth data
 const authFilePath = path.join(app.getPath('userData'), 'auth.enc');
@@ -19,24 +20,10 @@ ipcMain.handle('secure-store-token', async (event, token: string) => {
   
   if (safeStorage.isEncryptionAvailable()) {
     const encryptedToken = safeStorage.encryptString(token);
-    await Bun.write(authFilePath, encryptedToken);
+    await fs.writeFile(authFilePath, encryptedToken);
     return true;
   }
   return false; // Handle fallback if encryption isn't available
-});
-
-ipcMain.handle('secure-get-token', async (event) => {
-  if (!isTrustedSender(event.sender)) return null;
-
-  try {
-    if ((await Bun.file(authFilePath).exists()) && safeStorage.isEncryptionAvailable()) {
-      const encryptedToken = Buffer.from(await Bun.file(authFilePath).arrayBuffer());
-      return safeStorage.decryptString(encryptedToken);
-    }
-  } catch (error) {
-    console.error('Failed to decrypt token:', error);
-  }
-  return null;
 });
 
 function getCurrentWindowState() {
@@ -185,6 +172,7 @@ function createWindow() {
       webSecurity: true,
       allowRunningInsecureContent: false,
       navigateOnDragDrop: false,
+      webviewTag: false,
     },
   });
 
@@ -263,6 +251,40 @@ app.whenReady().then(() => {
     }
 
     callback({ responseHeaders });
+  });
+
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://api.becloudly.eu/*'] }, // Only attach to your trusted backend API
+    async (details, callback) => {
+      let token = null;
+      try {
+        const encryptedToken = await fs.readFile(authFilePath);
+        token = safeStorage.decryptString(encryptedToken);
+      } catch { /* ignore */ }
+  
+      if (token) {
+        details.requestHeaders['Authorization'] = `Bearer ${token}`;
+      }
+      
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
+
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    const fileName = item.getFilename();
+    const dangerousExtensions = ['.exe', '.scr', '.vbs', '.bat', '.cmd', '.msi', '.ps1'];
+    const ext = path.extname(fileName).toLowerCase();
+
+    if (dangerousExtensions.includes(ext)) {
+      event.preventDefault(); // Block the download entirely
+      
+      // Optionally notify the renderer to show a warning UI
+      webContents.send('show-external-link-warning', `Blocked download of potentially dangerous file: ${fileName}`);
+      console.warn(`Blocked dangerous download: ${fileName}`);
+    } else {
+      // Optional: Force a "Save As" dialog so files don't silently drop into the Downloads folder
+      item.setSaveDialogOptions({ title: 'Save File' });
+    }
   });
 
   // Handle WebRTC Permissions for Voice/Video calls
