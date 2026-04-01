@@ -1,5 +1,7 @@
-import { createSignal, onMount } from 'solid-js';
+import { createSignal, onMount, lazy, Suspense } from 'solid-js';
 import { Minus, Square, X } from 'lucide-solid';
+
+const HomeView = lazy(() => import('./views/Home'));
 
 export default function App() {
   const [isExpanded, setIsExpanded] = createSignal(false);
@@ -74,7 +76,11 @@ export default function App() {
         </div>
       </div>
 
-      <div class="flex-1"></div>
+      <div class="flex-1 overflow-auto">
+        <Suspense fallback={<div class="flex items-center justify-center h-full">Loading...</div>}>
+          <HomeView />
+        </Suspense>
+      </div>
     </div>
   );
 }

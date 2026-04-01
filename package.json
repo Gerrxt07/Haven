@@ -38,7 +38,7 @@
     "package:mac": "bun run build && bun run protect && electron-builder --mac --publish never",
     "package:linux": "bun run build && bun run protect && electron-builder --linux --publish never",
     "build:bytecode": "node ./scripts/build-bytecode.cjs",
-    "build:integrity": "node ./scripts/build-integrity-manifest.mjs",
+    "build:integrity": "bun ./scripts/build-integrity-manifest.mjs",
     "protect": "bun run build:bytecode && bun run build:integrity"
   },
   "build": {

@@ -142,10 +142,19 @@ function createWindow() {
     notifyWindowStateChanged();
   });
 
-  mainWindow.on('maximize', notifyWindowStateChanged);
-  mainWindow.on('unmaximize', notifyWindowStateChanged);
-  mainWindow.on('enter-full-screen', notifyWindowStateChanged);
-  mainWindow.on('leave-full-screen', notifyWindowStateChanged);
+  let resizeTimeout: NodeJS.Timeout | null = null;
+  function notifyWindowStateChangedThrottled() {
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      notifyWindowStateChanged();
+    }, 100); // 100ms debounce
+  }
+
+  mainWindow.on('maximize', notifyWindowStateChangedThrottled);
+  mainWindow.on('unmaximize', notifyWindowStateChangedThrottled);
+  mainWindow.on('enter-full-screen', notifyWindowStateChangedThrottled);
+  mainWindow.on('leave-full-screen', notifyWindowStateChangedThrottled);
+  mainWindow.on('resize', notifyWindowStateChangedThrottled);
 
   // Prevent links from navigating inside the app
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

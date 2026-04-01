@@ -15,6 +15,5 @@ exact = true
 # Default test environment variables
 coverage = false
 
-[telemetry]
 # Disable bun's telemetry for privacy
-disable = true
+telemetry = false

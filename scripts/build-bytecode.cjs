@@ -41,9 +41,6 @@ async function buildBytecode() {
       electron: true
     });
 
-    // Replace the JS file content to just require the bytecode
-    // Need a loader format since Vite/Electron runs this.
-    // Ensure 'bytenode' is required.
     const loaderCode = `require('bytenode');\nrequire('./${file.replace(/\.js$/, '.jsc')}');\n`;
     fs.writeFileSync(filePath, loaderCode);
   }

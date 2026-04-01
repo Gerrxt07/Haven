@@ -1,5 +1,4 @@
-import crypto from 'node:crypto';
-import fs from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 
@@ -14,17 +13,17 @@ const manifestPath = path.resolve(__dirname, '../dist-electron/integrity.json');
 
 const manifest = {};
 
-function generateHashes(dir) {
-  if (!fs.existsSync(dir)) return;
-  const files = fs.readdirSync(dir, { withFileTypes: true });
+async function generateHashes(dir) {
+  if (!existsSync(dir)) return;
+  const files = readdirSync(dir, { withFileTypes: true });
   for (const file of files) {
     const fullPath = path.join(dir, file.name);
     if (file.isDirectory()) {
-      generateHashes(fullPath);
+      await generateHashes(fullPath);
     } else if (fullPath !== manifestPath) {
       try {
-        const fileBuffer = fs.readFileSync(fullPath);
-        const hashSum = crypto.createHash('sha256');
+        const fileBuffer = await Bun.file(fullPath).arrayBuffer();
+        const hashSum = new Bun.CryptoHasher('sha256');
         hashSum.update(fileBuffer);
         const hex = hashSum.digest('hex');
         
@@ -38,7 +37,12 @@ function generateHashes(dir) {
   }
 }
 
-targetDirs.forEach(dir => generateHashes(dir));
+async function main() {
+  for (const dir of targetDirs) {
+    await generateHashes(dir);
+  }
+  await Bun.write(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log(`Integrity manifest generated with ${Object.keys(manifest).length} entries at ${manifestPath}.`);
+}
 
-fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-console.log(`Integrity manifest generated with ${Object.keys(manifest).length} entries at ${manifestPath}.`);
+main().catch(console.error);
