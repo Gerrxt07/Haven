@@ -20,8 +20,10 @@ Haven is under active development.
 - Bun (runtime + package manager)
 - TypeScript
 - Vite
-- SolidJS
+- SolidJS + Solid-MotionOne + Tailwind CSS
 - Electron
+
+
 
 ## Prerequisites
 
