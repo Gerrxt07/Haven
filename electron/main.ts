@@ -1,9 +1,43 @@
 // Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron main process
-import { app, BrowserWindow, screen, ipcMain, shell, session } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, safeStorage, shell, session, Menu } from 'electron';
 import path from 'node:path';
 
+// Set up a path to store your encrypted auth data
+const authFilePath = path.join(app.getPath('userData'), 'auth.enc');
+
 let mainWindow: BrowserWindow | null = null;
+
+function isTrustedSender(sender: Electron.WebContents): boolean {
+  if (!mainWindow) return false;
+  return sender === mainWindow.webContents;
+}
+
+// Listeners to save and load tokens securely
+ipcMain.handle('secure-store-token', async (event, token: string) => {
+  if (!isTrustedSender(event.sender)) return false;
+  
+  if (safeStorage.isEncryptionAvailable()) {
+    const encryptedToken = safeStorage.encryptString(token);
+    await Bun.write(authFilePath, encryptedToken);
+    return true;
+  }
+  return false; // Handle fallback if encryption isn't available
+});
+
+ipcMain.handle('secure-get-token', async (event) => {
+  if (!isTrustedSender(event.sender)) return null;
+
+  try {
+    if ((await Bun.file(authFilePath).exists()) && safeStorage.isEncryptionAvailable()) {
+      const encryptedToken = Buffer.from(await Bun.file(authFilePath).arrayBuffer());
+      return safeStorage.decryptString(encryptedToken);
+    }
+  } catch (error) {
+    console.error('Failed to decrypt token:', error);
+  }
+  return null;
+});
 
 function getCurrentWindowState() {
   return {
@@ -99,6 +133,24 @@ function getContentSecurityPolicy(): string {
   ].join('; ');
 }
 
+// Strip dangerous command line arguments commonly used by stealers
+const dangerousArgs = [
+  '--remote-debugging-port',
+  '--remote-debugging-pipe',
+  '--inspect',
+  '--inspect-brk',
+  '--enable-blink-features',
+  '--js-flags'
+];
+
+for (const arg of process.argv) {
+  if (dangerousArgs.some(danger => arg.startsWith(danger))) {
+    console.error('Dangerous command line argument detected. Exiting.');
+    app.quit();
+    process.exit(1);
+  }
+}
+
 function createWindow() {
   const primaryDisplay = screen.getPrimaryDisplay();
   const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
@@ -118,7 +170,7 @@ function createWindow() {
     minHeight: 720,
     title: 'Haven',
     show: false,
-    frame: false, // Disables the default OS frame
+    frame: false,
     backgroundColor: '#272727',
     icon: iconPath,
     webPreferences: {
@@ -128,6 +180,11 @@ function createWindow() {
       sandbox: true,
       enableWebSQL: false,
       disableBlinkFeatures: 'Auxclick',
+      v8CacheOptions: 'bypassHeatCheck',
+      spellcheck: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      navigateOnDragDrop: false,
     },
   });
 
@@ -144,10 +201,14 @@ function createWindow() {
 
   let resizeTimeout: NodeJS.Timeout | null = null;
   function notifyWindowStateChangedThrottled() {
-    if (resizeTimeout) clearTimeout(resizeTimeout);
+    if (resizeTimeout) {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = null; // Explicitly nullify for GC
+    }
     resizeTimeout = setTimeout(() => {
       notifyWindowStateChanged();
-    }, 100); // 100ms debounce
+      resizeTimeout = null;
+    }, 100); 
   }
 
   mainWindow.on('maximize', notifyWindowStateChangedThrottled);
@@ -177,8 +238,22 @@ function createWindow() {
   });
 }
 
+Menu.setApplicationMenu(null);
+
+// Prevent WebRTC from leaking local IP addresses
+app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'default_public_interface_only');
+
 app.whenReady().then(() => {
   const contentSecurityPolicy = getContentSecurityPolicy();
+
+  app.on('browser-window-created', (_, window) => {
+    // Prevent DevTools from opening in Production
+    if (!process.env.VITE_DEV_SERVER_URL) {
+      window.webContents.on('devtools-opened', () => {
+        window.webContents.closeDevTools();
+      });
+    }
+  });
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const responseHeaders = details.responseHeaders ?? {};
@@ -217,11 +292,6 @@ app.whenReady().then(() => {
   });
 
   createWindow();
-
-  function isTrustedSender(sender: Electron.WebContents): boolean {
-    if (!mainWindow) return false;
-    return sender === mainWindow.webContents;
-  }
 
   ipcMain.handle('get-window-state', (event) => {
     if (!isTrustedSender(event.sender)) return null;

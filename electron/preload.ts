@@ -7,7 +7,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
   // Example IPC method
   // send: (channel: string, data: any) => ipcRenderer.send(channel, data)
-  platform: process.platform,
+  // platform: process.platform,
   minimize: () => ipcRenderer.send('window-minimize'),
   maximize: () => ipcRenderer.send('window-maximize'),
   close: () => ipcRenderer.send('window-close'),
@@ -16,6 +16,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window-state-changed', (_event, state) => callback(state));
   },
   
+  // Add to your existing electronAPI context bridge
+  storeToken: (token: string) => ipcRenderer.invoke('secure-store-token', token),
+  getToken: () => ipcRenderer.invoke('secure-get-token'),
+
   // External Link Handling Methods
   onExternalLinkWarning: (callback: (url: string) => void) => {
     ipcRenderer.on('show-external-link-warning', (_event, url) => callback(url));
