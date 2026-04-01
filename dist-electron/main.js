@@ -88,7 +88,7 @@ function getContentSecurityPolicy() {
 	return [
 		...commonDirectives,
 		"script-src 'self'",
-		"style-src 'self' 'unsafe-inline'",
+		"style-src 'self'",
 		"connect-src 'self' stun: turn:"
 	].join("; ");
 }
@@ -107,7 +107,10 @@ function createWindow() {
 		webPreferences: {
 			preload: node_path.default.join(__dirname, "preload.js"),
 			nodeIntegration: false,
-			contextIsolation: true
+			contextIsolation: true,
+			sandbox: true,
+			enableWebSQL: false,
+			disableBlinkFeatures: "Auxclick"
 		}
 	});
 	if (process.env.VITE_DEV_SERVER_URL) mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
@@ -158,21 +161,30 @@ electron.app.whenReady().then(() => {
 		else callback(false);
 	});
 	createWindow();
-	electron.ipcMain.handle("get-window-state", () => {
+	function isTrustedSender(sender) {
+		if (!mainWindow) return false;
+		return sender === mainWindow.webContents;
+	}
+	electron.ipcMain.handle("get-window-state", (event) => {
+		if (!isTrustedSender(event.sender)) return null;
 		return getCurrentWindowState();
 	});
-	electron.ipcMain.on("confirm-open-url", (_event, url) => {
+	electron.ipcMain.on("confirm-open-url", (event, url) => {
+		if (!isTrustedSender(event.sender)) return;
 		if (typeof url !== "string") return;
 		if (isSafeExternalHttpUrl(url)) electron.shell.openExternal(url);
 	});
-	electron.ipcMain.on("window-minimize", () => {
+	electron.ipcMain.on("window-minimize", (event) => {
+		if (!isTrustedSender(event.sender)) return;
 		mainWindow?.minimize();
 	});
-	electron.ipcMain.on("window-maximize", () => {
+	electron.ipcMain.on("window-maximize", (event) => {
+		if (!isTrustedSender(event.sender)) return;
 		if (mainWindow?.isMaximized()) mainWindow.unmaximize();
 		else mainWindow?.maximize();
 	});
-	electron.ipcMain.on("window-close", () => {
+	electron.ipcMain.on("window-close", (event) => {
+		if (!isTrustedSender(event.sender)) return;
 		mainWindow?.close();
 	});
 	electron.app.on("activate", () => {

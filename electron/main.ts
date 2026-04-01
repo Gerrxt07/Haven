@@ -94,7 +94,7 @@ function getContentSecurityPolicy(): string {
   return [
     ...commonDirectives,
     "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self'",
     "connect-src 'self' stun: turn:",
   ].join('; ');
 }
@@ -125,6 +125,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
+      enableWebSQL: false,
+      disableBlinkFeatures: 'Auxclick',
     },
   });
 
@@ -206,12 +209,19 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  ipcMain.handle('get-window-state', () => {
+  function isTrustedSender(sender: Electron.WebContents): boolean {
+    if (!mainWindow) return false;
+    return sender === mainWindow.webContents;
+  }
+
+  ipcMain.handle('get-window-state', (event) => {
+    if (!isTrustedSender(event.sender)) return null;
     return getCurrentWindowState();
   });
 
   // Listen for user confirming to open an external link from the UI warning
-  ipcMain.on('confirm-open-url', (_event, url) => {
+  ipcMain.on('confirm-open-url', (event, url) => {
+    if (!isTrustedSender(event.sender)) return;
     if (typeof url !== 'string') {
       return;
     }
@@ -222,11 +232,13 @@ app.whenReady().then(() => {
   });
 
   // IPC listeners for the custom title bar
-  ipcMain.on('window-minimize', () => {
+  ipcMain.on('window-minimize', (event) => {
+    if (!isTrustedSender(event.sender)) return;
     mainWindow?.minimize();
   });
 
-  ipcMain.on('window-maximize', () => {
+  ipcMain.on('window-maximize', (event) => {
+    if (!isTrustedSender(event.sender)) return;
     if (mainWindow?.isMaximized()) {
       mainWindow.unmaximize();
     } else {
@@ -234,7 +246,8 @@ app.whenReady().then(() => {
     }
   });
 
-  ipcMain.on('window-close', () => {
+  ipcMain.on('window-close', (event) => {
+    if (!isTrustedSender(event.sender)) return;
     mainWindow?.close();
   });
 
