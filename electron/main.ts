@@ -1,364 +1,399 @@
 // Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron main process
-import { app, BrowserWindow, screen, ipcMain, safeStorage, shell, session, Menu } from 'electron';
-import path from 'node:path';
-import fs from 'node:fs/promises';
+
+import fs from "node:fs/promises";
+import path from "node:path";
+import {
+	app,
+	BrowserWindow,
+	ipcMain,
+	Menu,
+	safeStorage,
+	screen,
+	session,
+	shell,
+} from "electron";
 
 // Set up a path to store your encrypted auth data
-const authFilePath = path.join(app.getPath('userData'), 'auth.enc');
+const authFilePath = path.join(app.getPath("userData"), "auth.enc");
 
 let mainWindow: BrowserWindow | null = null;
 
 function isTrustedSender(sender: Electron.WebContents): boolean {
-  if (!mainWindow) return false;
-  return sender === mainWindow.webContents;
+	if (!mainWindow) return false;
+	return sender === mainWindow.webContents;
 }
 
 // Listeners to save and load tokens securely
-ipcMain.handle('secure-store-token', async (event, token: string) => {
-  if (!isTrustedSender(event.sender)) return false;
-  
-  if (safeStorage.isEncryptionAvailable()) {
-    const encryptedToken = safeStorage.encryptString(token);
-    await fs.writeFile(authFilePath, encryptedToken);
-    return true;
-  }
-  return false; // Handle fallback if encryption isn't available
+ipcMain.handle("secure-store-token", async (event, token: string) => {
+	if (!isTrustedSender(event.sender)) return false;
+
+	if (safeStorage.isEncryptionAvailable()) {
+		const encryptedToken = safeStorage.encryptString(token);
+		await fs.writeFile(authFilePath, encryptedToken);
+		return true;
+	}
+	return false; // Handle fallback if encryption isn't available
 });
 
 function getCurrentWindowState() {
-  return {
-    isMaximized: mainWindow?.isMaximized() ?? false,
-    isFullScreen: mainWindow?.isFullScreen() ?? false,
-  };
+	return {
+		isMaximized: mainWindow?.isMaximized() ?? false,
+		isFullScreen: mainWindow?.isFullScreen() ?? false,
+	};
 }
 
 function notifyWindowStateChanged() {
-  if (!mainWindow) {
-    return;
-  }
+	if (!mainWindow) {
+		return;
+	}
 
-  mainWindow.webContents.send('window-state-changed', getCurrentWindowState());
+	mainWindow.webContents.send("window-state-changed", getCurrentWindowState());
 }
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const trustedDevOrigin = (() => {
-  if (!devServerUrl) {
-    return null;
-  }
+	if (!devServerUrl) {
+		return null;
+	}
 
-  try {
-    const parsedUrl = new URL(devServerUrl);
-    const isLocalHost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
-    return isLocalHost ? parsedUrl.origin : null;
-  } catch {
-    return null;
-  }
+	try {
+		const parsedUrl = new URL(devServerUrl);
+		const isLocalHost =
+			parsedUrl.hostname === "localhost" || parsedUrl.hostname === "127.0.0.1";
+		return isLocalHost ? parsedUrl.origin : null;
+	} catch {
+		return null;
+	}
 })();
 
 function isTrustedAppUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    if (parsedUrl.protocol === 'file:') {
-      return true;
-    }
+	try {
+		const parsedUrl = new URL(url);
+		if (parsedUrl.protocol === "file:") {
+			return true;
+		}
 
-    return trustedDevOrigin !== null && parsedUrl.origin === trustedDevOrigin;
-  } catch {
-    return url.startsWith('file://');
-  }
+		return trustedDevOrigin !== null && parsedUrl.origin === trustedDevOrigin;
+	} catch {
+		return url.startsWith("file://");
+	}
 }
 
 function isTrustedOrigin(origin: string): boolean {
-  if (origin === 'file://') {
-    return true;
-  }
+	if (origin === "file://") {
+		return true;
+	}
 
-  if (!trustedDevOrigin) {
-    return false;
-  }
+	if (!trustedDevOrigin) {
+		return false;
+	}
 
-  return origin === trustedDevOrigin;
+	return origin === trustedDevOrigin;
 }
 
 function isSafeExternalHttpUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-  } catch {
-    return false;
-  }
+	try {
+		const parsedUrl = new URL(url);
+		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+	} catch {
+		return false;
+	}
 }
 
 function getContentSecurityPolicy(): string {
-  const commonDirectives = [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "form-action 'self'",
-    "object-src 'none'",
-    "img-src 'self' data: https:",
-    "font-src 'self' data:",
-    "media-src 'self' blob:",
-    "worker-src 'self' blob:",
-  ];
+	const commonDirectives = [
+		"default-src 'self'",
+		"base-uri 'self'",
+		"frame-ancestors 'none'",
+		"form-action 'self'",
+		"object-src 'none'",
+		"img-src 'self' data: https:",
+		"font-src 'self' data:",
+		"media-src 'self' blob:",
+		"worker-src 'self' blob:",
+	];
 
-  if (trustedDevOrigin) {
-    return [
-      ...commonDirectives,
-      "script-src 'self' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
-      `connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* stun: turn:`,
-    ].join('; ');
-  }
+	if (trustedDevOrigin) {
+		return [
+			...commonDirectives,
+			"script-src 'self' 'unsafe-eval'",
+			"style-src 'self' 'unsafe-inline'",
+			`connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* stun: turn:`,
+		].join("; ");
+	}
 
-  return [
-    ...commonDirectives,
-    "script-src 'self'",
-    "style-src 'self'",
-    "connect-src 'self' stun: turn:",
-  ].join('; ');
+	return [
+		...commonDirectives,
+		"script-src 'self'",
+		"style-src 'self'",
+		"connect-src 'self' stun: turn:",
+	].join("; ");
 }
 
 // Strip dangerous command line arguments commonly used by stealers
 const dangerousArgs = [
-  '--remote-debugging-port',
-  '--remote-debugging-pipe',
-  '--inspect',
-  '--inspect-brk',
-  '--enable-blink-features',
-  '--js-flags'
+	"--remote-debugging-port",
+	"--remote-debugging-pipe",
+	"--inspect",
+	"--inspect-brk",
+	"--enable-blink-features",
+	"--js-flags",
 ];
 
 for (const arg of process.argv) {
-  if (dangerousArgs.some(danger => arg.startsWith(danger))) {
-    console.error('Dangerous command line argument detected. Exiting.');
-    app.quit();
-    process.exit(1);
-  }
+	if (dangerousArgs.some((danger) => arg.startsWith(danger))) {
+		console.error("Dangerous command line argument detected. Exiting.");
+		app.quit();
+		process.exit(1);
+	}
 }
 
 function createWindow() {
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+	const primaryDisplay = screen.getPrimaryDisplay();
+	const { width: screenWidth, height: screenHeight } =
+		primaryDisplay.workAreaSize;
 
-  const width = Math.max(1280, Math.floor(screenWidth * 0.8));
-  const height = Math.max(720, Math.floor(screenHeight * 0.8));
+	const width = Math.max(1280, Math.floor(screenWidth * 0.8));
+	const height = Math.max(720, Math.floor(screenHeight * 0.8));
 
-  const isDev = !!process.env.VITE_DEV_SERVER_URL;
-  const iconPath = isDev 
-    ? path.join(__dirname, '../public/logo.png') 
-    : path.join(__dirname, '../dist/logo.png');
+	const isDev = !!process.env.VITE_DEV_SERVER_URL;
+	const iconPath = isDev
+		? path.join(__dirname, "../public/logo.png")
+		: path.join(__dirname, "../dist/logo.png");
 
-  mainWindow = new BrowserWindow({
-    width,
-    height,
-    minWidth: 1280,
-    minHeight: 720,
-    title: 'Haven',
-    show: false,
-    frame: false,
-    backgroundColor: '#272727',
-    icon: iconPath,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      enableWebSQL: false,
-      disableBlinkFeatures: 'Auxclick',
-      v8CacheOptions: 'bypassHeatCheck',
-      spellcheck: false,
-      webSecurity: true,
-      allowRunningInsecureContent: false,
-      navigateOnDragDrop: false,
-      webviewTag: false,
-    },
-  });
+	mainWindow = new BrowserWindow({
+		width,
+		height,
+		minWidth: 1280,
+		minHeight: 720,
+		title: "Haven",
+		show: false,
+		frame: false,
+		backgroundColor: "#272727",
+		icon: iconPath,
+		webPreferences: {
+			preload: path.join(__dirname, "preload.js"),
+			nodeIntegration: false,
+			contextIsolation: true,
+			sandbox: true,
+			enableWebSQL: false,
+			disableBlinkFeatures: "Auxclick",
+			v8CacheOptions: "bypassHeatCheck",
+			spellcheck: false,
+			webSecurity: true,
+			allowRunningInsecureContent: false,
+			navigateOnDragDrop: false,
+			webviewTag: false,
+		},
+	});
 
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
+	if (process.env.VITE_DEV_SERVER_URL) {
+		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
+	} else {
+		mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
+	}
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-    notifyWindowStateChanged();
-  });
+	mainWindow.once("ready-to-show", () => {
+		mainWindow?.show();
+		notifyWindowStateChanged();
+	});
 
-  let resizeTimeout: NodeJS.Timeout | null = null;
-  function notifyWindowStateChangedThrottled() {
-    if (resizeTimeout) {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = null; // Explicitly nullify for GC
-    }
-    resizeTimeout = setTimeout(() => {
-      notifyWindowStateChanged();
-      resizeTimeout = null;
-    }, 100); 
-  }
+	let resizeTimeout: NodeJS.Timeout | null = null;
+	function notifyWindowStateChangedThrottled() {
+		if (resizeTimeout) {
+			clearTimeout(resizeTimeout);
+			resizeTimeout = null; // Explicitly nullify for GC
+		}
+		resizeTimeout = setTimeout(() => {
+			notifyWindowStateChanged();
+			resizeTimeout = null;
+		}, 100);
+	}
 
-  mainWindow.on('maximize', notifyWindowStateChangedThrottled);
-  mainWindow.on('unmaximize', notifyWindowStateChangedThrottled);
-  mainWindow.on('enter-full-screen', notifyWindowStateChangedThrottled);
-  mainWindow.on('leave-full-screen', notifyWindowStateChangedThrottled);
-  mainWindow.on('resize', notifyWindowStateChangedThrottled);
+	mainWindow.on("maximize", notifyWindowStateChangedThrottled);
+	mainWindow.on("unmaximize", notifyWindowStateChangedThrottled);
+	mainWindow.on("enter-full-screen", notifyWindowStateChangedThrottled);
+	mainWindow.on("leave-full-screen", notifyWindowStateChangedThrottled);
+	mainWindow.on("resize", notifyWindowStateChangedThrottled);
 
-  // Prevent links from navigating inside the app
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (isSafeExternalHttpUrl(url)) {
-      // Trigger a warning in the frontend UI instead of opening immediately
-      mainWindow?.webContents.send('show-external-link-warning', url);
-    }
-    return { action: 'deny' };
-  });
+	// Prevent links from navigating inside the app
+	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+		if (isSafeExternalHttpUrl(url)) {
+			// Trigger a warning in the frontend UI instead of opening immediately
+			mainWindow?.webContents.send("show-external-link-warning", url);
+		}
+		return { action: "deny" };
+	});
 
-  // Prevent drag-and-drop navigation (e.g., dropping an HTML file into the chat)
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!isTrustedAppUrl(url)) {
-      event.preventDefault();
-      // Trigger a warning in the frontend UI instead of opening immediately
-      if (isSafeExternalHttpUrl(url)) {
-        mainWindow?.webContents.send('show-external-link-warning', url);
-      }
-    }
-  });
+	// Prevent drag-and-drop navigation (e.g., dropping an HTML file into the chat)
+	mainWindow.webContents.on("will-navigate", (event, url) => {
+		if (!isTrustedAppUrl(url)) {
+			event.preventDefault();
+			// Trigger a warning in the frontend UI instead of opening immediately
+			if (isSafeExternalHttpUrl(url)) {
+				mainWindow?.webContents.send("show-external-link-warning", url);
+			}
+		}
+	});
 }
 
 Menu.setApplicationMenu(null);
 
 // Prevent WebRTC from leaking local IP addresses
-app.commandLine.appendSwitch('force-webrtc-ip-handling-policy', 'default_public_interface_only');
+app.commandLine.appendSwitch(
+	"force-webrtc-ip-handling-policy",
+	"default_public_interface_only",
+);
 
 app.whenReady().then(() => {
-  const contentSecurityPolicy = getContentSecurityPolicy();
+	const contentSecurityPolicy = getContentSecurityPolicy();
 
-  app.on('browser-window-created', (_, window) => {
-    // Prevent DevTools from opening in Production
-    if (!process.env.VITE_DEV_SERVER_URL) {
-      window.webContents.on('devtools-opened', () => {
-        window.webContents.closeDevTools();
-      });
-    }
-  });
+	app.on("browser-window-created", (_, window) => {
+		// Prevent DevTools from opening in Production
+		if (!process.env.VITE_DEV_SERVER_URL) {
+			window.webContents.on("devtools-opened", () => {
+				window.webContents.closeDevTools();
+			});
+		}
+	});
 
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const responseHeaders = details.responseHeaders ?? {};
+	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+		const responseHeaders = details.responseHeaders ?? {};
 
-    if (details.resourceType === 'mainFrame' || isTrustedAppUrl(details.url)) {
-      responseHeaders['Content-Security-Policy'] = [contentSecurityPolicy];
-    }
+		if (details.resourceType === "mainFrame" || isTrustedAppUrl(details.url)) {
+			responseHeaders["Content-Security-Policy"] = [contentSecurityPolicy];
+		}
 
-    callback({ responseHeaders });
-  });
+		callback({ responseHeaders });
+	});
 
-  session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['https://api.becloudly.eu/*'] }, // Only attach to your trusted backend API
-    async (details, callback) => {
-      let token = null;
-      try {
-        const encryptedToken = await fs.readFile(authFilePath);
-        token = safeStorage.decryptString(encryptedToken);
-      } catch { /* ignore */ }
-  
-      if (token) {
-        details.requestHeaders['Authorization'] = `Bearer ${token}`;
-      }
-      
-      callback({ requestHeaders: details.requestHeaders });
-    }
-  );
+	session.defaultSession.webRequest.onBeforeSendHeaders(
+		{ urls: ["https://api.becloudly.eu/*"] }, // Only attach to your trusted backend API
+		async (details, callback) => {
+			let token = null;
+			try {
+				const encryptedToken = await fs.readFile(authFilePath);
+				token = safeStorage.decryptString(encryptedToken);
+			} catch {
+				/* ignore */
+			}
 
-  session.defaultSession.on('will-download', (event, item, webContents) => {
-    const fileName = item.getFilename();
-    const dangerousExtensions = ['.exe', '.scr', '.vbs', '.bat', '.cmd', '.msi', '.ps1'];
-    const ext = path.extname(fileName).toLowerCase();
+			if (token) {
+				details.requestHeaders.Authorization = `Bearer ${token}`;
+			}
 
-    if (dangerousExtensions.includes(ext)) {
-      event.preventDefault(); // Block the download entirely
-      
-      // Optionally notify the renderer to show a warning UI
-      webContents.send('show-external-link-warning', `Blocked download of potentially dangerous file: ${fileName}`);
-      console.warn(`Blocked dangerous download: ${fileName}`);
-    } else {
-      // Optional: Force a "Save As" dialog so files don't silently drop into the Downloads folder
-      item.setSaveDialogOptions({ title: 'Save File' });
-    }
-  });
+			callback({ requestHeaders: details.requestHeaders });
+		},
+	);
 
-  // Handle WebRTC Permissions for Voice/Video calls
-  session.defaultSession.setPermissionCheckHandler((_webContents, permission, requestingOrigin) => {
-    const allowedPermissions = ['media', 'audioCapture', 'videoCapture'];
+	session.defaultSession.on("will-download", (event, item, webContents) => {
+		const fileName = item.getFilename();
+		const dangerousExtensions = [
+			".exe",
+			".scr",
+			".vbs",
+			".bat",
+			".cmd",
+			".msi",
+			".ps1",
+		];
+		const ext = path.extname(fileName).toLowerCase();
 
-    if (!allowedPermissions.includes(permission)) {
-      return false;
-    }
+		if (dangerousExtensions.includes(ext)) {
+			event.preventDefault(); // Block the download entirely
 
-    if (!requestingOrigin) {
-      return false;
-    }
+			// Optionally notify the renderer to show a warning UI
+			webContents.send(
+				"show-external-link-warning",
+				`Blocked download of potentially dangerous file: ${fileName}`,
+			);
+			console.warn(`Blocked dangerous download: ${fileName}`);
+		} else {
+			// Optional: Force a "Save As" dialog so files don't silently drop into the Downloads folder
+			item.setSaveDialogOptions({ title: "Save File" });
+		}
+	});
 
-    return isTrustedOrigin(requestingOrigin);
-  });
+	// Handle WebRTC Permissions for Voice/Video calls
+	session.defaultSession.setPermissionCheckHandler(
+		(_webContents, permission, requestingOrigin) => {
+			const allowedPermissions = ["media", "audioCapture", "videoCapture"];
 
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['media', 'audioCapture', 'videoCapture'];
-    const requestUrl = webContents.getURL();
-    
-    if (allowedPermissions.includes(permission) && isTrustedAppUrl(requestUrl)) {
-      callback(true);
-    } else {
-      callback(false);
-    }
-  });
+			if (!allowedPermissions.includes(permission)) {
+				return false;
+			}
 
-  createWindow();
+			if (!requestingOrigin) {
+				return false;
+			}
 
-  ipcMain.handle('get-window-state', (event) => {
-    if (!isTrustedSender(event.sender)) return null;
-    return getCurrentWindowState();
-  });
+			return isTrustedOrigin(requestingOrigin);
+		},
+	);
 
-  // Listen for user confirming to open an external link from the UI warning
-  ipcMain.on('confirm-open-url', (event, url) => {
-    if (!isTrustedSender(event.sender)) return;
-    if (typeof url !== 'string') {
-      return;
-    }
+	session.defaultSession.setPermissionRequestHandler(
+		(webContents, permission, callback) => {
+			const allowedPermissions = ["media", "audioCapture", "videoCapture"];
+			const requestUrl = webContents.getURL();
 
-    if (isSafeExternalHttpUrl(url)) {
-      shell.openExternal(url);
-    }
-  });
+			if (
+				allowedPermissions.includes(permission) &&
+				isTrustedAppUrl(requestUrl)
+			) {
+				callback(true);
+			} else {
+				callback(false);
+			}
+		},
+	);
 
-  // IPC listeners for the custom title bar
-  ipcMain.on('window-minimize', (event) => {
-    if (!isTrustedSender(event.sender)) return;
-    mainWindow?.minimize();
-  });
+	createWindow();
 
-  ipcMain.on('window-maximize', (event) => {
-    if (!isTrustedSender(event.sender)) return;
-    if (mainWindow?.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow?.maximize();
-    }
-  });
+	ipcMain.handle("get-window-state", (event) => {
+		if (!isTrustedSender(event.sender)) return null;
+		return getCurrentWindowState();
+	});
 
-  ipcMain.on('window-close', (event) => {
-    if (!isTrustedSender(event.sender)) return;
-    mainWindow?.close();
-  });
+	// Listen for user confirming to open an external link from the UI warning
+	ipcMain.on("confirm-open-url", (event, url) => {
+		if (!isTrustedSender(event.sender)) return;
+		if (typeof url !== "string") {
+			return;
+		}
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+		if (isSafeExternalHttpUrl(url)) {
+			shell.openExternal(url);
+		}
+	});
+
+	// IPC listeners for the custom title bar
+	ipcMain.on("window-minimize", (event) => {
+		if (!isTrustedSender(event.sender)) return;
+		mainWindow?.minimize();
+	});
+
+	ipcMain.on("window-maximize", (event) => {
+		if (!isTrustedSender(event.sender)) return;
+		if (mainWindow?.isMaximized()) {
+			mainWindow.unmaximize();
+		} else {
+			mainWindow?.maximize();
+		}
+	});
+
+	ipcMain.on("window-close", (event) => {
+		if (!isTrustedSender(event.sender)) return;
+		mainWindow?.close();
+	});
+
+	app.on("activate", () => {
+		if (BrowserWindow.getAllWindows().length === 0) createWindow();
+	});
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+app.on("window-all-closed", () => {
+	if (process.platform !== "darwin") {
+		app.quit();
+	}
 });
