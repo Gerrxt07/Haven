@@ -19,7 +19,7 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
-            minify: false,
+            minify: true,
             rollupOptions: {
               output: {
                 format: 'cjs',
@@ -41,7 +41,7 @@ export default defineConfig({
         vite: {
           build: {
             outDir: 'dist-electron',
-            minify: false,
+            minify: true,
             rollupOptions: {
               output: {
                 format: 'cjs',
