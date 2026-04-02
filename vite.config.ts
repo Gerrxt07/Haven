@@ -5,6 +5,9 @@ import renderer from "vite-plugin-electron-renderer";
 import solidPlugin from "vite-plugin-solid";
 
 export default defineConfig({
+	experimental: {
+		rolldown: true,
+	},
 	resolve: {
 		alias: {
 			"@": resolve(__dirname, "./src"),
