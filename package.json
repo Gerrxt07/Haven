@@ -93,6 +93,7 @@
 			]
 		},
 		"nsis": {
+			"artifactName": "Haven-Setup-${version}.${ext}",
 			"differentialPackage": true
 		},
 		"linux": {
@@ -105,12 +106,14 @@
 		"asar": true
 	},
 	"dependencies": {
+		"@chenglou/pretext": "0.0.4",
 		"@kobalte/core": "0.13.11",
 		"@tanstack/solid-query": "5.96.1",
 		"@tanstack/solid-virtual": "3.13.23",
 		"bytenode": "1.5.7",
 		"electron-log": "5.4.3",
 		"electron-updater": "6.8.3",
+		"email-validator": "2.0.4",
 		"libsodium-wrappers-sumo": "0.8.2",
 		"lucide-solid": "1.7.0",
 		"solid-js": "1.9.12",

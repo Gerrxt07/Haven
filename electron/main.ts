@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron main process
 
+import dns from "node:dns/promises";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -585,6 +586,17 @@ app.whenReady().then(() => {
 			return setUpdateChannelCandidate(candidate);
 		},
 	);
+
+	// Validate email domain mx lookup
+	ipcMain.handle("validate-email-domain", async (event, domain: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+		try {
+			const records = await dns.resolveMx(domain);
+			return records && records.length > 0;
+		} catch {
+			return false;
+		}
+	});
 
 	// Listen for user confirming to open an external link from the UI warning
 	ipcMain.on("confirm-open-url", (event, url) => {

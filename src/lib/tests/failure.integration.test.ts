@@ -27,6 +27,7 @@ function createMockElectronApi(
 		close: () => {},
 		getUpdateCandidate: async () => null,
 		setUpdateCandidate: async () => true,
+		validateEmailDomain: async () => true,
 		getWindowState: async () => ({ isMaximized: false, isFullScreen: false }),
 		onWindowStateChanged: () => {},
 		onExternalLinkWarning: () => {},

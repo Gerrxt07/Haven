@@ -1,15 +1,28 @@
 import { MessageCircleQuestion, Minus, Square, X } from "lucide-solid";
-import { createSignal, lazy, onMount, Show, Suspense } from "solid-js";
+import {
+	createSignal,
+	lazy,
+	onCleanup,
+	onMount,
+	Show,
+	Suspense,
+} from "solid-js";
 import { Motion, Presence } from "solid-motionone";
 import { t, tf } from "./i18n";
+import { authSession } from "./lib/auth/session";
 
 const HomeView = lazy(() => import("./views/Home"));
+const AuthView = lazy(() => import("./views/Auth"));
 
 export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
 	const [helpTooltipOpen, setHelpTooltipOpen] = createSignal(false);
+	const [authState, setAuthState] = createSignal(authSession.snapshot());
 
 	onMount(() => {
+		const unsub = authSession.onChange(setAuthState);
+		onCleanup(() => unsub());
+
 		// Hook up the titlebar buttons to their respective IPC events
 		document.getElementById("min-btn")?.addEventListener("click", () => {
 			globalThis.electronAPI.minimize();
@@ -159,7 +172,7 @@ export default function App() {
 				</div>
 			</div>
 
-			<div class="flex-1 overflow-auto">
+			<div class="flex-1 overflow-auto relative">
 				<Suspense
 					fallback={
 						<div class="flex items-center justify-center h-full">
@@ -167,7 +180,18 @@ export default function App() {
 						</div>
 					}
 				>
-					<HomeView />
+					<Show
+						when={authState().isReady}
+						fallback={
+							<div class="flex items-center justify-center h-full">
+								{t("app", "loading")}
+							</div>
+						}
+					>
+						<Show when={authState().currentUser} fallback={<AuthView />}>
+							<HomeView />
+						</Show>
+					</Show>
 				</Suspense>
 			</div>
 		</div>

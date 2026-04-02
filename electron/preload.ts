@@ -60,6 +60,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		>,
 	setUpdateCandidate: (candidate: "release" | "nightly") =>
 		ipcRenderer.invoke("updater-set-candidate", candidate) as Promise<boolean>,
+
+	validateEmailDomain: (domain: string) =>
+		ipcRenderer.invoke("validate-email-domain", domain) as Promise<boolean>,
 });
 
 globalThis.addEventListener("DOMContentLoaded", () => {

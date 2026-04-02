@@ -68,6 +68,7 @@ Da als Basis **SolidJS** statt React genutzt werden soll (was für die Performan
   - Einbau von `solid-motionone` für weiche Kachel-Übergänge (Page Transitions) und Hover-Effekte.
 - [ ] **Listen-Virtualisierung (Performance für große Chats)**
   - Implementierung von `@tanstack/solid-virtual` für Chat-Historien und User-Listen (DOM entlasten).
+  - Nutze **`@chenglou/pretext`** (bereits via Bun installiert) für performante, exakte Vorausberechnungen der Chat-Nachrichtenhöhen. Das garantiert ruckelfreies Scrollen ohne teure DOM-Reflows!
 
 ### 📌 Priorität 5: Polish & Edge-Cases
 - [ ] Offline-First Funktionalität via lokalem Caching im Electron-Main Process (ggf. Bun.sqlite als lokalen Store + XChaCha20 Verschlüsselung der lokalen SQLite DB).

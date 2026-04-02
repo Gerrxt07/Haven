@@ -18,6 +18,7 @@ type SessionState = {
 	accessToken: string | null;
 	refreshToken: string | null;
 	currentUser: AuthUserResponse | null;
+	isReady: boolean;
 };
 
 type SessionListener = (state: SessionState) => void;
@@ -27,6 +28,7 @@ class AuthSessionManager {
 		accessToken: null,
 		refreshToken: null,
 		currentUser: null,
+		isReady: false,
 	};
 
 	private refreshInFlight: Promise<boolean> | null = null;
@@ -70,6 +72,8 @@ class AuthSessionManager {
 
 	async bootstrapFromStorage(): Promise<void> {
 		if (!globalThis.electronAPI) {
+			this.state.isReady = true;
+			this.notify();
 			return;
 		}
 
@@ -90,6 +94,8 @@ class AuthSessionManager {
 		if (!this.state.accessToken && this.state.refreshToken) {
 			const refreshed = await this.refreshAccessToken();
 			if (!refreshed) {
+				this.state.isReady = true;
+				this.notify();
 				return;
 			}
 		}
@@ -97,15 +103,16 @@ class AuthSessionManager {
 		if (this.state.accessToken) {
 			try {
 				this.state.currentUser = await apiMe();
-				this.notify();
 			} catch {
 				const refreshed = await this.refreshAccessToken();
 				if (refreshed) {
 					this.state.currentUser = await apiMe();
-					this.notify();
 				}
 			}
 		}
+
+		this.state.isReady = true;
+		this.notify();
 	}
 
 	async register(payload: RegisterRequest): Promise<AuthUserResponse> {
@@ -125,6 +132,7 @@ class AuthSessionManager {
 			accessToken: null,
 			refreshToken: null,
 			currentUser: null,
+			isReady: true,
 		};
 		this.notify();
 

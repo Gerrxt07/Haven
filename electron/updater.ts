@@ -217,7 +217,7 @@ export async function getUpdateChannelCandidate(): Promise<UpdateChannelCandidat
 		// Fallback below
 	}
 
-	return "release";
+	return "nightly";
 }
 
 export async function setUpdateChannelCandidate(
@@ -294,8 +294,10 @@ export async function runStartupUpdateFlow({
 
 	autoUpdater.autoDownload = true;
 	autoUpdater.autoInstallOnAppQuit = true;
+	autoUpdater.channel = candidate;
 	autoUpdater.allowPrerelease = candidate === "nightly";
 	autoUpdater.allowDowngrade = candidate === "nightly";
+	autoUpdater.disableWebInstaller = true;
 
 	let launched = false;
 	let checkTimeout: NodeJS.Timeout | null = null;

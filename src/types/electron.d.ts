@@ -5,6 +5,7 @@ export interface IElectronAPI {
 	close: () => void;
 	getUpdateCandidate: () => Promise<"release" | "nightly" | null>;
 	setUpdateCandidate: (candidate: "release" | "nightly") => Promise<boolean>;
+	validateEmailDomain: (domain: string) => Promise<boolean>;
 	getWindowState: () => Promise<{
 		isMaximized: boolean;
 		isFullScreen: boolean;
