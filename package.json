@@ -40,20 +40,18 @@
 		"format": "biome check --write --unsafe .",
 		"lint": "biome check .",
 		"knip": "knip",
+		"prepare": "husky",
 		"spellcheck": "cspell \"**/*.{ts,tsx,js,jsx,md,json}\"",
 		"test": "vitest run --passWithNoTests",
-		"check": "bun run format && bun run typecheck && bun run knip && bun run spellcheck && bun run test",
+		"check": "bun run format && bun run typecheck && bun run knip && bun run spellcheck && bun run husky && bun run test",
 		"dev": "bun run check && vite",
-		"dev:strict": "bun run check && vite",
 		"build": "bun run check && vite build",
-		"package": "bun run build && bun run protect && electron-builder --publish never",
 		"package:win": "bun run build && bun run protect && electron-builder --win --publish never",
 		"package:mac": "bun run build && bun run protect && electron-builder --mac --publish never",
 		"package:linux": "bun run build && bun run protect && electron-builder --linux --publish never",
 		"build:bytecode": "node ./scripts/build-bytecode.cjs",
 		"build:integrity": "bun ./scripts/build-integrity-manifest.mjs",
-		"protect": "bun run build:bytecode && bun run build:integrity",
-		"prepare": "husky"
+		"protect": "bun run build:bytecode && bun run build:integrity"
 	},
 	"build": {
 		"appId": "com.haven.app",
