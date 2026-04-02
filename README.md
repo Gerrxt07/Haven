@@ -1,37 +1,61 @@
 # Haven
 
-Haven is a work-in-progress desktop voice/video/chat application built with Electron, Bun, Vite, and SolidJS.
+Haven is a desktop communication app in active development, built with Electron, SolidJS, TypeScript, Vite, and Bun.
 
-This repository contains both:
+The repository includes:
 
-- renderer UI code (SolidJS)
 - Electron main/preload process code
+- SolidJS renderer UI
+- Build, packaging, and runtime hardening scripts
 
-## Status
+## Current Status
 
-Haven is under active development.
+Haven is pre-release software.
 
-- APIs and internals may change
-- features are incomplete
-- production use is not recommended yet
+- Features and APIs may change
+- Some functionality is still under construction
+- Production deployment is not recommended yet
 
-## Tech Stack
+## Technology Stack
 
-- Bun (runtime + package manager)
-- TypeScript
-- Vite
-- SolidJS + Solid-MotionOne + Tailwind CSS
-- Electron
+- **Runtime & package manager:** Bun
+- **Desktop shell:** Electron
+- **Frontend:** SolidJS
+- **Build tooling:** Vite
+- **Language:** TypeScript
+- **Packaging:** electron-builder
+- **Code quality:** Biome, TypeScript, Knip, CSpell, Vitest
 
+## Architecture Overview
 
+Haven follows Electron process isolation:
+
+- **Main process** (`electron/main.ts`): window lifecycle, permissions, CSP, secure IPC handlers
+- **Preload bridge** (`electron/preload.ts`): minimal `contextBridge` API exposed to renderer
+- **Renderer** (`src/`): UI and interaction logic
+
+Security-sensitive operations (window controls, URL opening, token storage) are mediated through IPC and sender validation.
+
+## Security Highlights
+
+The current implementation includes defense-in-depth controls such as:
+
+- `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`
+- strict trusted-origin checks for navigation and permissions
+- CSP headers injected from the main process
+- external link interception with explicit user confirmation flow
+- secure token encryption using Electron `safeStorage`
+- blocked dangerous CLI flags (`--inspect`, `--remote-debugging-port`, etc.)
+- packaged runtime hardening via Electron fuses
+- build integrity manifest generation (`dist-electron/integrity.json`)
 
 ## Prerequisites
 
 - Bun (latest stable)
-- Node.js (required by some build tooling)
-- Windows/macOS/Linux
+- Node.js (needed by parts of the Electron/build toolchain)
+- Windows, macOS, or Linux
 
-## Getting Started
+## Quick Start
 
 Install dependencies:
 
@@ -39,124 +63,98 @@ Install dependencies:
 bun install
 ```
 
-Run in development mode:
+Run development:
 
 ```bash
 bun run dev
 ```
 
-Run development mode with full checks before start:
+> Note: `dev` runs the full quality gate first (`check`) before launching Vite.
 
-```bash
-bun run dev:strict
-```
+## Available Scripts
 
-## Scripts
+### Quality and Validation
 
-- `bun run dev` - start app in development mode (fast startup)
-- `bun run dev:strict` - run lint/typecheck, then start development mode
-- `bun run typecheck` - TypeScript check (`tsc --noEmit`)
-- `bun run lint` - ESLint
-- `bun run check` - typecheck + lint
-- `bun run build` - production build (includes checks)
-- `bun run package` - build + protection steps + package app
-- `bun run package:win` - package for Windows
-- `bun run package:mac` - package for macOS
-- `bun run package:linux` - package for Linux
-- `bun run build:bytecode` - compile selected JS to bytecode
-- `bun run build:integrity` - generate integrity manifest
-- `bun run protect` - bytecode + integrity steps
+- `bun run typecheck` — TypeScript check (`tsc --noEmit`)
+- `bun run format` — apply Biome formatting/fixes
+- `bun run lint` — Biome checks
+- `bun run knip` — unused files/dependencies analysis
+- `bun run spellcheck` — CSpell over source/docs
+- `bun run test` — Vitest test run
+- `bun run check` — format + typecheck + knip + spellcheck + husky + test
 
-## Security Notes
+### Development and Build
 
-Haven includes hardening in the desktop runtime, including:
+- `bun run dev` — run full checks, then start Vite dev mode
+- `bun run build` — run checks, then create production build
 
-- strict Electron bridge via preload and context isolation
-- origin checks for media permission requests
-- external URL protocol validation (`http/https` only)
-- Content Security Policy enforcement from the main process
-- Electron fuse hardening and ASAR integrity validation in packaged builds
+### Packaging and Protection
 
-These controls are defense-in-depth and do not replace secure coding practices.
+- `bun run build:bytecode` — compile selected Electron output to bytecode
+- `bun run build:integrity` — generate SHA-256 integrity manifest
+- `bun run protect` — run bytecode + integrity steps
+- `bun run package:win` — build, protect, and package for Windows
+- `bun run package:mac` — build, protect, and package for macOS
+- `bun run package:linux` — build, protect, and package for Linux
 
 ## Project Structure
 
-- `electron/` - Electron main and preload source
-- `src/` - renderer app source
-- `public/` - static assets
-- `scripts/` - build and protection scripts
-- `dist/` - renderer build output
-- `dist-electron/` - Electron build output
+- `electron/` — Electron entrypoints (`main.ts`, `preload.ts`)
+- `src/` — SolidJS renderer application
+- `src/views/` — route/view components
+- `src/types/` — shared renderer-side typings
+- `public/` — static assets
+- `scripts/` — packaging hardening scripts (fuses, bytecode, integrity)
+- `dist/` — renderer build output
+- `dist-electron/` — Electron build output
+- `release/` — packaged artifacts
+
+## Build and Release Notes
+
+Packaging is configured through `package.json` (`build` section) and outputs to `release/`.
+
+Post-build hardening pipeline:
+
+1. compile selected Electron files to bytecode
+1. generate integrity manifest for runtime assets
+1. flip Electron fuses during `afterPack`
 
 ## Contributing
 
-Contributions are welcome while Haven is in active development.
+Contributions are welcome during active development.
 
-Basic workflow:
+Recommended workflow:
 
-1. Fork the repository and create a feature branch.
-1. Keep changes focused and modular.
-1. Run checks locally before opening a PR:
+1. Create a feature branch
+1. Keep changes modular and process-safe (main/preload/renderer separation)
+1. Run local checks:
 
 ```bash
 bun run check
 ```
 
-1. Describe what changed, why it changed, and any security impact.
+1. Open a PR with clear rationale and security impact (if relevant)
 
-Guidelines:
+## Troubleshooting
 
-- Prefer strict typing; avoid `any`.
-- Keep Electron main, preload, and renderer concerns separated.
-- Do not bypass security controls (CSP, URL validation, permission checks).
-- Update docs when behavior or scripts change.
+### `bun run dev` is slow to start
 
-## Build / Release Troubleshooting
+This is expected: it runs `check` before launching the app.
 
-### Development startup is slow
+### Packaging fails
 
-- Use `bun run dev` for fast startup.
-- Use `bun run dev:strict` only when you explicitly want pre-start checks.
-
-### Lint/type errors block builds
-
-- Run `bun run check` and fix reported TypeScript/ESLint issues.
-- Ensure local Bun and Node versions are up to date.
-
-### Packaging issues
-
-- Run full packaging pipeline:
-
-```bash
-bun run package
-```
-
-- Platform-specific packaging:
-  - `bun run package:win`
-  - `bun run package:mac`
-  - `bun run package:linux`
-
-### Bytecode/integrity related failures
-
-- Re-run protection steps directly:
+Ensure both renderer and Electron outputs exist, then rerun:
 
 ```bash
 bun run protect
 ```
 
-- Confirm output paths exist (`dist/`, `dist-electron/`) before protection scripts run.
+### Integrity manifest issues
 
-### Electron hardening not applied in release
-
-- Verify fuse script is present in [scripts/apply-electron-fuses.cjs](scripts/apply-electron-fuses.cjs).
-- Verify packaging hook configuration in [package.json](package.json) under `build.afterPack`.
+Verify `dist/` and `dist-electron/` are generated before `build:integrity`.
 
 ## License
 
 Haven is distributed under the Haven Source Available License (Haven-SAL) v1.0.
-
-- Source is public for transparency and collaboration.
-- The project is source-available and open-source-minded.
-- It is not an OSI-approved open source license.
 
 See [LICENSE](LICENSE) for full terms.
