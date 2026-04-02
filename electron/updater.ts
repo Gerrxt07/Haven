@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { app, BrowserWindow } from "electron";
+import log from "electron-log/main";
 import { autoUpdater } from "electron-updater";
 
 export type UpdateChannelCandidate = "release" | "nightly";
@@ -9,7 +10,7 @@ const updateSettingsPath = path.join(
 	app.getPath("userData"),
 	"update-settings.json",
 );
-const startupUpdateTimeoutMs = 30_000;
+const updateCheckTimeoutMs = 10_000;
 
 type StartupUpdateFlowOptions = {
 	iconPath: string;
@@ -121,13 +122,18 @@ export async function setUpdateChannelCandidate(
 		return false;
 	}
 
-	await fs.writeFile(
-		updateSettingsPath,
-		JSON.stringify({ candidate }, null, 2),
-		"utf-8",
-	);
+	try {
+		await fs.writeFile(
+			updateSettingsPath,
+			JSON.stringify({ candidate }, null, 2),
+			"utf-8",
+		);
 
-	return true;
+		return true;
+	} catch (error) {
+		log.error("Failed to persist update channel candidate", error);
+		return false;
+	}
 }
 
 export async function runStartupUpdateFlow({
@@ -142,57 +148,96 @@ export async function runStartupUpdateFlow({
 	const updateWindow = createUpdateWindow(iconPath);
 	const candidate = await getUpdateChannelCandidate();
 
+	log.initialize();
+	log.transports.file.level = "info";
+	autoUpdater.logger = log;
+	log.info("Updater startup flow initialized", { candidate });
+
 	autoUpdater.autoDownload = true;
 	autoUpdater.autoInstallOnAppQuit = true;
 	autoUpdater.allowPrerelease = candidate === "nightly";
 	autoUpdater.allowDowngrade = candidate === "nightly";
 
 	let launched = false;
-	let startupTimeout: NodeJS.Timeout | null = null;
+	let checkTimeout: NodeJS.Timeout | null = null;
+
+	const clearCheckTimeout = () => {
+		if (!checkTimeout) {
+			return;
+		}
+
+		clearTimeout(checkTimeout);
+		checkTimeout = null;
+	};
+
 	const launchMainApp = () => {
 		if (launched) {
 			return;
 		}
 
 		launched = true;
-		if (startupTimeout) {
-			clearTimeout(startupTimeout);
-			startupTimeout = null;
-		}
+		clearCheckTimeout();
 
 		autoUpdater.removeAllListeners();
+		onReadyToLaunch();
 		if (!updateWindow.isDestroyed()) {
 			updateWindow.destroy();
 		}
-		onReadyToLaunch();
+		log.info("Launching main app window");
 	};
 
-	startupTimeout = setTimeout(() => {
+	checkTimeout = setTimeout(() => {
+		log.warn("Update check timed out; launching app");
 		launchMainApp();
-	}, startupUpdateTimeoutMs);
+	}, updateCheckTimeoutMs);
+
+	autoUpdater.on("checking-for-update", () => {
+		log.info("Checking for updates");
+	});
+
+	autoUpdater.on("update-available", (info) => {
+		clearCheckTimeout();
+		log.info("Update available; download started", {
+			version: info.version,
+			releaseDate: info.releaseDate,
+		});
+	});
+
+	autoUpdater.on("download-progress", (progress) => {
+		log.info("Update download progress", {
+			percent: progress.percent,
+			bytesPerSecond: progress.bytesPerSecond,
+			transferred: progress.transferred,
+			total: progress.total,
+		});
+	});
 
 	autoUpdater.on("update-not-available", () => {
+		clearCheckTimeout();
+		log.info("No update available; launching app");
 		launchMainApp();
 	});
 
-	autoUpdater.on("error", () => {
+	autoUpdater.on("error", (error) => {
+		clearCheckTimeout();
+		log.error("Updater error; launching app", error);
 		launchMainApp();
 	});
 
 	autoUpdater.on("update-downloaded", () => {
-		if (startupTimeout) {
-			clearTimeout(startupTimeout);
-			startupTimeout = null;
-		}
+		clearCheckTimeout();
+		log.info("Update downloaded; installing now");
 		setTimeout(() => {
 			autoUpdater.quitAndInstall(false, true);
 		}, 900);
 	});
 
 	try {
+		log.info("Triggering autoUpdater.checkForUpdates()");
 		await autoUpdater.checkForUpdates();
-	} catch {
-		clearTimeout(startupTimeout);
+	} catch (error) {
+		clearCheckTimeout();
+		log.error("checkForUpdates failed; launching app", error);
 		launchMainApp();
 	}
 }
