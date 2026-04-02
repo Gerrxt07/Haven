@@ -588,13 +588,53 @@ app.whenReady().then(() => {
 	);
 
 	// Validate email domain mx lookup
+	function normalizeEmailDomain(input: string): string | null {
+		if (typeof input !== "string") {
+			return null;
+		}
+
+		const domain = input.trim().toLowerCase();
+		if (!domain || domain.length > 253) {
+			return null;
+		}
+
+		// Basic domain validation (ASCII). UI email validation already runs first.
+		if (
+			!/^([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)
+		) {
+			return null;
+		}
+
+		return domain;
+	}
+
+	// Validate email domain via DNS: prefer MX, fallback to A/AAAA for RFC-compatible receivers.
 	ipcMain.handle("validate-email-domain", async (event, domain: string) => {
 		if (!isTrustedSender(event.sender)) return false;
+
+		const normalizedDomain = normalizeEmailDomain(domain);
+		if (!normalizedDomain) {
+			return false;
+		}
+
 		try {
-			const records = await dns.resolveMx(domain);
+			const records = await dns.resolveMx(normalizedDomain);
 			return records && records.length > 0;
 		} catch {
-			return false;
+			// Some domains may accept mail on host A/AAAA even without MX records.
+			try {
+				const [a, aaaa] = await Promise.allSettled([
+					dns.resolve4(normalizedDomain),
+					dns.resolve6(normalizedDomain),
+				]);
+
+				const hasA = a.status === "fulfilled" && a.value.length > 0;
+				const hasAaaa = aaaa.status === "fulfilled" && aaaa.value.length > 0;
+
+				return hasA || hasAaaa;
+			} catch {
+				return false;
+			}
 		}
 	});
 

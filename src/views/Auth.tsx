@@ -92,7 +92,7 @@ export default function AuthView() {
 				return false;
 			}
 			try {
-				const domain = email().split("@")[1];
+				const domain = email().trim().toLowerCase().split("@")[1];
 				if (window.electronAPI && domain) {
 					const isValidDomain =
 						await window.electronAPI.validateEmailDomain(domain);
