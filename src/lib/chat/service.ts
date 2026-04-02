@@ -108,15 +108,10 @@ class ChatSyncService {
 		};
 
 		upsertMessage(payload.channel_id, optimistic);
-
-		try {
-			const persisted = await apiCreateMessage(payload);
-			upsertMessage(payload.channel_id, persisted);
-			void persistChannelMetadata(payload.channel_id, [persisted]);
-			return persisted;
-		} catch (error) {
-			throw error;
-		}
+		const persisted = await apiCreateMessage(payload);
+		upsertMessage(payload.channel_id, persisted);
+		void persistChannelMetadata(payload.channel_id, [persisted]);
+		return persisted;
 	}
 
 	async loadNextMessagesPage(
