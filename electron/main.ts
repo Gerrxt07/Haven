@@ -8,10 +8,12 @@ import {
 	BrowserWindow,
 	ipcMain,
 	Menu,
+	nativeTheme,
 	safeStorage,
 	screen,
 	session,
 	shell,
+	Tray,
 } from "electron";
 import {
 	getUpdateChannelCandidate,
@@ -25,6 +27,8 @@ const authFilePath = path.join(app.getPath("userData"), "auth.enc");
 const secureStoreBasePath = path.join(app.getPath("userData"), "secure-store");
 
 let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isAppQuitting = false;
 
 function isTrustedSender(sender: Electron.WebContents): boolean {
 	if (!mainWindow) return false;
@@ -276,7 +280,7 @@ function getContentSecurityPolicy(): string {
 			...commonDirectives,
 			"script-src 'self' 'unsafe-eval'",
 			"style-src 'self' 'unsafe-inline'",
-			`connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* stun: turn:`,
+			`connect-src 'self' ${trustedDevOrigin} ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:* https://havenapi.becloudly.eu wss://havenapi.becloudly.eu stun: turn:`,
 		].join("; ");
 	}
 
@@ -284,7 +288,7 @@ function getContentSecurityPolicy(): string {
 		...commonDirectives,
 		"script-src 'self'",
 		"style-src 'self'",
-		"connect-src 'self' stun: turn:",
+		"connect-src 'self' https://havenapi.becloudly.eu wss://havenapi.becloudly.eu stun: turn:",
 	].join("; ");
 }
 
@@ -348,6 +352,13 @@ function createWindow() {
 		mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 	}
 
+	mainWindow.on("close", (event) => {
+		if (!isAppQuitting) {
+			event.preventDefault();
+			mainWindow?.hide();
+		}
+	});
+
 	mainWindow.once("ready-to-show", () => {
 		mainWindow?.show();
 		notifyWindowStateChanged();
@@ -399,6 +410,42 @@ function getAppIconPath(): string {
 		: path.join(__dirname, "../dist/logo.png");
 }
 
+function createTray() {
+	if (tray) return;
+
+	const iconPath = getAppIconPath();
+
+	tray = new Tray(iconPath);
+	tray.setToolTip("Haven");
+
+	const contextMenu = Menu.buildFromTemplate([
+		{
+			label: "Haven öffnen",
+			click: () => {
+				mainWindow?.show();
+				if (mainWindow?.isMinimized()) mainWindow.restore();
+				mainWindow?.focus();
+			},
+		},
+		{ type: "separator" },
+		{
+			label: "Beenden",
+			click: () => {
+				isAppQuitting = true;
+				app.quit();
+			},
+		},
+	]);
+
+	tray.setContextMenu(contextMenu);
+
+	tray.on("click", () => {
+		mainWindow?.show();
+		if (mainWindow?.isMinimized()) mainWindow.restore();
+		mainWindow?.focus();
+	});
+}
+
 Menu.setApplicationMenu(null);
 
 // Prevent WebRTC from leaking local IP addresses
@@ -408,6 +455,9 @@ app.commandLine.appendSwitch(
 );
 
 app.whenReady().then(() => {
+	nativeTheme.themeSource = "dark";
+	createTray();
+
 	const contentSecurityPolicy = getContentSecurityPolicy();
 
 	app.on("browser-window-created", (_, window) => {
@@ -430,7 +480,7 @@ app.whenReady().then(() => {
 	});
 
 	session.defaultSession.webRequest.onBeforeSendHeaders(
-		{ urls: ["https://api.becloudly.eu/*"] }, // Only attach to your trusted backend API
+		{ urls: ["https://havenapi.becloudly.eu/*"] }, // Only attach to your trusted backend API
 		async (details, callback) => {
 			let token = null;
 			try {
