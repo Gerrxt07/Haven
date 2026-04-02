@@ -91,19 +91,6 @@ export default function AuthView() {
 				setError(t("auth", "errEmail"));
 				return false;
 			}
-			try {
-				const domain = email().trim().toLowerCase().split("@")[1];
-				if (window.electronAPI && domain) {
-					const isValidDomain =
-						await window.electronAPI.validateEmailDomain(domain);
-					if (!isValidDomain) {
-						setError(t("auth", "errEmailDomain"));
-						return false;
-					}
-				}
-			} catch (err) {
-				console.warn("DNS validation skipped:", err);
-			}
 		} else if (currentStep === 5) {
 			if (
 				password().length < 10 ||
