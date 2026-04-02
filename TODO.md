@@ -60,8 +60,8 @@ Da als Basis **SolidJS** statt React genutzt werden soll (was für die Performan
 ### 📌 Priorität 4: UX & UI Design (The "Flesh")
 *Die Optik und Interaktion der Applikation.*
 
-- [ ] **Bento-Grid Layout**
-  - Erstellen des App-Dashboards in modernen Bento-Grid Kacheln (nutze CSS Grid / Flexbox + Tailwind für responsive Anpassung).
+- [ ] **Bento-Grid Layout für open-server "Entdecker" liste**
+  - Erstellen des Dashboards in modernen Bento-Grid Kacheln (nutze CSS Grid / Flexbox + Tailwind für responsive Anpassung).
 - [ ] **Glassmorphism-Styling**
   - Einbau von `backdrop-blur-*`, semi-transparenten Hintergrundfarben (`bg-white/10`) und feinen Borders (`border-white/20`).
   - *Notiz zur Performance:* Übermäßiger Gebrauch von `backdrop-filter` kann auf schwächeren Systemen ruckeln. Performance hier regelmäßig in Electron checken!
