@@ -86,6 +86,9 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.zip
+            release/*.yml
+            release/*.yaml
+            release/*.blockmap
           draft: false
           prerelease: true
         env:

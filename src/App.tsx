@@ -1,5 +1,6 @@
 import { Minus, Square, X } from "lucide-solid";
 import { createSignal, lazy, onMount, Suspense } from "solid-js";
+import { t, tf } from "./i18n";
 
 const HomeView = lazy(() => import("./views/Home"));
 
@@ -25,7 +26,7 @@ export default function App() {
 			// TODO: Replace this native confirm with a beautifully styled SolidJS Modal / Dialog later
 			console.log(`[Link Intercepted]: ${url}`);
 			const userConfirmed = globalThis.confirm(
-				`Warning: You are leaving Haven to visit an external website:\n\n${url}\n\nDo you want to continue?`,
+				tf("app", "externalLinkWarning", { url }),
 			);
 
 			if (userConfirmed) {
@@ -54,7 +55,7 @@ export default function App() {
 
 				{/* Center Title */}
 				<div class="absolute inset-0 flex justify-center items-center text-[13px] font-semibold text-[#a0a0a0] pointer-events-none">
-					Haven
+					{t("app", "title")}
 				</div>
 
 				{/* Controls */}
@@ -112,7 +113,7 @@ export default function App() {
 				<Suspense
 					fallback={
 						<div class="flex items-center justify-center h-full">
-							Loading...
+							{t("app", "loading")}
 						</div>
 					}
 				>

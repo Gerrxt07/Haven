@@ -1,3 +1,5 @@
+import { t } from "../i18n";
+
 export default function Home() {
-	return <div>Home View</div>;
+	return <div>{t("home", "title")}</div>;
 }

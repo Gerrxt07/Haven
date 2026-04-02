@@ -33,6 +33,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		);
 	},
 	confirmOpenUrl: (url: string) => ipcRenderer.send("confirm-open-url", url),
+	getUpdateCandidate: () =>
+		ipcRenderer.invoke("updater-get-candidate") as Promise<
+			"release" | "nightly" | null
+		>,
+	setUpdateCandidate: (candidate: "release" | "nightly") =>
+		ipcRenderer.invoke("updater-set-candidate", candidate) as Promise<boolean>,
 });
 
 globalThis.addEventListener("DOMContentLoaded", () => {

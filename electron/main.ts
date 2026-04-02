@@ -13,6 +13,12 @@ import {
 	session,
 	shell,
 } from "electron";
+import {
+	getUpdateChannelCandidate,
+	runStartupUpdateFlow,
+	setUpdateChannelCandidate,
+	type UpdateChannelCandidate,
+} from "./updater";
 
 // Set up a path to store your encrypted auth data
 const authFilePath = path.join(app.getPath("userData"), "auth.enc");
@@ -157,10 +163,7 @@ function createWindow() {
 	const width = Math.max(1280, Math.floor(screenWidth * 0.8));
 	const height = Math.max(720, Math.floor(screenHeight * 0.8));
 
-	const isDev = !!process.env.VITE_DEV_SERVER_URL;
-	const iconPath = isDev
-		? path.join(__dirname, "../public/logo.png")
-		: path.join(__dirname, "../dist/logo.png");
+	const iconPath = getAppIconPath();
 
 	mainWindow = new BrowserWindow({
 		width,
@@ -236,6 +239,13 @@ function createWindow() {
 			}
 		}
 	});
+}
+
+function getAppIconPath(): string {
+	const isDev = !!process.env.VITE_DEV_SERVER_URL;
+	return isDev
+		? path.join(__dirname, "../public/logo.png")
+		: path.join(__dirname, "../dist/logo.png");
 }
 
 Menu.setApplicationMenu(null);
@@ -348,12 +358,32 @@ app.whenReady().then(() => {
 		},
 	);
 
-	createWindow();
+	void runStartupUpdateFlow({
+		iconPath: getAppIconPath(),
+		onReadyToLaunch: () => {
+			if (!mainWindow) {
+				createWindow();
+			}
+		},
+	});
 
 	ipcMain.handle("get-window-state", (event) => {
 		if (!isTrustedSender(event.sender)) return null;
 		return getCurrentWindowState();
 	});
+
+	ipcMain.handle("updater-get-candidate", async (event) => {
+		if (!isTrustedSender(event.sender)) return null;
+		return getUpdateChannelCandidate();
+	});
+
+	ipcMain.handle(
+		"updater-set-candidate",
+		async (event, candidate: UpdateChannelCandidate) => {
+			if (!isTrustedSender(event.sender)) return false;
+			return setUpdateChannelCandidate(candidate);
+		},
+	);
 
 	// Listen for user confirming to open an external link from the UI warning
 	ipcMain.on("confirm-open-url", (event, url) => {

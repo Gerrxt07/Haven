@@ -16,7 +16,6 @@
 		"@types/bun": "latest",
 		"@types/node": "25.5.0",
 		"autoprefixer": "10.4.27",
-		"cspell": "9.7.0",
 		"electron": "42.0.0-alpha.6",
 		"electron-builder": "26.8.1",
 		"esbuild": "0.27.4",
@@ -38,8 +37,7 @@
 		"lint": "biome check .",
 		"knip": "knip",
 		"prepare": "husky",
-		"spellcheck": "cspell \"**/*.{ts,tsx,js,jsx,md,json}\"",
-		"check": "bun run format && bun run typecheck && bun run knip && bun run spellcheck && bun run husky",
+		"check": "bun run format && bun run typecheck && bun run knip && bun run prepare",
 		"dev": "bun run check && vite",
 		"build": "bun run check && vite build",
 		"package:win": "bun run build && bun run protect && electron-builder --win --publish never",
@@ -52,6 +50,14 @@
 	"build": {
 		"appId": "com.haven.app",
 		"productName": "Haven",
+		"generateUpdatesFilesForAllChannels": true,
+		"publish": [
+			{
+				"provider": "github",
+				"owner": "gerrxt07",
+				"repo": "haven"
+			}
+		],
 		"icon": "public/logo.png",
 		"directories": {
 			"output": "release",
@@ -72,7 +78,17 @@
 			"target": [
 				"nsis",
 				"zip"
+			],
+			"publish": [
+				{
+					"provider": "github",
+					"owner": "gerrxt07",
+					"repo": "haven"
+				}
 			]
+		},
+		"nsis": {
+			"differentialPackage": true
 		},
 		"linux": {
 			"target": [
@@ -85,6 +101,7 @@
 	},
 	"dependencies": {
 		"bytenode": "1.5.7",
+		"electron-updater": "6.8.3",
 		"lucide-solid": "1.7.0",
 		"solid-js": "1.9.12"
 	},

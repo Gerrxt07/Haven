@@ -3,6 +3,8 @@ export interface IElectronAPI {
 	minimize: () => void;
 	maximize: () => void;
 	close: () => void;
+	getUpdateCandidate: () => Promise<"release" | "nightly" | null>;
+	setUpdateCandidate: (candidate: "release" | "nightly") => Promise<boolean>;
 	getWindowState: () => Promise<{
 		isMaximized: boolean;
 		isFullScreen: boolean;

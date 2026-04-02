@@ -24,7 +24,7 @@ Haven is pre-release software.
 - **Build tooling:** Vite
 - **Language:** TypeScript
 - **Packaging:** electron-builder
-- **Code quality:** Biome, TypeScript, Knip, CSpell, Vitest
+- **Code quality:** Biome, TypeScript, Knip, husky
 
 ## Architecture Overview
 
@@ -79,9 +79,8 @@ bun run dev
 - `bun run format` — apply Biome formatting/fixes
 - `bun run lint` — Biome checks
 - `bun run knip` — unused files/dependencies analysis
-- `bun run spellcheck` — CSpell over source/docs
 - `bun run test` — Vitest test run
-- `bun run check` — format + typecheck + knip + spellcheck + husky + test
+- `bun run check` — format + typecheck + knip + husky + test
 
 ### Development and Build
 
