@@ -40,6 +40,7 @@
 		"prepare": "husky",
 		"check": "bun run format && bun run typecheck && bun run knip && bun run prepare",
 		"dev": "bun run check && vite",
+		"dev:updater-ui": "node ./scripts/dev-updater-ui.cjs",
 		"build": "bun run check && vite build",
 		"package:win": "bun run build && bun run protect && electron-builder --win --publish never",
 		"package:mac": "bun run build && bun run protect && electron-builder --mac --publish never",

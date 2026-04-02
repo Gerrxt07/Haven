@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, nativeImage } from "electron";
 import log from "electron-log/main";
 import { autoUpdater } from "electron-updater";
 
@@ -11,6 +11,14 @@ const updateSettingsPath = path.join(
 	"update-settings.json",
 );
 const updateCheckTimeoutMs = 10_000;
+const devUpdaterPreviewDurationMs = 2_500;
+const packagedMinimumUiDurationMs = 2_500;
+const updaterLoaderSizePx = 160;
+const updaterLogoSizePx = 116;
+
+function isDevUpdaterPreviewEnabled(): boolean {
+	return process.env.HAVEN_DEV_UPDATER_UI === "1";
+}
 
 type StartupUpdateFlowOptions = {
 	iconPath: string;
@@ -18,10 +26,47 @@ type StartupUpdateFlowOptions = {
 };
 
 function isStartupUpdateEnabled(): boolean {
+	if (isDevUpdaterPreviewEnabled()) {
+		return true;
+	}
+
 	return app.isPackaged && !process.env.VITE_DEV_SERVER_URL;
 }
 
-function createUpdateWindow(iconPath: string): BrowserWindow {
+function toImageMimeType(filePath: string): string {
+	const extension = path.extname(filePath).toLowerCase();
+
+	if (extension === ".png") {
+		return "image/png";
+	}
+
+	if (extension === ".jpg" || extension === ".jpeg") {
+		return "image/jpeg";
+	}
+
+	if (extension === ".webp") {
+		return "image/webp";
+	}
+
+	if (extension === ".svg") {
+		return "image/svg+xml";
+	}
+
+	if (extension === ".ico") {
+		return "image/x-icon";
+	}
+
+	if (extension === ".icns") {
+		return "image/icns";
+	}
+
+	return "image/png";
+}
+
+function createUpdateWindow(
+	iconPath: string,
+	logoDataUrl: string,
+): BrowserWindow {
 	const updateWindow = new BrowserWindow({
 		width: 400,
 		height: 400,
@@ -42,6 +87,7 @@ function createUpdateWindow(iconPath: string): BrowserWindow {
 			nodeIntegration: false,
 			contextIsolation: true,
 			sandbox: true,
+			partition: "updater",
 		},
 	});
 
@@ -55,21 +101,45 @@ function createUpdateWindow(iconPath: string): BrowserWindow {
 				<style>
 					:root { color-scheme: dark; }
 					* { box-sizing: border-box; }
+					html,
+					body {
+						width: 100%;
+						height: 100%;
+					}
 					body {
 						margin: 0;
 						font-family: Inter, Segoe UI, system-ui, -apple-system, sans-serif;
+						background: #272727;
+						overflow: hidden;
+					}
+					.loader-wrap {
+						position: fixed;
+						top: 50%;
+						left: 50%;
+						transform: translate(-50%, -50%);
+						width: ${updaterLoaderSizePx}px;
+						height: ${updaterLoaderSizePx}px;
 						display: grid;
 						place-items: center;
-						min-height: 100vh;
-						background: #272727;
+						pointer-events: none;
+					}
+					.logo {
+						width: ${updaterLogoSizePx}px;
+						height: ${updaterLogoSizePx}px;
+						object-fit: contain;
+						border-radius: 12px;
+						user-select: none;
+						-webkit-user-drag: none;
 					}
 					.spinner {
-						width: 42px;
-						height: 42px;
-						border: 3px solid rgba(255, 255, 255, 0.18);
+						position: absolute;
+						inset: 0;
+						border: 4px solid rgba(255, 255, 255, 0.22);
 						border-top-color: #ffffff;
+						border-right-color: rgba(255, 255, 255, 0.85);
 						border-radius: 50%;
 						animation: spin 1s linear infinite;
+						will-change: transform;
 					}
 					@keyframes spin {
 						to {
@@ -79,7 +149,10 @@ function createUpdateWindow(iconPath: string): BrowserWindow {
 				</style>
 			</head>
 			<body>
-				<div class="spinner" aria-hidden="true"></div>
+				<div class="loader-wrap" aria-label="Loading update">
+					<img class="logo" src="${logoDataUrl}" alt="Haven" />
+					<div class="spinner" aria-hidden="true"></div>
+				</div>
 			</body>
 		</html>
 	`;
@@ -93,6 +166,38 @@ function createUpdateWindow(iconPath: string): BrowserWindow {
 	});
 
 	return updateWindow;
+}
+
+function resizeLogoDataUrl(logoDataUrl: string): string {
+	const image = nativeImage.createFromDataURL(logoDataUrl);
+
+	if (image.isEmpty()) {
+		return logoDataUrl;
+	}
+
+	return image
+		.resize({
+			width: updaterLogoSizePx,
+			height: updaterLogoSizePx,
+			quality: "best",
+		})
+		.toDataURL();
+}
+
+function logoDataUrlFromBuffer(iconBuffer: Buffer): string {
+	const image = nativeImage.createFromBuffer(iconBuffer);
+
+	if (image.isEmpty()) {
+		return "";
+	}
+
+	return image
+		.resize({
+			width: updaterLogoSizePx,
+			height: updaterLogoSizePx,
+			quality: "best",
+		})
+		.toDataURL();
 }
 
 export async function getUpdateChannelCandidate(): Promise<UpdateChannelCandidate> {
@@ -145,7 +250,41 @@ export async function runStartupUpdateFlow({
 		return;
 	}
 
-	const updateWindow = createUpdateWindow(iconPath);
+	let logoDataUrl =
+		"data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc2NCcgaGVpZ2h0PSc2NCcgdmlld0JveD0nMCAwIDY0IDY0Jz48cmVjdCB3aWR0aD0nNjQnIGhlaWdodD0nNjQnIHJ4PScxNCcgZmlsbD0nIzM2MzYzNicvPjx0ZXh0IHg9JzMyJyB5PSczOScgZm9udC1mYW1pbHk9J1NlZ29lIFVJLCBBcmlhbCwgc2Fucy1zZXJpZicgZm9udC1zaXplPSczMScgZm9udC13ZWlnaHQ9JzcwMCcgZmlsbD0nd2hpdGUnIHRleHQtYW5jaG9yPSdtaWRkbGUnPkg8L3RleHQ+PC9zdmc+";
+
+	try {
+		const iconBuffer = await fs.readFile(iconPath);
+		const resizedFromBuffer = logoDataUrlFromBuffer(iconBuffer);
+		if (resizedFromBuffer) {
+			logoDataUrl = resizedFromBuffer;
+		} else {
+			const iconMimeType = toImageMimeType(iconPath);
+			logoDataUrl = `data:${iconMimeType};base64,${iconBuffer.toString("base64")}`;
+		}
+	} catch (error) {
+		log.warn("Could not read updater icon; using fallback logo", error);
+	}
+
+	logoDataUrl = resizeLogoDataUrl(logoDataUrl);
+
+	const updateWindow = createUpdateWindow(iconPath, logoDataUrl);
+
+	if (isDevUpdaterPreviewEnabled()) {
+		log.initialize();
+		log.transports.file.level = "info";
+		log.info("Updater UI dev preview enabled");
+
+		setTimeout(() => {
+			onReadyToLaunch();
+			if (!updateWindow.isDestroyed()) {
+				updateWindow.destroy();
+			}
+		}, devUpdaterPreviewDurationMs);
+
+		return;
+	}
+
 	const candidate = await getUpdateChannelCandidate();
 
 	log.initialize();
@@ -160,6 +299,8 @@ export async function runStartupUpdateFlow({
 
 	let launched = false;
 	let checkTimeout: NodeJS.Timeout | null = null;
+	const uiStartedAt = Date.now();
+	const minimumUiDurationMs = app.isPackaged ? packagedMinimumUiDurationMs : 0;
 
 	const clearCheckTimeout = () => {
 		if (!checkTimeout) {
@@ -180,10 +321,18 @@ export async function runStartupUpdateFlow({
 
 		autoUpdater.removeAllListeners();
 		onReadyToLaunch();
-		if (!updateWindow.isDestroyed()) {
-			updateWindow.destroy();
-		}
-		log.info("Launching main app window");
+
+		const elapsedMs = Date.now() - uiStartedAt;
+		const remainingMs = Math.max(0, minimumUiDurationMs - elapsedMs);
+		setTimeout(() => {
+			if (!updateWindow.isDestroyed()) {
+				updateWindow.destroy();
+			}
+			log.info("Launching main app window", {
+				elapsedMs,
+				minimumUiDurationMs,
+			});
+		}, remainingMs);
 	};
 
 	checkTimeout = setTimeout(() => {
