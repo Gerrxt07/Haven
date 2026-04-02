@@ -1,11 +1,13 @@
-import { Minus, Square, X } from "lucide-solid";
-import { createSignal, lazy, onMount, Suspense } from "solid-js";
+import { MessageCircleQuestion, Minus, Square, X } from "lucide-solid";
+import { createSignal, lazy, onMount, Show, Suspense } from "solid-js";
+import { Motion, Presence } from "solid-motionone";
 import { t, tf } from "./i18n";
 
 const HomeView = lazy(() => import("./views/Home"));
 
 export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
+	const [helpTooltipOpen, setHelpTooltipOpen] = createSignal(false);
 
 	onMount(() => {
 		// Hook up the titlebar buttons to their respective IPC events
@@ -19,6 +21,10 @@ export default function App() {
 
 		document.getElementById("close-btn")?.addEventListener("click", () => {
 			globalThis.electronAPI.close();
+		});
+
+		document.getElementById("help-btn")?.addEventListener("click", () => {
+			globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu");
 		});
 
 		// Listen for external link clicks intercepted by Electron
@@ -60,6 +66,50 @@ export default function App() {
 
 				{/* Controls */}
 				<div class="flex h-full" style={{ "-webkit-app-region": "no-drag" }}>
+					<div
+						class="flex items-center px-3 relative"
+						onMouseEnter={() => setHelpTooltipOpen(true)}
+						onMouseLeave={() => setHelpTooltipOpen(false)}
+						onFocus={() => setHelpTooltipOpen(true)}
+						onBlur={() => setHelpTooltipOpen(false)}
+						role="tooltip"
+						aria-label={t("app", "help")}
+					>
+						<button
+							type="button"
+							id="help-btn"
+							class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+						>
+							<MessageCircleQuestion
+								size={15}
+								stroke-width={2}
+								aria-hidden="true"
+							/>
+						</button>
+
+						{/* Custom Tooltip fully animated via Solid Motion One */}
+						<Presence>
+							<Show when={helpTooltipOpen()}>
+								<Motion.div
+									initial={{ opacity: 0, scale: 0.95, y: -2 }}
+									animate={{ opacity: 1, scale: 1, y: 0 }}
+									exit={{ opacity: 0, scale: 0.95, y: -2 }}
+									transition={{ duration: 0.15, easing: "ease-out" }}
+									class="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#111214] text-[#dcddde] font-semibold text-[13px] rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50 will-change-[transform,opacity]"
+								>
+									{t("app", "help")}
+
+									{/* Tooltip Arrow pointing up */}
+									<div class="absolute -top-1.25 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-4 border-b-[#111214]"></div>
+								</Motion.div>
+							</Show>
+						</Presence>
+					</div>
+
+					<div class="h-full flex items-center justify-center pr-1">
+						<div class="w-px h-4 bg-white/10"></div>
+					</div>
+
 					<button
 						type="button"
 						id="min-btn"
