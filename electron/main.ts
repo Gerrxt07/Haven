@@ -22,6 +22,7 @@ import {
 
 // Set up a path to store your encrypted auth data
 const authFilePath = path.join(app.getPath("userData"), "auth.enc");
+const secureStoreBasePath = path.join(app.getPath("userData"), "secure-store");
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -41,6 +42,156 @@ ipcMain.handle("secure-store-token", async (event, token: string) => {
 	}
 	return false; // Handle fallback if encryption isn't available
 });
+
+ipcMain.handle("secure-load-token", async (event) => {
+	if (!isTrustedSender(event.sender)) return null;
+	if (!safeStorage.isEncryptionAvailable()) return null;
+
+	try {
+		const encryptedToken = await fs.readFile(authFilePath);
+		return safeStorage.decryptString(encryptedToken);
+	} catch {
+		return null;
+	}
+});
+
+ipcMain.handle("secure-delete-token", async (event) => {
+	if (!isTrustedSender(event.sender)) return false;
+
+	try {
+		await fs.unlink(authFilePath);
+		return true;
+	} catch {
+		return false;
+	}
+});
+
+function sanitizeNamespace(value: string): string | null {
+	if (!/^[a-zA-Z0-9_-]{1,64}$/.test(value)) {
+		return null;
+	}
+	return value;
+}
+
+function sanitizeKey(value: string): string | null {
+	if (!/^[a-zA-Z0-9_.:-]{1,128}$/.test(value)) {
+		return null;
+	}
+	return value;
+}
+
+function getSecureStorePath(namespace: string): string {
+	return path.join(secureStoreBasePath, `${namespace}.enc`);
+}
+
+async function readSecureNamespace(
+	namespace: string,
+): Promise<Record<string, string>> {
+	const filePath = getSecureStorePath(namespace);
+
+	try {
+		const encrypted = await fs.readFile(filePath);
+		if (!safeStorage.isEncryptionAvailable()) {
+			return {};
+		}
+		const plain = safeStorage.decryptString(encrypted);
+		const parsed: unknown = JSON.parse(plain);
+
+		if (typeof parsed === "object" && parsed !== null) {
+			const out: Record<string, string> = {};
+			for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+				if (typeof v === "string") {
+					out[k] = v;
+				}
+			}
+			return out;
+		}
+
+		return {};
+	} catch {
+		return {};
+	}
+}
+
+async function writeSecureNamespace(
+	namespace: string,
+	value: Record<string, string>,
+): Promise<boolean> {
+	if (!safeStorage.isEncryptionAvailable()) {
+		return false;
+	}
+
+	const filePath = getSecureStorePath(namespace);
+	await fs.mkdir(secureStoreBasePath, { recursive: true });
+	const plaintext = JSON.stringify(value);
+	const encrypted = safeStorage.encryptString(plaintext);
+	await fs.writeFile(filePath, encrypted);
+	return true;
+}
+
+ipcMain.handle(
+	"secure-store-set",
+	async (event, namespace: string, key: string, value: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !safeKey || typeof value !== "string") {
+			return false;
+		}
+
+		const doc = await readSecureNamespace(ns);
+		doc[safeKey] = value;
+
+		try {
+			return await writeSecureNamespace(ns, doc);
+		} catch {
+			return false;
+		}
+	},
+);
+
+ipcMain.handle(
+	"secure-store-get",
+	async (event, namespace: string, key: string) => {
+		if (!isTrustedSender(event.sender)) return null;
+
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !safeKey) {
+			return null;
+		}
+
+		const doc = await readSecureNamespace(ns);
+		return doc[safeKey] ?? null;
+	},
+);
+
+ipcMain.handle(
+	"secure-store-delete",
+	async (event, namespace: string, key: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !safeKey) {
+			return false;
+		}
+
+		const doc = await readSecureNamespace(ns);
+		if (!(safeKey in doc)) {
+			return true;
+		}
+
+		delete doc[safeKey];
+
+		try {
+			return await writeSecureNamespace(ns, doc);
+		} catch {
+			return false;
+		}
+	},
+);
 
 function getCurrentWindowState() {
 	return {

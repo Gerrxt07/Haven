@@ -25,6 +25,27 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// Add to your existing electronAPI context bridge
 	storeToken: (token: string) =>
 		ipcRenderer.invoke("secure-store-token", token),
+	loadToken: () =>
+		ipcRenderer.invoke("secure-load-token") as Promise<string | null>,
+	deleteToken: () =>
+		ipcRenderer.invoke("secure-delete-token") as Promise<boolean>,
+	secureStoreSet: (namespace: string, key: string, value: string) =>
+		ipcRenderer.invoke(
+			"secure-store-set",
+			namespace,
+			key,
+			value,
+		) as Promise<boolean>,
+	secureStoreGet: (namespace: string, key: string) =>
+		ipcRenderer.invoke("secure-store-get", namespace, key) as Promise<
+			string | null
+		>,
+	secureStoreDelete: (namespace: string, key: string) =>
+		ipcRenderer.invoke(
+			"secure-store-delete",
+			namespace,
+			key,
+		) as Promise<boolean>,
 
 	// External Link Handling Methods
 	onExternalLinkWarning: (callback: (url: string) => void) => {

@@ -22,28 +22,27 @@ Da als Basis **SolidJS** statt React genutzt werden soll (was für die Performan
 ### 📌 Priorität 1: Basis-Infrastruktur & Umgebung (The "Boring" Stuff)
 *Das Fundament muss felsenfest und performant sein, bevor schöne UI gebaut wird.*
 
-- [ ] **Backend-Setup (Rust + Axum)**
-  - Grundlegendes Boilerplate-Setup, Routen-Architektur.
-  - Integration von **PostgreSQL** für relationale Daten (User, Channels).
-  - Integration von **DragonflyDB** (In-Memory Datastore als weitaus schnellere Alternative zu Redis - exzellent für Session-Management).
-  - Optional: **TimescaleDB** für Analytics oder zeitskritisches Logging.
-- [ ] **Desktop-Client & Auto-Updater Layer (Electron + Bun)**
+- [x] **Backend-Setup (Rust + Axum)**
+  - [x] Grundlegendes Boilerplate-Setup, Routen-Architektur.
+  - [x] Integration von **PostgreSQL** für relationale Daten (User, Channels).
+  - [x] Integration von **DragonflyDB** (In-Memory Datastore als weitaus schnellere Alternative zu Redis - exzellent für Session-Management).
+- [x] **Desktop-Client & Auto-Updater Layer (Electron + Bun)**
   - [x] Implementierung eines separaten, kleinen Splash/Updater-Windows (Framerless).
   - [x] Integration von `electron-updater` inkl. **NSIS Delta-Updates** für blitzschnelle Patches.
   - [x] Github Release Hook Konfiguration konfigurieren.
-- [ ] **Kryptografie-Grundbausteine implementieren**
-  - Setup von **XChaCha20-Poly1305** (performantestes AEAD für generelle Datenbank/Datei-Verschlüsselung).
-  - Sicheres Hashing mit **Argon2** und Nutzung von **PASETO statt JWT** (sicherer gegen Implementierungsfehler). Inkl. Pepper/Salt Verwaltung.
+- [x] **Kryptografie-Grundbausteine implementieren**
+  - [x] Setup von **XChaCha20-Poly1305** (performantestes AEAD für generelle Datenbank/Datei-Verschlüsselung).
+  - [x] Sicheres Hashing mit **Argon2** und Nutzung von **PASETO statt JWT** (sicherer gegen Implementierungsfehler). Inkl. Pepper/Salt Verwaltung.
 
 ### 📌 Priorität 2: Core Data-Layer & Kommunikation (The "Engine")
 *Die APIs und Pipelines, die Frontend und Backend performant verbinden.*
 
-- [ ] **gRPC / WebSockets Architektur**
-  - Etablierung bidirektionaler Streams zwischen Client (Electron Main Process/Renderer) und Rust-Backend.
-  - Wahl treffen: gRPC-Web (perfekt für typisieres Contract-Design) vs. native WebSockets.
-- [ ] **End-to-End Encryption (E2EE) für Messages**
-  - Implementierung (oder Fork einer Lib) des **Double Ratchet Protokolls** (Forward & Backward Secrecy).
-  - Aufbau des Key-Exchange (X3DH) für asynchrone sichere Kommunikation.
+- [x] **gRPC / WebSockets Architektur**
+  - [x] Etablierung bidirektionaler Streams zwischen Client (Electron Main Process/Renderer) und Rust-Backend.
+  - [x] Wahl getroffen: **native WebSockets** (Axum `/ws` + `/realtime/ws`, Event-Fanout über Dragonfly Pub/Sub).
+- [x] **End-to-End Encryption (E2EE) für Messages**
+  - [x] Implementierung (oder Fork einer Lib) des **Double Ratchet Protokolls** (Forward & Backward Secrecy).
+  - [x] Aufbau des Key-Exchange (X3DH) für asynchrone sichere Kommunikation.
 - [ ] **Video / Voice (SFU Infrastruktur)**
   - Setup von **LiveKit** (deutlich bessere Developer-Expirience, Skalierung und Out-Of-The-Box-Features im Vergleich zum rohen Aufbau eines WebRTC-rs Servers).
   - Client-seitige LiveKit-SDK Integration in die SolidJS App.

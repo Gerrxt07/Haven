@@ -14,6 +14,16 @@ export interface IElectronAPI {
 	) => void;
 	onExternalLinkWarning: (callback: (url: string) => void) => void;
 	confirmOpenUrl: (url: string) => void;
+	storeToken: (token: string) => Promise<boolean>;
+	loadToken: () => Promise<string | null>;
+	deleteToken: () => Promise<boolean>;
+	secureStoreSet: (
+		namespace: string,
+		key: string,
+		value: string,
+	) => Promise<boolean>;
+	secureStoreGet: (namespace: string, key: string) => Promise<string | null>;
+	secureStoreDelete: (namespace: string, key: string) => Promise<boolean>;
 }
 
 declare global {
