@@ -35,6 +35,7 @@
 		"typecheck": "tsc --noEmit",
 		"format": "biome check --write --unsafe .",
 		"lint": "biome check .",
+		"lint-staged": "lint-staged",
 		"knip": "knip",
 		"prepare": "husky",
 		"check": "bun run format && bun run typecheck && bun run knip && bun run prepare",
