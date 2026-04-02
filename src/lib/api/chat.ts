@@ -1,3 +1,4 @@
+import { createIdempotencyKey } from "./idempotency";
 import { apiClient } from "./index";
 import type {
 	ChannelDto,
@@ -7,47 +8,68 @@ import type {
 	MessageDto,
 	ServerDto,
 } from "./models";
+import {
+	assertChannelDto,
+	assertCreateChannelRequest,
+	assertCreateMessageRequest,
+	assertCreateServerRequest,
+	assertMessageDto,
+	assertMessageDtoList,
+	assertServerDto,
+} from "./validation";
 
 export async function apiCreateServer(
 	payload: CreateServerRequestDto,
 	signal?: AbortSignal,
 ): Promise<ServerDto> {
-	return apiClient.post<CreateServerRequestDto, ServerDto>(
+	assertCreateServerRequest(payload);
+	const response = await apiClient.post<CreateServerRequestDto, ServerDto>(
 		"/servers",
 		payload,
 		{
 			signal,
 			requiresAuth: true,
+			idempotencyKey: createIdempotencyKey("create-server"),
 		},
 	);
+	assertServerDto(response);
+	return response;
 }
 
 export async function apiCreateChannel(
 	payload: CreateChannelRequestDto,
 	signal?: AbortSignal,
 ): Promise<ChannelDto> {
-	return apiClient.post<CreateChannelRequestDto, ChannelDto>(
+	assertCreateChannelRequest(payload);
+	const response = await apiClient.post<CreateChannelRequestDto, ChannelDto>(
 		"/channels",
 		payload,
 		{
 			signal,
 			requiresAuth: true,
+			idempotencyKey: createIdempotencyKey("create-channel"),
 		},
 	);
+	assertChannelDto(response);
+	return response;
 }
 
 export async function apiCreateMessage(
 	payload: CreateMessageRequestDto,
 	signal?: AbortSignal,
 ): Promise<MessageDto> {
-	return apiClient.post<CreateMessageRequestDto, MessageDto>(
+	assertCreateMessageRequest(payload);
+	const response = await apiClient.post<CreateMessageRequestDto, MessageDto>(
 		"/messages",
 		payload,
 		{
 			signal,
 			requiresAuth: true,
+			idempotencyKey: createIdempotencyKey("create-message"),
 		},
 	);
+	assertMessageDto(response);
+	return response;
 }
 
 export async function apiListMessages(params: {
@@ -65,11 +87,13 @@ export async function apiListMessages(params: {
 	}
 	const query = search.toString();
 
-	return apiClient.get<MessageDto[]>(
+	const response = await apiClient.get<MessageDto[]>(
 		`/channels/${params.channelId}/messages${query ? `?${query}` : ""}`,
 		{
 			signal: params.signal,
 			requiresAuth: true,
 		},
 	);
+	assertMessageDtoList(response);
+	return response;
 }

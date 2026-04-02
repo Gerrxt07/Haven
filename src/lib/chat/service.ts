@@ -12,7 +12,12 @@ import {
 	type MessageDto,
 	type ServerDto,
 } from "../api";
+import {
+	loadChannelMetadata,
+	persistChannelMetadata,
+} from "../cache/offline-metadata";
 import { realtimeManager } from "../realtime";
+import { setActiveChannel } from "../state";
 import {
 	getNextCursor,
 	mergeMessages,
@@ -68,6 +73,7 @@ class ChatSyncService {
 			};
 
 			upsertMessage(channelId, message);
+			void persistChannelMetadata(channelId, [message]);
 		});
 	}
 
@@ -106,6 +112,7 @@ class ChatSyncService {
 		try {
 			const persisted = await apiCreateMessage(payload);
 			upsertMessage(payload.channel_id, persisted);
+			void persistChannelMetadata(payload.channel_id, [persisted]);
 			return persisted;
 		} catch (error) {
 			throw error;
@@ -129,6 +136,7 @@ class ChatSyncService {
 				signal,
 			});
 			mergeMessages(channelId, rows);
+			void persistChannelMetadata(channelId, rows);
 			return rows;
 		} finally {
 			setChannelLoading(channelId, false);
@@ -137,11 +145,24 @@ class ChatSyncService {
 	}
 
 	switchChannel(channelId: number, userId?: number): void {
+		setActiveChannel(channelId);
 		realtimeManager.subscribeChannel(channelId, userId);
+		void this.hydrateChannelFromOfflineCache(channelId);
 	}
 
 	leaveChannel(channelId: number): void {
+		setActiveChannel(null);
 		realtimeManager.unsubscribeChannel(channelId);
+	}
+
+	private async hydrateChannelFromOfflineCache(
+		channelId: number,
+	): Promise<void> {
+		const cached = await loadChannelMetadata(channelId);
+		if (!cached || cached.length === 0) {
+			return;
+		}
+		mergeMessages(channelId, cached);
 	}
 }
 

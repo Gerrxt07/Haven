@@ -44,24 +44,24 @@ Ziel: Übersicht, was im Client noch gebaut werden muss, damit vorhandene Backen
 ## 6) Electron Bridge / sichere lokale Speicherung
 - [x] Preload/API erweitern für sichere E2EE-Key-Verwaltung (store/load/delete), analog Token-Handling.
 - [x] Trennung: Token-Storage und E2EE-Key-Storage mit klaren Namespaces.
-- [ ] Optional: Verschlüsselte lokale Cache-Schicht für offline-fähige Message-Metadaten.
+- [x] Optional: Verschlüsselte lokale Cache-Schicht für offline-fähige Message-Metadaten.
 
 ## 7) Frontend-Architektur (ohne UI)
-- [ ] `@tanstack/solid-query` einführen für Server-State (Auth/User/Channels/Messages).
-- [ ] Solid Global Stores für Session, WS-State, Presence, aktive Channel-Kontexte.
-- [ ] Stabile Domain-Typen für IPC- und HTTP-Grenzen (keine `any`-Pfade).
+- [x] `@tanstack/solid-query` einführen für Server-State (Auth/User/Channels/Messages).
+- [x] Solid Global Stores für Session, WS-State, Presence, aktive Channel-Kontexte.
+- [x] Stabile Domain-Typen für IPC- und HTTP-Grenzen (keine `any`-Pfade).
 
 ## 8) Security/Robustness im Client
-- [ ] Input-/Output-Validierung an API-Grenzen (Runtime-Validation).
-- [ ] Redaction für sensible Felder in Logs (`token`, `ciphertext`, key material).
-- [ ] Safe Retry-Regeln für Write-Endpoints (idempotency-sicher planen).
-- [ ] Session Recovery nach App-Neustart (ohne Secrets im Renderer zu leaken).
+- [x] Input-/Output-Validierung an API-Grenzen (Runtime-Validation).
+- [x] Redaction für sensible Felder in Logs (`token`, `ciphertext`, key material).
+- [x] Safe Retry-Regeln für Write-Endpoints (idempotency-sicher planen).
+- [x] Session Recovery nach App-Neustart (ohne Secrets im Renderer zu leaken).
 
 ## 9) Tests (Integration, nicht UI)
-- [ ] Contract-Tests gegen Backend-Responses (Auth/Chat/E2EE).
-- [ ] WS-Integrationstests (Reconnect, Event-Reihenfolge, Duplicate-Handling).
-- [ ] E2EE-Ende-zu-Ende Tests (Bundle claim -> encrypted send -> decrypt receive).
-- [ ] Failure-Tests (abgelaufene Tokens, ungültige Prekeys, fehlende Recipient-Keys).
+- [x] Contract-Tests gegen Backend-Responses (Auth/Chat/E2EE).
+- [x] WS-Integrationstests (Reconnect, Event-Reihenfolge, Duplicate-Handling).
+- [x] E2EE-Ende-zu-Ende Tests (Bundle claim -> encrypted send -> decrypt receive).
+- [x] Failure-Tests (abgelaufene Tokens, ungültige Prekeys, fehlende Recipient-Keys).
 
 ## Hinweise aus aktuellem Code-Stand
 - Backend-Funktionen sind bereits breit vorhanden (Auth, Chat, WS, E2EE-Key-API).

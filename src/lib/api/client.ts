@@ -1,3 +1,4 @@
+import { safeWarn } from "../security/redaction";
 import { mapHttpError, mapUnknownError } from "./errors";
 import type { ApiError } from "./models";
 
@@ -18,12 +19,14 @@ export type ApiClientConfig = {
 	baseUrl: string;
 	timeoutMs?: number;
 	maxGetRetries?: number;
+	maxIdempotentWriteRetries?: number;
 };
 
 export type RequestOptions = {
 	signal?: AbortSignal;
 	headers?: HeadersInit;
 	requiresAuth?: boolean;
+	idempotencyKey?: string;
 };
 
 function resolveBaseUrl(): string {
@@ -34,6 +37,7 @@ export class ApiClient {
 	private readonly baseUrl: string;
 	private readonly timeoutMs: number;
 	private readonly maxGetRetries: number;
+	private readonly maxIdempotentWriteRetries: number;
 	private tokenProvider: TokenProvider = () => null;
 	private refreshHandler: RefreshHandler | null = null;
 
@@ -41,6 +45,7 @@ export class ApiClient {
 		this.baseUrl = (config?.baseUrl ?? resolveBaseUrl()).replace(/\/$/, "");
 		this.timeoutMs = config?.timeoutMs ?? 12_000;
 		this.maxGetRetries = config?.maxGetRetries ?? 2;
+		this.maxIdempotentWriteRetries = config?.maxIdempotentWriteRetries ?? 1;
 	}
 
 	setTokenProvider(provider: TokenProvider): void {
@@ -69,7 +74,12 @@ export class ApiClient {
 		body?: unknown,
 		options?: RequestOptions,
 	): Promise<T> {
-		const retries = method === "GET" ? this.maxGetRetries : 0;
+		const retries =
+			method === "GET"
+				? this.maxGetRetries
+				: options?.idempotencyKey
+					? this.maxIdempotentWriteRetries
+					: 0;
 		let attempt = 0;
 
 		while (true) {
@@ -88,7 +98,11 @@ export class ApiClient {
 						}
 					}
 
-					if (attempt >= retries || error.apiError.kind !== "network") {
+					if (
+						attempt >= retries ||
+						(error.apiError.kind !== "network" &&
+							error.apiError.kind !== "timeout")
+					) {
 						throw error;
 					}
 				} else {
@@ -98,6 +112,12 @@ export class ApiClient {
 				}
 
 				attempt += 1;
+				safeWarn("API retry scheduled", {
+					method,
+					path,
+					attempt,
+					idempotent: Boolean(options?.idempotencyKey),
+				});
 				await new Promise((resolve) => {
 					setTimeout(resolve, 250 * attempt);
 				});
@@ -131,6 +151,10 @@ export class ApiClient {
 			if (token) {
 				headers.set("authorization", `Bearer ${token}`);
 			}
+		}
+
+		if (options?.idempotencyKey) {
+			headers.set("idempotency-key", options.idempotencyKey);
 		}
 
 		try {

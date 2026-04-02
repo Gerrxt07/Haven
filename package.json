@@ -33,6 +33,7 @@
 	},
 	"scripts": {
 		"typecheck": "tsc --noEmit",
+		"test": "bun test",
 		"format": "biome check --write --unsafe .",
 		"lint": "biome check .",
 		"lint-staged": "lint-staged",
@@ -102,6 +103,7 @@
 		"asar": true
 	},
 	"dependencies": {
+		"@tanstack/solid-query": "5.96.1",
 		"bytenode": "1.5.7",
 		"electron-log": "5.4.3",
 		"electron-updater": "6.8.3",

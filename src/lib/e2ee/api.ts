@@ -1,9 +1,39 @@
+import { safeWarn } from "../security/redaction";
 import type {
 	ClaimedBundle,
 	KeyBundleUploadPayload,
 	PublicBundle,
 	SessionEnvelope,
 } from "./types";
+
+function assert(condition: unknown, message: string): asserts condition {
+	if (!condition) {
+		throw new Error(message);
+	}
+}
+
+function assertPublicBundle(value: unknown): asserts value is PublicBundle {
+	assert(!!value && typeof value === "object", "invalid public bundle");
+	const v = value as Record<string, unknown>;
+	assert(typeof v.user_id === "number", "invalid public bundle user_id");
+	assert(typeof v.identity_key === "string", "invalid identity_key");
+	assert(typeof v.signed_prekey_id === "number", "invalid signed_prekey_id");
+	assert(typeof v.signed_prekey === "string", "invalid signed_prekey");
+	assert(
+		typeof v.signed_prekey_signature === "string",
+		"invalid signed_prekey_signature",
+	);
+}
+
+function assertClaimedBundle(value: unknown): asserts value is ClaimedBundle {
+	assertPublicBundle(value);
+	const v = value as Record<string, unknown>;
+	assert(
+		typeof v.one_time_prekey_id === "number",
+		"invalid one_time_prekey_id",
+	);
+	assert(typeof v.one_time_prekey === "string", "invalid one_time_prekey");
+}
 
 type ApiRequestInit = RequestInit & { token?: string | null };
 
@@ -31,6 +61,11 @@ async function apiFetch<T>(path: string, init?: ApiRequestInit): Promise<T> {
 		} catch {
 			// ignore
 		}
+		safeWarn("E2EE API request failed", {
+			path,
+			status: response.status,
+			error,
+		});
 		throw new Error(error);
 	}
 
@@ -51,22 +86,26 @@ export async function uploadKeyBundle(
 }
 
 export async function getPublicBundle(userId: number): Promise<PublicBundle> {
-	return apiFetch<PublicBundle>(`/e2ee/keys/bundle/${userId}`, {
+	const bundle = await apiFetch<PublicBundle>(`/e2ee/keys/bundle/${userId}`, {
 		method: "GET",
 	});
+	assertPublicBundle(bundle);
+	return bundle;
 }
 
 export async function claimBundle(
 	requesterUserId: number,
 	targetUserId: number,
 ): Promise<ClaimedBundle> {
-	return apiFetch<ClaimedBundle>("/e2ee/keys/claim", {
+	const bundle = await apiFetch<ClaimedBundle>("/e2ee/keys/claim", {
 		method: "POST",
 		body: JSON.stringify({
 			requester_user_id: requesterUserId,
 			target_user_id: targetUserId,
 		}),
 	});
+	assertClaimedBundle(bundle);
+	return bundle;
 }
 
 export async function sendEncryptedMessage(input: {

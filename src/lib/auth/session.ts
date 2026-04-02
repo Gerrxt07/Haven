@@ -20,6 +20,8 @@ type SessionState = {
 	currentUser: AuthUserResponse | null;
 };
 
+type SessionListener = (state: SessionState) => void;
+
 class AuthSessionManager {
 	private state: SessionState = {
 		accessToken: null,
@@ -28,6 +30,7 @@ class AuthSessionManager {
 	};
 
 	private refreshInFlight: Promise<boolean> | null = null;
+	private readonly listeners = new Set<SessionListener>();
 
 	constructor() {
 		apiClient.setTokenProvider(() => this.state.accessToken);
@@ -46,6 +49,25 @@ class AuthSessionManager {
 		return this.state.currentUser;
 	}
 
+	snapshot(): SessionState {
+		return { ...this.state };
+	}
+
+	onChange(listener: SessionListener): () => void {
+		this.listeners.add(listener);
+		listener(this.snapshot());
+		return () => {
+			this.listeners.delete(listener);
+		};
+	}
+
+	private notify(): void {
+		const snapshot = this.snapshot();
+		for (const listener of this.listeners) {
+			listener(snapshot);
+		}
+	}
+
 	async bootstrapFromStorage(): Promise<void> {
 		if (!globalThis.electronAPI) {
 			return;
@@ -59,12 +81,29 @@ class AuthSessionManager {
 
 		this.state.accessToken = accessToken ?? legacyToken;
 		this.state.refreshToken = refreshToken;
+		this.notify();
+
+		if (legacyToken && accessToken !== legacyToken) {
+			await globalThis.electronAPI.deleteToken();
+		}
+
+		if (!this.state.accessToken && this.state.refreshToken) {
+			const refreshed = await this.refreshAccessToken();
+			if (!refreshed) {
+				return;
+			}
+		}
 
 		if (this.state.accessToken) {
 			try {
 				this.state.currentUser = await apiMe();
+				this.notify();
 			} catch {
-				await this.refreshAccessToken();
+				const refreshed = await this.refreshAccessToken();
+				if (refreshed) {
+					this.state.currentUser = await apiMe();
+					this.notify();
+				}
 			}
 		}
 	}
@@ -77,6 +116,7 @@ class AuthSessionManager {
 		const tokens = await apiLogin(payload);
 		await this.persistTokens(tokens);
 		this.state.currentUser = await apiMe();
+		this.notify();
 		return this.state.currentUser;
 	}
 
@@ -86,6 +126,7 @@ class AuthSessionManager {
 			refreshToken: null,
 			currentUser: null,
 		};
+		this.notify();
 
 		if (!globalThis.electronAPI) {
 			return;
@@ -136,6 +177,7 @@ class AuthSessionManager {
 	private async persistTokens(tokens: AuthTokens): Promise<void> {
 		this.state.accessToken = tokens.access_token;
 		this.state.refreshToken = tokens.refresh_token;
+		this.notify();
 
 		if (!globalThis.electronAPI) {
 			return;

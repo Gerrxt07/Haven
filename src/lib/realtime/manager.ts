@@ -1,4 +1,5 @@
 import type { PresenceEvent } from "../api";
+import { safeWarn } from "../security/redaction";
 import {
 	applyPresence,
 	markHeartbeat,
@@ -8,6 +9,19 @@ import {
 } from "./store";
 
 type EventHandler = (event: PresenceEvent) => void;
+
+function isPresenceEvent(value: unknown): value is PresenceEvent {
+	if (!value || typeof value !== "object") {
+		return false;
+	}
+	const event = value as Record<string, unknown>;
+	return (
+		typeof event.event_type === "string" &&
+		typeof event.ts === "number" &&
+		typeof event.payload === "object" &&
+		event.payload !== null
+	);
+}
 
 function resolveWsUrl(): string {
 	const httpBase = "https://havenapi.becloudly.eu/api/v1";
@@ -207,13 +221,15 @@ export class RealtimeManager {
 	}
 
 	private handleMessage(raw: string): void {
-		let parsed: PresenceEvent | null = null;
+		let parsed: unknown = null;
 		try {
-			parsed = JSON.parse(raw) as PresenceEvent;
+			parsed = JSON.parse(raw);
 		} catch {
+			safeWarn("Ignoring invalid websocket message", { raw });
 			return;
 		}
-		if (!parsed) {
+		if (!isPresenceEvent(parsed)) {
+			safeWarn("Ignoring websocket event with invalid schema", { parsed });
 			return;
 		}
 
