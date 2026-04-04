@@ -1,4 +1,11 @@
-import { MessageCircleQuestion, Minus, Square, X } from "lucide-solid";
+import {
+	MessageCircleQuestion,
+	Minus,
+	Settings,
+	Square,
+	User,
+	X,
+} from "lucide-solid";
 import {
 	createSignal,
 	lazy,
@@ -17,6 +24,8 @@ const AuthView = lazy(() => import("./views/Auth"));
 export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
 	const [helpTooltipOpen, setHelpTooltipOpen] = createSignal(false);
+	const [accountTooltipOpen, setAccountTooltipOpen] = createSignal(false);
+	const [settingsTooltipOpen, setSettingsTooltipOpen] = createSignal(false);
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
 
 	onMount(() => {
@@ -37,7 +46,7 @@ export default function App() {
 		});
 
 		document.getElementById("help-btn")?.addEventListener("click", () => {
-			globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu");
+			globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
 		});
 
 		// Listen for external link clicks intercepted by Electron
@@ -80,7 +89,73 @@ export default function App() {
 				{/* Controls */}
 				<div class="flex h-full" style={{ "-webkit-app-region": "no-drag" }}>
 					<div
-						class="flex items-center px-3 relative"
+						class="flex items-end pb-1.75 px-2 relative h-full"
+						onMouseEnter={() => setAccountTooltipOpen(true)}
+						onMouseLeave={() => setAccountTooltipOpen(false)}
+						onFocus={() => setAccountTooltipOpen(true)}
+						onBlur={() => setAccountTooltipOpen(false)}
+						role="tooltip"
+						aria-label={t("app", "account")}
+					>
+						<button
+							type="button"
+							id="account-btn"
+							class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+						>
+							<User size={15} stroke-width={2} aria-hidden="true" />
+						</button>
+
+						<Presence>
+							<Show when={accountTooltipOpen()}>
+								<Motion.div
+									initial={{ opacity: 0, scale: 0.95, y: -2 }}
+									animate={{ opacity: 1, scale: 1, y: 0 }}
+									exit={{ opacity: 0, scale: 0.95, y: -2 }}
+									transition={{ duration: 0.15, easing: "ease-out" }}
+									class="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#111214] text-[#dcddde] font-semibold text-[13px] rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50 will-change-[transform,opacity]"
+								>
+									{t("app", "account")}
+									<div class="absolute -top-1.25 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-4 border-b-[#111214]"></div>
+								</Motion.div>
+							</Show>
+						</Presence>
+					</div>
+
+					<div
+						class="flex items-end pb-1.75 px-2 relative h-full"
+						onMouseEnter={() => setSettingsTooltipOpen(true)}
+						onMouseLeave={() => setSettingsTooltipOpen(false)}
+						onFocus={() => setSettingsTooltipOpen(true)}
+						onBlur={() => setSettingsTooltipOpen(false)}
+						role="tooltip"
+						aria-label={t("app", "settings")}
+					>
+						<button
+							type="button"
+							id="settings-btn"
+							class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+						>
+							<Settings size={15} stroke-width={2} aria-hidden="true" />
+						</button>
+
+						<Presence>
+							<Show when={settingsTooltipOpen()}>
+								<Motion.div
+									initial={{ opacity: 0, scale: 0.95, y: -2 }}
+									animate={{ opacity: 1, scale: 1, y: 0 }}
+									exit={{ opacity: 0, scale: 0.95, y: -2 }}
+									transition={{ duration: 0.15, easing: "ease-out" }}
+									class="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#111214] text-[#dcddde] font-semibold text-[13px] rounded-md shadow-lg pointer-events-none whitespace-nowrap z-50 will-change-[transform,opacity]"
+								>
+									{t("app", "settings")}
+									<div class="absolute -top-1.25 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-l-transparent border-r-4 border-r-transparent border-b-4 border-b-[#111214]"></div>
+								</Motion.div>
+							</Show>
+						</Presence>
+					</div>
+
+					<div
+						class="flex items-end pb-1.75 px-2 relative h-full"
 						onMouseEnter={() => setHelpTooltipOpen(true)}
 						onMouseLeave={() => setHelpTooltipOpen(false)}
 						onFocus={() => setHelpTooltipOpen(true)}

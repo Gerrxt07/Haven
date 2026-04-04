@@ -3,6 +3,8 @@ export const de = {
 		title: "Haven",
 		loading: "Laden...",
 		help: "Hilfe",
+		account: "Konto",
+		settings: "Einstellungen",
 		externalLinkWarning:
 			"Warnung: Du verlässt Haven, um eine externe Website zu besuchen:\n\n{{url}}\n\nWillst du fortfahren?",
 	},

@@ -3,6 +3,8 @@ export const en = {
 		title: "Haven",
 		loading: "Loading...",
 		help: "Help",
+		account: "Account",
+		settings: "Settings",
 		externalLinkWarning:
 			"Warning: You are leaving Haven to visit an external website:\n\n{{url}}\n\nDo you want to continue?",
 	},
