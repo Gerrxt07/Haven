@@ -56,6 +56,10 @@ export class ApiClient {
 		this.refreshHandler = handler;
 	}
 
+	resolveUrl(path: string): string {
+		return new URL(path, `${this.baseUrl}/`).toString();
+	}
+
 	async get<T>(path: string, options?: RequestOptions): Promise<T> {
 		return this.request<T>("GET", path, undefined, options);
 	}
