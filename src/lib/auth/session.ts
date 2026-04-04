@@ -16,7 +16,6 @@ import {
 	fileToImageDataUrl,
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
-import { safeInfo, safeWarn } from "../security/redaction";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
@@ -167,11 +166,6 @@ class AuthSessionManager {
 		}
 
 		const currentUserId = this.state.currentUser.id;
-		safeInfo("profile-picture upload started", {
-			userId: currentUserId,
-			fileType: file.type,
-			fileSizeBytes: file.size,
-		});
 		const previousUser = this.state.currentUser;
 		const previewDataUrl = await fileToImageDataUrl(file);
 		await cacheProfileImageDataUrl(
@@ -179,23 +173,11 @@ class AuthSessionManager {
 			previewDataUrl,
 			"local-upload",
 		);
-		safeInfo("profile-picture local preview cached", {
-			userId: currentUserId,
-		});
 		this.notify();
 
 		try {
 			const updatedUser = await apiUploadProfilePicture(file);
 			this.state.currentUser = updatedUser;
-			safeInfo("profile-picture upload succeeded", {
-				userId: updatedUser.id,
-				hasAvatarUrl: Boolean(
-					updatedUser.avatar_url ??
-						updatedUser.profile_image_url ??
-						updatedUser.profile_picture_url ??
-						updatedUser.avatar,
-				),
-			});
 			this.notify();
 
 			await primeRelatedUserAvatar(
@@ -209,10 +191,6 @@ class AuthSessionManager {
 
 			return updatedUser;
 		} catch (error) {
-			safeWarn("profile-picture upload failed, reverting local preview", {
-				userId: currentUserId,
-				error: error instanceof Error ? error.message : "unknown upload error",
-			});
 			await clearCachedProfileImage(currentUserId);
 			this.state.currentUser = previousUser;
 			this.notify();

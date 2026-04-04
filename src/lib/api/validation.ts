@@ -1,7 +1,6 @@
 import type {
 	AuthTokens,
 	AuthUserResponse,
-	AvatarUploadResponse,
 	ChannelDto,
 	CreateChannelRequestDto,
 	CreateMessageRequestDto,
@@ -104,17 +103,6 @@ export function assertAuthUser(
 	assert(isString(value.account_status), "missing account_status");
 	assert(isNumber(value.token_version), "missing token_version");
 	assert(isString(value.created_at), "missing created_at");
-}
-
-export function assertAvatarUploadResponse(
-	value: unknown,
-): asserts value is AvatarUploadResponse {
-	assert(isObject(value), "invalid avatar upload response");
-	assert(isString(value.avatar_url), "missing avatar_url");
-	assert(isNumber(value.width), "missing width");
-	assert(isNumber(value.height), "missing height");
-	assert(isNumber(value.size_bytes), "missing size_bytes");
-	assert(isString(value.format), "missing format");
 }
 
 export function assertCreateServerRequest(
