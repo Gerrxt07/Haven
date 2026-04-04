@@ -11,10 +11,20 @@ const updateSettingsPath = path.join(
 	"update-settings.json",
 );
 const updateCheckTimeoutMs = 10_000;
+const downloadProgressUiThrottleMs = 120;
+const downloadProgressLogThrottleMs = 900;
 const devUpdaterPreviewDurationMs = 2_500;
 const packagedMinimumUiDurationMs = 2_500;
 const updaterLoaderSizePx = 160;
 const updaterLogoSizePx = 116;
+
+type UpdaterUiState = {
+	phase: "checking" | "downloading" | "installing";
+	percent?: number;
+	transferred?: number;
+	total?: number;
+	bytesPerSecond?: number;
+};
 
 function isDevUpdaterPreviewEnabled(): boolean {
 	return process.env.HAVEN_DEV_UPDATER_UI === "1";
@@ -141,6 +151,54 @@ function createUpdateWindow(
 						animation: spin 1s linear infinite;
 						will-change: transform;
 					}
+					.progress-shell {
+						position: fixed;
+						left: 0;
+						right: 0;
+						bottom: 0;
+						opacity: 0;
+						transform: translateY(10px);
+						transition: opacity 180ms ease, transform 240ms ease;
+						pointer-events: none;
+					}
+					.progress-shell.visible {
+						opacity: 1;
+						transform: translateY(0);
+					}
+					.progress-track {
+						height: 4px;
+						background: rgba(255, 255, 255, 0.12);
+						overflow: hidden;
+					}
+					.progress-bar {
+						height: 100%;
+						width: 0%;
+						background: linear-gradient(90deg, #6d79ff 0%, #8f6dff 60%, #b36dff 100%);
+						transition: width 180ms linear;
+						position: relative;
+						will-change: width;
+					}
+					.progress-bar::after {
+						content: "";
+						position: absolute;
+						inset: 0;
+						background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.42) 45%, transparent 75%);
+						animation: shimmer 1.3s linear infinite;
+					}
+					.progress-meta {
+						display: flex;
+						justify-content: space-between;
+						align-items: center;
+						gap: 12px;
+						padding: 8px 12px 10px;
+						font-size: 12px;
+						color: rgba(255, 255, 255, 0.8);
+						letter-spacing: 0.01em;
+					}
+					@keyframes shimmer {
+						0% { transform: translateX(-150%); }
+						100% { transform: translateX(160%); }
+					}
 					@keyframes spin {
 						to {
 							transform: rotate(360deg);
@@ -153,6 +211,76 @@ function createUpdateWindow(
 					<img class="logo" src="${logoDataUrl}" alt="Haven" />
 					<div class="spinner" aria-hidden="true"></div>
 				</div>
+				<div id="progress-shell" class="progress-shell" aria-hidden="true">
+					<div class="progress-track">
+						<div id="progress-bar" class="progress-bar"></div>
+					</div>
+					<div class="progress-meta">
+						<span id="progress-status">Preparing update...</span>
+						<span id="progress-text">0%</span>
+					</div>
+				</div>
+				<script>
+					(() => {
+						const progressShell = document.getElementById("progress-shell");
+						const progressBar = document.getElementById("progress-bar");
+						const progressStatus = document.getElementById("progress-status");
+						const progressText = document.getElementById("progress-text");
+
+						const clampPercent = (value) => {
+							if (typeof value !== "number" || Number.isNaN(value)) return 0;
+							return Math.max(0, Math.min(100, value));
+						};
+
+						const formatBytes = (bytes) => {
+							if (typeof bytes !== "number" || bytes <= 0) return "0 B";
+							const units = ["B", "KB", "MB", "GB"];
+							let size = bytes;
+							let unitIndex = 0;
+							while (size >= 1024 && unitIndex < units.length - 1) {
+								size /= 1024;
+								unitIndex += 1;
+							}
+							return size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1) + " " + units[unitIndex];
+						};
+
+						window.__havenUpdater = {
+							update(payload) {
+								if (!payload || !progressShell || !progressBar || !progressStatus || !progressText) {
+									return;
+								}
+
+								const phase = payload.phase;
+								const percent = clampPercent(payload.percent ?? 0);
+
+								if (phase === "downloading" || phase === "installing") {
+									progressShell.classList.add("visible");
+								} else {
+									progressShell.classList.remove("visible");
+								}
+
+								progressBar.style.width = percent.toFixed(1) + "%";
+
+								if (phase === "downloading") {
+									progressStatus.textContent = "Downloading update...";
+									const transferred = formatBytes(payload.transferred ?? 0);
+									const total = formatBytes(payload.total ?? 0);
+									progressText.textContent = percent.toFixed(1) + "% · " + transferred + " / " + total;
+									return;
+								}
+
+								if (phase === "installing") {
+									progressStatus.textContent = "Installing update...";
+									progressText.textContent = "100%";
+									return;
+								}
+
+								progressStatus.textContent = "Checking for updates...";
+								progressText.textContent = "0%";
+							},
+						};
+					})();
+				</script>
 			</body>
 		</html>
 	`;
@@ -166,6 +294,27 @@ function createUpdateWindow(
 	});
 
 	return updateWindow;
+}
+
+function updateUpdaterWindowState(
+	updateWindow: BrowserWindow,
+	state: UpdaterUiState,
+): void {
+	if (updateWindow.isDestroyed() || updateWindow.webContents.isDestroyed()) {
+		return;
+	}
+
+	const payload = JSON.stringify(state);
+	void updateWindow.webContents
+		.executeJavaScript(
+			`;
+window.__havenUpdater?.update?.(${payload});
+`,
+			true,
+		)
+		.catch((error) => {
+			log.debug("Failed to push updater UI state", error);
+		});
 }
 
 function resizeLogoDataUrl(logoDataUrl: string): string {
@@ -297,10 +446,13 @@ export async function runStartupUpdateFlow({
 	autoUpdater.channel = candidate;
 	autoUpdater.allowPrerelease = candidate === "nightly";
 	autoUpdater.allowDowngrade = candidate === "nightly";
-	autoUpdater.disableWebInstaller = true;
+	autoUpdater.disableDifferentialDownload = false;
+	autoUpdater.disableWebInstaller = false;
 
 	let launched = false;
 	let checkTimeout: NodeJS.Timeout | null = null;
+	let lastUiProgressAt = 0;
+	let lastLoggedProgressAt = 0;
 	const uiStartedAt = Date.now();
 	const minimumUiDurationMs = app.isPackaged ? packagedMinimumUiDurationMs : 0;
 
@@ -344,6 +496,7 @@ export async function runStartupUpdateFlow({
 
 	autoUpdater.on("checking-for-update", () => {
 		log.info("Checking for updates");
+		updateUpdaterWindowState(updateWindow, { phase: "checking", percent: 0 });
 	});
 
 	autoUpdater.on("update-available", (info) => {
@@ -352,15 +505,38 @@ export async function runStartupUpdateFlow({
 			version: info.version,
 			releaseDate: info.releaseDate,
 		});
+		updateUpdaterWindowState(updateWindow, {
+			phase: "downloading",
+			percent: 0,
+			transferred: 0,
+			total: 0,
+			bytesPerSecond: 0,
+		});
 	});
 
 	autoUpdater.on("download-progress", (progress) => {
-		log.info("Update download progress", {
-			percent: progress.percent,
-			bytesPerSecond: progress.bytesPerSecond,
-			transferred: progress.transferred,
-			total: progress.total,
-		});
+		const now = Date.now();
+
+		if (now - lastUiProgressAt >= downloadProgressUiThrottleMs) {
+			lastUiProgressAt = now;
+			updateUpdaterWindowState(updateWindow, {
+				phase: "downloading",
+				percent: progress.percent,
+				transferred: progress.transferred,
+				total: progress.total,
+				bytesPerSecond: progress.bytesPerSecond,
+			});
+		}
+
+		if (now - lastLoggedProgressAt >= downloadProgressLogThrottleMs) {
+			lastLoggedProgressAt = now;
+			log.info("Update download progress", {
+				percent: progress.percent,
+				bytesPerSecond: progress.bytesPerSecond,
+				transferred: progress.transferred,
+				total: progress.total,
+			});
+		}
 	});
 
 	autoUpdater.on("update-not-available", () => {
@@ -378,6 +554,10 @@ export async function runStartupUpdateFlow({
 	autoUpdater.on("update-downloaded", () => {
 		clearCheckTimeout();
 		log.info("Update downloaded; installing now");
+		updateUpdaterWindowState(updateWindow, {
+			phase: "installing",
+			percent: 100,
+		});
 		setTimeout(() => {
 			autoUpdater.quitAndInstall(false, true);
 		}, 900);

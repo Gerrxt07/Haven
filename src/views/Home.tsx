@@ -9,6 +9,7 @@ import { authSession } from "../lib/auth/session";
 
 export default function Home() {
 	const user = () => authSession.snapshot().currentUser;
+	const fallbackProfileImage = "./profile.png";
 
 	return (
 		<div class="flex h-full w-full bg-[#313338] text-white">
@@ -52,11 +53,11 @@ export default function Home() {
 						class="w-10 h-10 sm:w-11 sm:h-11 rounded-3xl hover:rounded-2xl transition-all duration-300 ease-out bg-transparent overflow-hidden shrink-0 mt-2 flex items-center justify-center hover:opacity-80 cursor-pointer"
 					>
 						<img
-							src={"/profile.png"}
+							src={fallbackProfileImage}
 							alt={user()?.display_name || user()?.username || "User profile"}
 							class="w-full h-full object-cover transition-all duration-300 ease-out"
 							onError={(e) => {
-								e.currentTarget.src = "/profile.png";
+								e.currentTarget.src = fallbackProfileImage;
 							}}
 						/>
 					</TooltipTrigger>
