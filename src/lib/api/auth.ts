@@ -2,6 +2,7 @@ import { apiClient } from "./index";
 import type {
 	AuthTokens,
 	AuthUserResponse,
+	AvatarUploadResponse,
 	LoginRequest,
 	RefreshRequest,
 	RegisterRequest,
@@ -9,6 +10,7 @@ import type {
 import {
 	assertAuthTokens,
 	assertAuthUser,
+	assertAvatarUploadResponse,
 	assertLoginRequest,
 	assertRefreshRequest,
 	assertRegisterRequest,
@@ -68,5 +70,33 @@ export async function apiMe(signal?: AbortSignal): Promise<AuthUserResponse> {
 		signal,
 	});
 	assertAuthUser(response);
+	return response;
+}
+
+export async function apiUploadProfileAvatar(
+	file: File,
+	signal?: AbortSignal,
+): Promise<AvatarUploadResponse> {
+	const allowedTypes = new Set(["image/jpeg", "image/png"]);
+	if (!allowedTypes.has(file.type)) {
+		throw new Error("avatar must be JPG or PNG");
+	}
+	if (file.size > 5 * 1024 * 1024) {
+		throw new Error("avatar must be <= 5MB");
+	}
+
+	const formData = new FormData();
+	formData.append("file", file);
+
+	const response = await apiClient.postFormData<AvatarUploadResponse>(
+		"/users/me/avatar",
+		formData,
+		{
+			requiresAuth: true,
+			signal,
+		},
+	);
+
+	assertAvatarUploadResponse(response);
 	return response;
 }

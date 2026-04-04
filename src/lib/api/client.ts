@@ -68,6 +68,14 @@ export class ApiClient {
 		return this.request<TResponse>("POST", path, body, options);
 	}
 
+	async postFormData<TResponse>(
+		path: string,
+		formData: FormData,
+		options?: RequestOptions,
+	): Promise<TResponse> {
+		return this.request<TResponse>("POST", path, formData, options);
+	}
+
 	async request<T>(
 		method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 		path: string,
@@ -144,7 +152,12 @@ export class ApiClient {
 		const signal = AbortSignal.any(signals);
 
 		const headers = new Headers(options?.headers ?? {});
-		headers.set("content-type", "application/json");
+		const isFormData =
+			typeof FormData !== "undefined" && body instanceof FormData;
+
+		if (!isFormData) {
+			headers.set("content-type", "application/json");
+		}
 
 		if (options?.requiresAuth) {
 			const token = this.tokenProvider();
@@ -158,10 +171,17 @@ export class ApiClient {
 		}
 
 		try {
+			const requestBody =
+				body === undefined
+					? undefined
+					: isFormData
+						? (body as FormData)
+						: JSON.stringify(body);
+
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				method,
 				headers,
-				body: body === undefined ? undefined : JSON.stringify(body),
+				body: requestBody,
 				signal,
 			});
 
