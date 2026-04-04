@@ -9,7 +9,10 @@ export const en = {
 			"Warning: You are leaving Haven to visit an external website:\n\n{{url}}\n\nDo you want to continue?",
 	},
 	home: {
-		title: "Home View",
+		title: "Home",
+		sidebar_home: "Home",
+		sidebar_explorer: "Explorer",
+		sidebar_profile: "Profile",
 	},
 	auth: {
 		loginTitle: "Welcome back!",

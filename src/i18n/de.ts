@@ -10,6 +10,9 @@ export const de = {
 	},
 	home: {
 		title: "Startseite",
+		sidebar_home: "Startseite",
+		sidebar_explorer: "Entdecken",
+		sidebar_profile: "Profil",
 	},
 	auth: {
 		loginTitle: "Willkommen zurück!",
