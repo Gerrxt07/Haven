@@ -5,6 +5,7 @@ export const en = {
 		help: "Help",
 		account: "Account",
 		settings: "Settings",
+		commandPalette: "Commands",
 		externalLinkWarning:
 			"Warning: You are leaving Haven to visit an external website:\n\n{{url}}\n\nDo you want to continue?",
 	},

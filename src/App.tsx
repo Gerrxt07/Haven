@@ -14,6 +14,7 @@ import {
 	Show,
 	Suspense,
 } from "solid-js";
+import { CommandPaletteField } from "./components/ui/command-palette-field";
 import {
 	Tooltip,
 	TooltipContent,
@@ -75,7 +76,7 @@ export default function App() {
 		<div class="flex flex-col h-screen w-full bg-[#272727] text-white">
 			{/* Titlebar */}
 			<div
-				class="h-8 bg-[#1e1e1e] flex justify-between items-center select-none relative"
+				class="h-8 bg-[#1e1f22] flex justify-between items-center select-none relative"
 				style={{ "-webkit-app-region": "drag" }}
 			>
 				{/* Spacer */}
@@ -88,13 +89,17 @@ export default function App() {
 
 				{/* Controls */}
 				<div class="flex h-full" style={{ "-webkit-app-region": "no-drag" }}>
+					<div class="h-full flex items-center justify-center">
+						<CommandPaletteField />
+					</div>
+
 					<Show when={authState().currentUser}>
-						<div class="flex items-end pb-1.75 px-2 relative h-full">
+						<div class="h-full px-2 relative flex items-center">
 							<Tooltip placement="bottom">
 								<TooltipTrigger
 									as="button"
 									id="account-btn"
-									class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+									class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
 								>
 									<User size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
@@ -102,12 +107,12 @@ export default function App() {
 							</Tooltip>
 						</div>
 
-						<div class="flex items-end pb-1.75 px-2 relative h-full">
+						<div class="h-full px-2 relative flex items-center">
 							<Tooltip placement="bottom">
 								<TooltipTrigger
 									as="button"
 									id="settings-btn"
-									class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+									class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
 								>
 									<Settings size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
@@ -116,12 +121,12 @@ export default function App() {
 						</div>
 					</Show>
 
-					<div class="flex items-end pb-1.75 px-2 relative h-full">
+					<div class="h-full px-2 relative flex items-center">
 						<Tooltip placement="bottom">
 							<TooltipTrigger
 								as="button"
 								id="help-btn"
-								class="border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+								class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
 							>
 								<MessageCircleQuestion
 									size={15}

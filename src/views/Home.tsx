@@ -9,7 +9,10 @@ import { authSession } from "../lib/auth/session";
 
 export default function Home() {
 	const user = () => authSession.snapshot().currentUser;
-	const fallbackProfileImage = "./profile.png";
+	const fallbackProfileImage = new URL(
+		"profile.png",
+		globalThis.location.href,
+	).toString();
 
 	return (
 		<div class="flex h-full w-full bg-[#313338] text-white">
