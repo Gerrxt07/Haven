@@ -1,10 +1,9 @@
 import type { AuthUserResponse } from "../api";
+import { apiClient } from "../api";
 
 const PROFILE_CACHE_NAMESPACE = "profile-image-cache";
 const PROFILE_CACHE_PREFIX = "user:";
 const PROFILE_LOCAL_STORAGE_PREFIX = "haven.profile-image.";
-const API_ORIGIN = "https://havenapi.becloudly.eu";
-
 type CachedProfileImage = {
 	dataUrl: string;
 	sourceUrl: string | null;
@@ -67,7 +66,7 @@ function normalizeAvatarUrl(value: string): string {
 		return value;
 	}
 
-	return new URL(value, API_ORIGIN).toString();
+	return apiClient.resolveUrl(value);
 }
 
 function secureStoreAvailable(): boolean {
