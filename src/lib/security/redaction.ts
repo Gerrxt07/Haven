@@ -58,3 +58,19 @@ export function safeWarn(message: string, metadata?: unknown): void {
 	}
 	console.warn(message, redactSensitive(metadata));
 }
+
+export function safeInfo(message: string, metadata?: unknown): void {
+	if (metadata === undefined) {
+		console.info(message);
+		return;
+	}
+	console.info(message, redactSensitive(metadata));
+}
+
+export function safeError(message: string, metadata?: unknown): void {
+	if (metadata === undefined) {
+		console.error(message);
+		return;
+	}
+	console.error(message, redactSensitive(metadata));
+}

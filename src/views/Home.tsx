@@ -8,6 +8,7 @@ import {
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { resolveProfileImageForUser } from "../lib/cache/profile-images";
+import { safeWarn } from "../lib/security/redaction";
 
 export default function Home() {
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
@@ -65,7 +66,9 @@ export default function Home() {
 			setIsUploadingImage(true);
 			await authSession.uploadProfilePicture(file);
 		} catch (error) {
-			console.warn("Profile picture upload failed", error);
+			safeWarn("Profile picture upload failed", {
+				error: error instanceof Error ? error.message : "unknown upload error",
+			});
 		} finally {
 			setIsUploadingImage(false);
 		}
