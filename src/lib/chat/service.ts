@@ -16,6 +16,7 @@ import {
 	loadChannelMetadata,
 	persistChannelMetadata,
 } from "../cache/offline-metadata";
+import { primeRelatedUserAvatar } from "../cache/profile-images";
 import { realtimeManager } from "../realtime";
 import { setActiveChannel } from "../state";
 import {
@@ -24,6 +25,30 @@ import {
 	setChannelLoading,
 	upsertMessage,
 } from "./store";
+
+function pickAvatarFromPayload(
+	payload: Record<string, unknown>,
+): string | null {
+	const candidates = [
+		payload.author_avatar_url,
+		payload.avatar_url,
+		payload.profile_image_url,
+		payload.profile_picture_url,
+		payload.profile_picture,
+		payload.image_url,
+		payload.photo_url,
+		payload.avatarUrl,
+		payload.profilePictureUrl,
+	];
+
+	for (const candidate of candidates) {
+		if (typeof candidate === "string" && candidate.trim().length > 0) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
 
 class ChatSyncService {
 	private attachedRealtime = false;
@@ -35,37 +60,30 @@ class ChatSyncService {
 
 		this.attachedRealtime = true;
 		realtimeManager.on("new_message", (event) => {
+			const payload = event.payload;
 			const channelId = Number(event.payload.channel_id ?? event.channel);
 			if (!Number.isFinite(channelId)) {
 				return;
 			}
 
-			const messageId = Number(event.payload.message_id);
-			const authorUserId = Number(event.payload.author_user_id);
-			const createdAt = String(
-				event.payload.created_at ?? new Date().toISOString(),
-			);
+			const messageId = Number(payload.message_id);
+			const authorUserId = Number(payload.author_user_id);
+			const createdAt = String(payload.created_at ?? new Date().toISOString());
+			const authorAvatarUrl = pickAvatarFromPayload(payload);
 
 			const message: MessageDto = {
 				id: Number.isFinite(messageId) ? messageId : Date.now(),
 				channel_id: channelId,
 				author_user_id: Number.isFinite(authorUserId) ? authorUserId : 0,
-				content:
-					typeof event.payload.content === "string"
-						? event.payload.content
-						: "",
-				is_encrypted: Boolean(event.payload.is_encrypted),
+				author_avatar_url: authorAvatarUrl,
+				content: typeof payload.content === "string" ? payload.content : "",
+				is_encrypted: Boolean(payload.is_encrypted),
 				ciphertext:
-					typeof event.payload.ciphertext === "string"
-						? event.payload.ciphertext
-						: null,
-				nonce:
-					typeof event.payload.nonce === "string" ? event.payload.nonce : null,
-				aad: typeof event.payload.aad === "string" ? event.payload.aad : null,
+					typeof payload.ciphertext === "string" ? payload.ciphertext : null,
+				nonce: typeof payload.nonce === "string" ? payload.nonce : null,
+				aad: typeof payload.aad === "string" ? payload.aad : null,
 				algorithm:
-					typeof event.payload.algorithm === "string"
-						? event.payload.algorithm
-						: null,
+					typeof payload.algorithm === "string" ? payload.algorithm : null,
 				edited_at: null,
 				deleted_at: null,
 				created_at: createdAt,
@@ -73,6 +91,9 @@ class ChatSyncService {
 			};
 
 			upsertMessage(channelId, message);
+			if (Number.isFinite(authorUserId)) {
+				void primeRelatedUserAvatar(authorUserId, authorAvatarUrl);
+			}
 			void persistChannelMetadata(channelId, [message]);
 		});
 	}
@@ -130,6 +151,12 @@ class ChatSyncService {
 				limit,
 				signal,
 			});
+			for (const row of rows) {
+				void primeRelatedUserAvatar(
+					row.author_user_id,
+					row.author_avatar_url ?? null,
+				);
+			}
 			mergeMessages(channelId, rows);
 			void persistChannelMetadata(channelId, rows);
 			return rows;

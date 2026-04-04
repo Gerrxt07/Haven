@@ -64,6 +64,42 @@ export function assertAuthUser(
 	assert(isString(value.username), "missing username");
 	assert(isString(value.display_name), "missing display_name");
 	assert(isString(value.email), "missing email");
+	if (value.avatar_url !== undefined && value.avatar_url !== null) {
+		assert(isString(value.avatar_url), "invalid avatar_url");
+	}
+	if (
+		value.profile_image_url !== undefined &&
+		value.profile_image_url !== null
+	) {
+		assert(isString(value.profile_image_url), "invalid profile_image_url");
+	}
+	if (
+		value.profile_picture_url !== undefined &&
+		value.profile_picture_url !== null
+	) {
+		assert(isString(value.profile_picture_url), "invalid profile_picture_url");
+	}
+	if (value.avatar !== undefined && value.avatar !== null) {
+		assert(isString(value.avatar), "invalid avatar");
+	}
+	if (value.profile_picture !== undefined && value.profile_picture !== null) {
+		assert(isString(value.profile_picture), "invalid profile_picture");
+	}
+	if (value.image_url !== undefined && value.image_url !== null) {
+		assert(isString(value.image_url), "invalid image_url");
+	}
+	if (value.photo_url !== undefined && value.photo_url !== null) {
+		assert(isString(value.photo_url), "invalid photo_url");
+	}
+	if (value.avatarUrl !== undefined && value.avatarUrl !== null) {
+		assert(isString(value.avatarUrl), "invalid avatarUrl");
+	}
+	if (
+		value.profilePictureUrl !== undefined &&
+		value.profilePictureUrl !== null
+	) {
+		assert(isString(value.profilePictureUrl), "invalid profilePictureUrl");
+	}
 	assert(isString(value.account_status), "missing account_status");
 	assert(isNumber(value.token_version), "missing token_version");
 	assert(isString(value.created_at), "missing created_at");

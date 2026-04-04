@@ -6,9 +6,16 @@ import {
 	apiMe,
 	apiRefresh,
 	apiRegister,
+	apiUploadProfilePicture,
 	type LoginRequest,
 	type RegisterRequest,
 } from "../api";
+import {
+	cacheProfileImageDataUrl,
+	clearCachedProfileImage,
+	fileToImageDataUrl,
+	primeRelatedUserAvatar,
+} from "../cache/profile-images";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
@@ -151,6 +158,44 @@ class AuthSessionManager {
 				REFRESH_TOKEN_KEY,
 			),
 		]);
+	}
+
+	async uploadProfilePicture(file: File): Promise<AuthUserResponse> {
+		if (!this.state.currentUser) {
+			throw new Error("Cannot upload a profile picture without an active user");
+		}
+
+		const currentUserId = this.state.currentUser.id;
+		const previousUser = this.state.currentUser;
+		const previewDataUrl = await fileToImageDataUrl(file);
+		await cacheProfileImageDataUrl(
+			currentUserId,
+			previewDataUrl,
+			"local-upload",
+		);
+		this.notify();
+
+		try {
+			const updatedUser = await apiUploadProfilePicture(file);
+			this.state.currentUser = updatedUser;
+			this.notify();
+
+			await primeRelatedUserAvatar(
+				updatedUser.id,
+				updatedUser.avatar_url ??
+					updatedUser.profile_image_url ??
+					updatedUser.profile_picture_url ??
+					updatedUser.avatar ??
+					null,
+			);
+
+			return updatedUser;
+		} catch (error) {
+			await clearCachedProfileImage(currentUserId);
+			this.state.currentUser = previousUser;
+			this.notify();
+			throw error;
+		}
 	}
 
 	async refreshAccessToken(): Promise<boolean> {

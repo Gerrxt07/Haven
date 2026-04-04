@@ -40,6 +40,15 @@ export type AuthUserResponse = {
 	username: string;
 	display_name: string;
 	email: string;
+	avatar_url?: string | null;
+	profile_image_url?: string | null;
+	profile_picture_url?: string | null;
+	profile_picture?: string | null;
+	image_url?: string | null;
+	photo_url?: string | null;
+	avatarUrl?: string | null;
+	profilePictureUrl?: string | null;
+	avatar?: string | null;
 	account_status: string;
 	token_version: number;
 	created_at: string;
@@ -82,6 +91,7 @@ export type MessageDto = {
 	id: number;
 	channel_id: number;
 	author_user_id: number;
+	author_avatar_url?: string | null;
 	content: string;
 	is_encrypted: boolean;
 	ciphertext?: string | null;

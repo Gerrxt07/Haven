@@ -144,7 +144,11 @@ export class ApiClient {
 		const signal = AbortSignal.any(signals);
 
 		const headers = new Headers(options?.headers ?? {});
-		headers.set("content-type", "application/json");
+		const isFormDataBody =
+			typeof FormData !== "undefined" && body instanceof FormData;
+		if (!isFormDataBody && body !== undefined && !headers.has("content-type")) {
+			headers.set("content-type", "application/json");
+		}
 
 		if (options?.requiresAuth) {
 			const token = this.tokenProvider();
@@ -161,7 +165,12 @@ export class ApiClient {
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				method,
 				headers,
-				body: body === undefined ? undefined : JSON.stringify(body),
+				body:
+					body === undefined
+						? undefined
+						: isFormDataBody
+							? (body as BodyInit)
+							: JSON.stringify(body),
 				signal,
 			});
 

@@ -14,6 +14,7 @@ export const en = {
 		sidebar_home: "Home",
 		sidebar_explorer: "Explorer",
 		sidebar_profile: "Profile",
+		sidebar_profile_uploading: "Uploading",
 	},
 	auth: {
 		loginTitle: "Welcome back!",
