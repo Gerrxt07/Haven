@@ -68,6 +68,14 @@ export class ApiClient {
 		return this.request<TResponse>("POST", path, body, options);
 	}
 
+	async postFormData<TResponse>(
+		path: string,
+		formData: FormData,
+		options?: RequestOptions,
+	): Promise<TResponse> {
+		return this.request<TResponse>("POST", path, formData, options);
+	}
+
 	async request<T>(
 		method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
 		path: string,
@@ -144,9 +152,10 @@ export class ApiClient {
 		const signal = AbortSignal.any(signals);
 
 		const headers = new Headers(options?.headers ?? {});
-		const isFormDataBody =
+		const isFormData =
 			typeof FormData !== "undefined" && body instanceof FormData;
-		if (!isFormDataBody && body !== undefined && !headers.has("content-type")) {
+
+		if (!isFormData && body !== undefined && !headers.has("content-type")) {
 			headers.set("content-type", "application/json");
 		}
 
@@ -162,15 +171,17 @@ export class ApiClient {
 		}
 
 		try {
+			const requestBody =
+				body === undefined
+					? undefined
+					: isFormData
+						? (body as FormData)
+						: JSON.stringify(body);
+
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				method,
 				headers,
-				body:
-					body === undefined
-						? undefined
-						: isFormDataBody
-							? (body as BodyInit)
-							: JSON.stringify(body),
+				body: requestBody,
 				signal,
 			});
 

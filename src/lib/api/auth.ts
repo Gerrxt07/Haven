@@ -1,8 +1,8 @@
-import { HttpApiError } from "./client";
 import { apiClient } from "./index";
 import type {
 	AuthTokens,
 	AuthUserResponse,
+	AvatarUploadResponse,
 	LoginRequest,
 	RefreshRequest,
 	RegisterRequest,
@@ -10,17 +10,11 @@ import type {
 import {
 	assertAuthTokens,
 	assertAuthUser,
+	assertAvatarUploadResponse,
 	assertLoginRequest,
 	assertRefreshRequest,
 	assertRegisterRequest,
 } from "./validation";
-
-const PROFILE_PICTURE_UPLOAD_PATHS = [
-	"/auth/me/profile-picture",
-	"/auth/me/avatar",
-	"/users/me/avatar",
-	"/auth/profile-picture",
-];
 
 export async function apiRegister(
 	payload: RegisterRequest,
@@ -83,52 +77,33 @@ export async function apiUploadProfilePicture(
 	file: File,
 	signal?: AbortSignal,
 ): Promise<AuthUserResponse> {
-	if (!file.type.startsWith("image/")) {
-		throw new Error("profile image must be an image file");
+	const allowedTypes = new Set(["image/jpeg", "image/png"]);
+	if (!allowedTypes.has(file.type)) {
+		throw new Error("avatar must be JPG or PNG");
+	}
+	if (file.size > 5 * 1024 * 1024) {
+		throw new Error("avatar must be <= 5MB");
 	}
 
 	const formData = new FormData();
-	formData.set("file", file);
-	formData.set("profile_picture", file);
-	formData.set("avatar", file);
+	formData.append("file", file);
 
-	for (const path of PROFILE_PICTURE_UPLOAD_PATHS) {
-		try {
-			const response = await apiClient.request<AuthUserResponse>(
-				"POST",
-				path,
-				formData,
-				{
-					requiresAuth: true,
-					signal,
-				},
-			);
-			assertAuthUser(response);
-			return response;
-		} catch (error) {
-			const isLastPath =
-				path ===
-				PROFILE_PICTURE_UPLOAD_PATHS[PROFILE_PICTURE_UPLOAD_PATHS.length - 1];
+	const response = await apiClient.postFormData<AvatarUploadResponse>(
+		"/users/me/avatar",
+		formData,
+		{
+			requiresAuth: true,
+			signal,
+		},
+	);
 
-			if (error instanceof HttpApiError) {
-				const shouldTryNextPath =
-					error.apiError.kind === "not-found" ||
-					error.apiError.kind === "bad-request" ||
-					error.apiError.kind === "validation";
-
-				if (shouldTryNextPath && !isLastPath) {
-					continue;
-				}
-
-				throw error;
-			}
-
-			if (error instanceof Error && !isLastPath) {
-				continue;
-			}
-			throw error;
-		}
+	assertAvatarUploadResponse(response);
+	const user = await apiMe(signal);
+	if (!user.avatar_url && response.avatar_url) {
+		return {
+			...user,
+			avatar_url: response.avatar_url,
+		};
 	}
-
-	throw new Error("Unable to upload profile picture");
+	return user;
 }

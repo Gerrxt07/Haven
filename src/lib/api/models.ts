@@ -54,6 +54,14 @@ export type AuthUserResponse = {
 	created_at: string;
 };
 
+export type AvatarUploadResponse = {
+	avatar_url: string;
+	width: number;
+	height: number;
+	size_bytes: number;
+	format: string;
+};
+
 export type LoginRequest = {
 	email: string;
 	password: string;
