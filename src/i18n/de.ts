@@ -6,6 +6,27 @@ export const de = {
 		account: "Konto",
 		settings: "Einstellungen",
 		commandPalette: "Kurzbefehle",
+		commandPaletteSearchPlaceholder: "Nach Befehlen und Quick Actions suchen",
+		commandPaletteQuickActions: "Quick Actions",
+		commandPaletteNoResults: "Keine Befehle gefunden",
+		commandPaletteNoResultsHint:
+			"Versuche ein anderes Stichwort oder einen Shortcut.",
+		commandPaletteFooter:
+			"Drücke Enter, um die erste passende Aktion auszuführen.",
+		commandPaletteClose: "Schließen",
+		commandOpenHelp: "Hilfecenter öffnen",
+		commandOpenHelpDesc: "Öffnet die Haven-Hilfeseite in deinem Browser.",
+		commandLogout: "Abmelden",
+		commandLogoutDesc:
+			"Beendet die aktuelle Sitzung und bringt dich zum Login zurück.",
+		commandMinimize: "Fenster minimieren",
+		commandMinimizeDesc: "Legt Haven in die Taskleiste.",
+		commandMaximize: "Fenster maximieren",
+		commandMaximizeDesc: "Vergrößert Haven auf die gesamte Fensterfläche.",
+		commandRestore: "Fenster wiederherstellen",
+		commandRestoreDesc: "Setzt Haven auf die vorherige Fenstergröße zurück.",
+		commandCloseWindow: "Fenster schließen",
+		commandCloseWindowDesc: "Schließt das aktuelle Haven-Fenster.",
 		externalLinkWarning:
 			"Warnung: Du verlässt Haven, um eine externe Website zu besuchen:\n\n{{url}}\n\nWillst du fortfahren?",
 	},

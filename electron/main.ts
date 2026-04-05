@@ -33,6 +33,43 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAppQuitting = false;
 
+type DetailedLogPayload = {
+	scope: string;
+	event: string;
+	level?: "debug" | "info" | "warn" | "error";
+	data?: Record<string, unknown>;
+};
+
+function getDetailedLogPath(): string {
+	return path.join(app.getPath("logs"), "detailed.log");
+}
+
+function serializeDetailedLogLine(payload: DetailedLogPayload): string {
+	return JSON.stringify({
+		timestamp: new Date().toISOString(),
+		scope: payload.scope,
+		event: payload.event,
+		level: payload.level ?? "info",
+		data: payload.data ?? {},
+	});
+}
+
+async function appendDetailedLog(
+	payload: DetailedLogPayload,
+): Promise<boolean> {
+	try {
+		const logPath = getDetailedLogPath();
+		await fs.mkdir(path.dirname(logPath), { recursive: true });
+		await fs.appendFile(logPath, `${serializeDetailedLogLine(payload)}\n`, {
+			encoding: "utf8",
+		});
+		return true;
+	} catch (error) {
+		console.error("Failed to append detailed log", error);
+		return false;
+	}
+}
+
 function isTrustedSender(sender: Electron.WebContents): boolean {
 	if (!mainWindow) return false;
 	return sender === mainWindow.webContents;
@@ -655,6 +692,23 @@ app.whenReady().then(() => {
 		if (!isTrustedSender(event.sender)) return null;
 		return getCurrentWindowState();
 	});
+
+	ipcMain.handle(
+		"write-detailed-log",
+		async (event, payload: DetailedLogPayload) => {
+			if (!isTrustedSender(event.sender)) return false;
+			if (
+				typeof payload !== "object" ||
+				payload === null ||
+				typeof payload.scope !== "string" ||
+				typeof payload.event !== "string"
+			) {
+				return false;
+			}
+
+			return appendDetailedLog(payload);
+		},
+	);
 
 	ipcMain.handle("updater-get-candidate", async (event) => {
 		if (!isTrustedSender(event.sender)) return null;

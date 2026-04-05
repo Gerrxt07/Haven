@@ -1,4 +1,4 @@
-import { HttpApiError } from "./client";
+import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
 import { apiClient } from "./index";
 import type {
 	AuthTokens,
@@ -15,12 +15,7 @@ import {
 	assertRegisterRequest,
 } from "./validation";
 
-const PROFILE_PICTURE_UPLOAD_PATHS = [
-	"/auth/me/profile-picture",
-	"/auth/me/avatar",
-	"/users/me/avatar",
-	"/auth/profile-picture",
-];
+const PROFILE_PICTURE_UPLOAD_PATH = "/users/me/avatar";
 
 export async function apiRegister(
 	payload: RegisterRequest,
@@ -82,6 +77,10 @@ export async function apiMe(signal?: AbortSignal): Promise<AuthUserResponse> {
 export async function apiUploadProfilePicture(
 	file: File,
 	signal?: AbortSignal,
+	context?: {
+		traceId?: string;
+		userId?: number;
+	},
 ): Promise<AuthUserResponse> {
 	if (!file.type.startsWith("image/")) {
 		throw new Error("profile image must be an image file");
@@ -92,43 +91,49 @@ export async function apiUploadProfilePicture(
 	formData.set("profile_picture", file);
 	formData.set("avatar", file);
 
-	for (const path of PROFILE_PICTURE_UPLOAD_PATHS) {
-		try {
-			const response = await apiClient.request<AuthUserResponse>(
-				"POST",
-				path,
-				formData,
-				{
-					requiresAuth: true,
-					signal,
-				},
-			);
-			assertAuthUser(response);
-			return response;
-		} catch (error) {
-			const isLastPath =
-				path ===
-				PROFILE_PICTURE_UPLOAD_PATHS[PROFILE_PICTURE_UPLOAD_PATHS.length - 1];
+	await writeDetailedLog("avatar-upload", "api-request-start", {
+		traceId: context?.traceId ?? null,
+		userId: context?.userId ?? null,
+		endpoint: PROFILE_PICTURE_UPLOAD_PATH,
+		fileName: file.name,
+		fileType: file.type,
+		fileSize: file.size,
+		formFields: ["file", "profile_picture", "avatar"],
+	});
 
-			if (error instanceof HttpApiError) {
-				const shouldTryNextPath =
-					error.apiError.kind === "not-found" ||
-					error.apiError.kind === "bad-request" ||
-					error.apiError.kind === "validation";
-
-				if (shouldTryNextPath && !isLastPath) {
-					continue;
-				}
-
-				throw error;
-			}
-
-			if (error instanceof Error && !isLastPath) {
-				continue;
-			}
-			throw error;
-		}
+	try {
+		const response = await apiClient.request<AuthUserResponse>(
+			"POST",
+			PROFILE_PICTURE_UPLOAD_PATH,
+			formData,
+			{
+				requiresAuth: true,
+				signal,
+			},
+		);
+		assertAuthUser(response);
+		await writeDetailedLog("avatar-upload", "api-request-success", {
+			traceId: context?.traceId ?? null,
+			userId: context?.userId ?? null,
+			endpoint: PROFILE_PICTURE_UPLOAD_PATH,
+			responseUserId: response.id,
+			hasAvatarUrl: Boolean(
+				response.avatar_url ??
+					response.profile_image_url ??
+					response.profile_picture_url ??
+					response.avatar,
+			),
+		});
+		return response;
+	} catch (error) {
+		await writeDetailedErrorLog("avatar-upload", "api-request-failed", error, {
+			traceId: context?.traceId ?? null,
+			userId: context?.userId ?? null,
+			endpoint: PROFILE_PICTURE_UPLOAD_PATH,
+			fileName: file.name,
+			fileType: file.type,
+			fileSize: file.size,
+		});
+		throw error;
 	}
-
-	throw new Error("Unable to upload profile picture");
 }

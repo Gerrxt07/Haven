@@ -8,6 +8,10 @@ import {
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { resolveProfileImageForUser } from "../lib/cache/profile-images";
+import {
+	writeDetailedErrorLog,
+	writeDetailedLog,
+} from "../lib/logging/detailed";
 
 export default function Home() {
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
@@ -63,9 +67,23 @@ export default function Home() {
 
 		try {
 			setIsUploadingImage(true);
+			await writeDetailedLog("avatar-upload", "ui-file-picked", {
+				userId: user()?.id ?? null,
+				fileName: file.name,
+				fileType: file.type,
+				fileSize: file.size,
+			});
 			await authSession.uploadProfilePicture(file);
+			await writeDetailedLog("avatar-upload", "ui-upload-finished", {
+				userId: user()?.id ?? null,
+				fileName: file.name,
+			});
 		} catch (error) {
 			console.warn("Profile picture upload failed", error);
+			await writeDetailedErrorLog("avatar-upload", "ui-upload-failed", error, {
+				userId: user()?.id ?? null,
+				fileName: file?.name ?? null,
+			});
 		} finally {
 			setIsUploadingImage(false);
 		}

@@ -16,6 +16,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 			isMaximized: boolean;
 			isFullScreen: boolean;
 		}>,
+	writeDetailedLog: (payload: {
+		scope: string;
+		event: string;
+		level?: "debug" | "info" | "warn" | "error";
+		data?: Record<string, unknown>;
+	}) => ipcRenderer.invoke("write-detailed-log", payload) as Promise<boolean>,
 	onWindowStateChanged: (
 		callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void,
 	) => {
