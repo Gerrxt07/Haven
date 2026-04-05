@@ -173,15 +173,17 @@ body {
 	color: var(--text-primary);
 }
 
-body.theme-transition,
-body.theme-transition * {
-	transition:
-		background-color 200ms ease,
-		color 200ms ease,
-		border-color 200ms ease,
-		box-shadow 200ms ease,
-		fill 200ms ease,
-		stroke 200ms ease;
+@media (prefers-reduced-motion: no-preference) {
+	body.theme-transition,
+	body.theme-transition * {
+		transition:
+			background-color 200ms ease,
+			color 200ms ease,
+			border-color 200ms ease,
+			box-shadow 200ms ease,
+			fill 200ms ease,
+			stroke 200ms ease;
+	}
 }
 
 #app {

@@ -155,7 +155,12 @@ export function CommandPalette(props: CommandPaletteProps) {
 
 	return (
 		<Portal>
-			<div class="fixed inset-0 z-[120]">
+			<div
+				class={cn(
+					"fixed inset-0 z-[120]",
+					props.open ? "pointer-events-auto" : "pointer-events-none",
+				)}
+			>
 				<Motion.button
 					type="button"
 					aria-label={t("app", "commandPaletteClose")}
