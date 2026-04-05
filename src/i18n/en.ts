@@ -35,9 +35,15 @@ export const en = {
 	home: {
 		title: "Home",
 		sidebar_home: "Home",
+		sidebar_messages: "Private Messages",
 		sidebar_explorer: "Explorer",
 		sidebar_profile: "Profile",
 		sidebar_profile_uploading: "Uploading",
+		messages_title: "Private Messages",
+		explorer_title: "Explorer",
+		messages_preview_hint:
+			"Sample UX: the message icon glows when new messages arrive and the active area gets an extended side color indicator.",
+		simulate_message_btn: "Simulate new private message",
 	},
 	auth: {
 		loginTitle: "Welcome back!",

@@ -38,9 +38,15 @@ export const de = {
 	home: {
 		title: "Startseite",
 		sidebar_home: "Startseite",
+		sidebar_messages: "Private Nachrichten",
 		sidebar_explorer: "Entdecken",
 		sidebar_profile: "Profil",
 		sidebar_profile_uploading: "Wird hochgeladen",
+		messages_title: "Private Nachrichten",
+		explorer_title: "Entdecken",
+		messages_preview_hint:
+			"UI/UX-Muster: Das Nachrichten-Icon leuchtet dynamisch bei neuen Nachrichten und der aktive Bereich bekommt links einen farbigen Marker.",
+		simulate_message_btn: "Neue private Nachricht simulieren",
 	},
 	auth: {
 		loginTitle: "Willkommen zurück!",
