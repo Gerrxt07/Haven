@@ -7,6 +7,7 @@ import {
 	apiRefresh,
 	apiRegister,
 	apiUploadProfilePicture,
+	HttpApiError,
 	type LoginRequest,
 	type RegisterRequest,
 } from "../api";
@@ -99,7 +100,9 @@ class AuthSessionManager {
 		}
 
 		if (!this.state.accessToken && this.state.refreshToken) {
-			const refreshed = await this.refreshAccessToken();
+			const refreshed = await this.refreshAccessToken({
+				invalidateOnFailure: false,
+			});
 			if (!refreshed) {
 				this.state.isReady = true;
 				this.notify();
@@ -111,10 +114,8 @@ class AuthSessionManager {
 			try {
 				this.state.currentUser = await apiMe();
 			} catch {
-				const refreshed = await this.refreshAccessToken();
-				if (refreshed) {
-					this.state.currentUser = await apiMe();
-				}
+				// Keep persisted credentials and retry later instead of force-logging out
+				// on transient startup failures (network/timeout/backend unavailable).
 			}
 		}
 
@@ -198,10 +199,14 @@ class AuthSessionManager {
 		}
 	}
 
-	async refreshAccessToken(): Promise<boolean> {
+	async refreshAccessToken(options?: {
+		invalidateOnFailure?: boolean;
+	}): Promise<boolean> {
 		if (this.refreshInFlight) {
 			return this.refreshInFlight;
 		}
+
+		const invalidateOnFailure = options?.invalidateOnFailure ?? true;
 
 		this.refreshInFlight = (async () => {
 			if (!this.state.refreshToken) {
@@ -214,8 +219,15 @@ class AuthSessionManager {
 				});
 				await this.persistTokens(tokens);
 				return true;
-			} catch {
-				await this.logout();
+			} catch (error) {
+				const shouldInvalidate =
+					this.shouldInvalidateSessionOnRefreshError(error) ||
+					(invalidateOnFailure &&
+						!this.shouldPreserveSessionOnRefreshError(error));
+
+				if (shouldInvalidate) {
+					await this.logout();
+				}
 				return false;
 			}
 		})();
@@ -225,6 +237,33 @@ class AuthSessionManager {
 		} finally {
 			this.refreshInFlight = null;
 		}
+	}
+
+	private shouldInvalidateSessionOnRefreshError(error: unknown): boolean {
+		if (!(error instanceof HttpApiError)) {
+			return false;
+		}
+
+		return (
+			error.apiError.kind === "unauthorized" ||
+			error.apiError.kind === "forbidden" ||
+			error.apiError.kind === "bad-request" ||
+			error.apiError.kind === "validation"
+		);
+	}
+
+	private shouldPreserveSessionOnRefreshError(error: unknown): boolean {
+		if (!(error instanceof HttpApiError)) {
+			return true;
+		}
+
+		return (
+			error.apiError.kind === "network" ||
+			error.apiError.kind === "timeout" ||
+			error.apiError.kind === "aborted" ||
+			error.apiError.kind === "server" ||
+			error.apiError.kind === "unknown"
+		);
 	}
 
 	private async persistTokens(tokens: AuthTokens): Promise<void> {
