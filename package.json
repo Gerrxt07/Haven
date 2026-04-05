@@ -108,7 +108,7 @@
 	"dependencies": {
 		"@chenglou/pretext": "0.0.4",
 		"@kobalte/core": "0.13.11",
-		"@tanstack/solid-query": "5.96.1",
+		"@tanstack/solid-query": "5.96.2",
 		"@tanstack/solid-virtual": "3.13.23",
 		"bytenode": "1.5.7",
 		"class-variance-authority": "0.7.1",
