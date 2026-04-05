@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-solid";
 import { createSignal, Match, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 import { currentLang, t } from "../i18n";
+import { HttpApiError } from "../lib/api";
 import { authSession } from "../lib/auth/session";
 
 export default function AuthView() {
@@ -163,7 +164,15 @@ export default function AuthView() {
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
-			setError(t("auth", "errorGeneric"));
+			if (
+				err instanceof HttpApiError &&
+				(err.apiError.kind === "unauthorized" ||
+					err.apiError.kind === "forbidden")
+			) {
+				setError("Invalid email or password");
+			} else {
+				setError(t("auth", "errorGeneric"));
+			}
 		} finally {
 			setLoading(false);
 		}
