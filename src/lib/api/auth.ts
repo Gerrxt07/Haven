@@ -23,6 +23,38 @@ import {
 
 const PROFILE_PICTURE_UPLOAD_PATH = "/users/me/avatar";
 
+function extractAuthUserFromUploadResponse(
+	value: unknown,
+): AuthUserResponse | null {
+	const candidates: unknown[] = [];
+
+	if (value !== undefined && value !== null) {
+		candidates.push(value);
+	}
+
+	if (typeof value === "object" && value !== null) {
+		const record = value as Record<string, unknown>;
+		candidates.push(
+			record.user,
+			record.data,
+			record.profile,
+			record.result,
+			record.payload,
+		);
+	}
+
+	for (const candidate of candidates) {
+		try {
+			assertAuthUser(candidate);
+			return candidate;
+		} catch {
+			// Try the next shape.
+		}
+	}
+
+	return null;
+}
+
 export async function apiRegister(
 	payload: RegisterRequest,
 	signal?: AbortSignal,
@@ -138,7 +170,7 @@ export async function apiUploadProfilePicture(
 	});
 
 	try {
-		const response = await apiClient.request<AuthUserResponse>(
+		const response = await apiClient.request<unknown>(
 			"POST",
 			PROFILE_PICTURE_UPLOAD_PATH,
 			formData,
@@ -147,20 +179,23 @@ export async function apiUploadProfilePicture(
 				signal,
 			},
 		);
-		assertAuthUser(response);
+
+		const resolvedUser =
+			extractAuthUserFromUploadResponse(response) ?? (await apiMe(signal));
+		assertAuthUser(resolvedUser);
 		await writeDetailedLog("avatar-upload", "api-request-success", {
 			traceId: context?.traceId ?? null,
 			userId: context?.userId ?? null,
 			endpoint: PROFILE_PICTURE_UPLOAD_PATH,
-			responseUserId: response.id,
+			responseUserId: resolvedUser.id,
 			hasAvatarUrl: Boolean(
-				response.avatar_url ??
-					response.profile_image_url ??
-					response.profile_picture_url ??
-					response.avatar,
+				resolvedUser.avatar_url ??
+					resolvedUser.profile_image_url ??
+					resolvedUser.profile_picture_url ??
+					resolvedUser.avatar,
 			),
 		});
-		return response;
+		return resolvedUser;
 	} catch (error) {
 		await writeDetailedErrorLog("avatar-upload", "api-request-failed", error, {
 			traceId: context?.traceId ?? null,
