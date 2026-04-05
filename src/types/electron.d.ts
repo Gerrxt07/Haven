@@ -12,8 +12,8 @@ export interface IElectronAPI {
 	}>;
 	onWindowStateChanged: (
 		callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void,
-	) => void;
-	onExternalLinkWarning: (callback: (url: string) => void) => void;
+	) => () => void;
+	onExternalLinkWarning: (callback: (url: string) => void) => () => void;
 	confirmOpenUrl: (url: string) => void;
 	storeToken: (token: string) => Promise<boolean>;
 	loadToken: () => Promise<string | null>;

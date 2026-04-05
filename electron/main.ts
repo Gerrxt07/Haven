@@ -26,6 +26,7 @@ import {
 // Set up a path to store your encrypted auth data
 const authFilePath = path.join(app.getPath("userData"), "auth.enc");
 const secureStoreBasePath = path.join(app.getPath("userData"), "secure-store");
+const maxStoredSecretLength = 8192;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -39,10 +40,12 @@ function isTrustedSender(sender: Electron.WebContents): boolean {
 // Listeners to save and load tokens securely
 ipcMain.handle("secure-store-token", async (event, token: string) => {
 	if (!isTrustedSender(event.sender)) return false;
+	if (typeof token !== "string" || token.length < 1) return false;
+	if (token.length > maxStoredSecretLength) return false;
 
 	if (safeStorage.isEncryptionAvailable()) {
 		const encryptedToken = safeStorage.encryptString(token);
-		await fs.writeFile(authFilePath, encryptedToken);
+		await writeEncryptedFile(authFilePath, encryptedToken);
 		return true;
 	}
 	return false; // Handle fallback if encryption isn't available
@@ -130,8 +133,17 @@ async function writeSecureNamespace(
 	await fs.mkdir(secureStoreBasePath, { recursive: true });
 	const plaintext = JSON.stringify(value);
 	const encrypted = safeStorage.encryptString(plaintext);
-	await fs.writeFile(filePath, encrypted);
+	await writeEncryptedFile(filePath, encrypted);
 	return true;
+}
+
+async function writeEncryptedFile(
+	filePath: string,
+	encryptedBytes: Buffer,
+): Promise<void> {
+	const tempPath = `${filePath}.tmp`;
+	await fs.writeFile(tempPath, encryptedBytes, { mode: 0o600 });
+	await fs.rename(tempPath, filePath);
 }
 
 ipcMain.handle(
@@ -142,6 +154,9 @@ ipcMain.handle(
 		const ns = sanitizeNamespace(namespace);
 		const safeKey = sanitizeKey(key);
 		if (!ns || !safeKey || typeof value !== "string") {
+			return false;
+		}
+		if (value.length > maxStoredSecretLength) {
 			return false;
 		}
 
@@ -257,10 +272,31 @@ function isTrustedOrigin(origin: string): boolean {
 function isSafeExternalHttpUrl(url: string): boolean {
 	try {
 		const parsedUrl = new URL(url);
+		if (parsedUrl.username || parsedUrl.password) {
+			return false;
+		}
+
 		return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
 	} catch {
 		return false;
 	}
+}
+
+function getRequestSecurityOrigin(
+	details:
+		| Electron.PermissionRequest
+		| Electron.FilesystemPermissionRequest
+		| Electron.MediaAccessPermissionRequest
+		| Electron.OpenExternalPermissionRequest,
+): string | null {
+	if (
+		"securityOrigin" in details &&
+		typeof details.securityOrigin === "string"
+	) {
+		return details.securityOrigin;
+	}
+
+	return null;
 }
 
 function getContentSecurityPolicy(): string {
@@ -401,6 +437,10 @@ function createWindow() {
 				mainWindow?.webContents.send("show-external-link-warning", url);
 			}
 		}
+	});
+
+	mainWindow.webContents.on("will-attach-webview", (event) => {
+		event.preventDefault();
 	});
 }
 
@@ -545,13 +585,15 @@ app.whenReady().then(() => {
 	);
 
 	session.defaultSession.setPermissionRequestHandler(
-		(webContents, permission, callback) => {
+		(webContents, permission, callback, details) => {
 			const allowedPermissions = ["media", "audioCapture", "videoCapture"];
 			const requestUrl = webContents.getURL();
+			const requestingOrigin = getRequestSecurityOrigin(details) ?? "";
 
 			if (
 				allowedPermissions.includes(permission) &&
-				isTrustedAppUrl(requestUrl)
+				isTrustedAppUrl(requestUrl) &&
+				isTrustedOrigin(requestingOrigin)
 			) {
 				callback(true);
 			} else {

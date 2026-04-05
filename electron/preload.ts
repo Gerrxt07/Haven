@@ -19,7 +19,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	onWindowStateChanged: (
 		callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void,
 	) => {
-		ipcRenderer.on("window-state-changed", (_event, state) => callback(state));
+		const listener = (_event: Electron.IpcRendererEvent, state: unknown) => {
+			if (
+				typeof state === "object" &&
+				state !== null &&
+				"isMaximized" in state &&
+				"isFullScreen" in state
+			) {
+				callback(
+					state as {
+						isMaximized: boolean;
+						isFullScreen: boolean;
+					},
+				);
+			}
+		};
+
+		ipcRenderer.on("window-state-changed", listener);
+		return () => ipcRenderer.removeListener("window-state-changed", listener);
 	},
 
 	// Add to your existing electronAPI context bridge
@@ -49,9 +66,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
 	// External Link Handling Methods
 	onExternalLinkWarning: (callback: (url: string) => void) => {
-		ipcRenderer.on("show-external-link-warning", (_event, url) =>
-			callback(url),
-		);
+		const listener = (_event: Electron.IpcRendererEvent, url: unknown) => {
+			if (typeof url === "string" && url.length > 0) {
+				callback(url);
+			}
+		};
+
+		ipcRenderer.on("show-external-link-warning", listener);
+		return () =>
+			ipcRenderer.removeListener("show-external-link-warning", listener);
 	},
 	confirmOpenUrl: (url: string) => ipcRenderer.send("confirm-open-url", url),
 	getUpdateCandidate: () =>
