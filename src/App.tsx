@@ -1,4 +1,5 @@
 import {
+	LogOut,
 	MessageCircleQuestion,
 	Minus,
 	Settings,
@@ -7,6 +8,8 @@ import {
 	X,
 } from "lucide-solid";
 import {
+	createEffect,
+	createMemo,
 	createSignal,
 	lazy,
 	onCleanup,
@@ -14,7 +17,12 @@ import {
 	Show,
 	Suspense,
 } from "solid-js";
-import { CommandPaletteField } from "./components/ui/command-palette-field";
+import { Motion } from "solid-motionone";
+import {
+	CommandPalette,
+	type CommandPaletteAction,
+	CommandPaletteField,
+} from "./components/ui/command-palette-field";
 import {
 	Tooltip,
 	TooltipContent,
@@ -29,10 +37,96 @@ const AuthView = lazy(() => import("./views/Auth"));
 export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
+	const [isCommandPaletteOpen, setIsCommandPaletteOpen] = createSignal(false);
+	const [activeSurface, setActiveSurface] = createSignal<"auth" | "home">(
+		"auth",
+	);
+	const [exitingSurface, setExitingSurface] = createSignal<
+		"auth" | "home" | null
+	>(null);
+	let surfaceTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	const openHelp = () => {
+		globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
+	};
+
+	const commandActions = createMemo<CommandPaletteAction[]>(() => [
+		{
+			id: "help",
+			label: t("app", "commandOpenHelp"),
+			description: t("app", "commandOpenHelpDesc"),
+			shortcut: "F1",
+			icon: MessageCircleQuestion,
+			run: openHelp,
+		},
+		{
+			id: "logout",
+			label: t("app", "commandLogout"),
+			description: t("app", "commandLogoutDesc"),
+			shortcut: "Shift+L",
+			icon: LogOut,
+			run: () => authSession.logout(),
+		},
+		{
+			id: "minimize",
+			label: t("app", "commandMinimize"),
+			description: t("app", "commandMinimizeDesc"),
+			shortcut: "Alt+M",
+			icon: Minus,
+			run: () => globalThis.electronAPI.minimize(),
+		},
+		{
+			id: "toggle-maximize",
+			label: isExpanded()
+				? t("app", "commandRestore")
+				: t("app", "commandMaximize"),
+			description: isExpanded()
+				? t("app", "commandRestoreDesc")
+				: t("app", "commandMaximizeDesc"),
+			shortcut: "Alt+Enter",
+			icon: Square,
+			run: () => globalThis.electronAPI.maximize(),
+		},
+		{
+			id: "close-window",
+			label: t("app", "commandCloseWindow"),
+			description: t("app", "commandCloseWindowDesc"),
+			shortcut: "Alt+F4",
+			icon: X,
+			run: () => globalThis.electronAPI.close(),
+		},
+	]);
+
+	createEffect(() => {
+		if (!authState().isReady) {
+			return;
+		}
+
+		const nextSurface = authState().currentUser ? "home" : "auth";
+		if (activeSurface() === nextSurface) {
+			return;
+		}
+
+		if (surfaceTransitionTimeout) {
+			clearTimeout(surfaceTransitionTimeout);
+		}
+
+		setExitingSurface(activeSurface());
+		setActiveSurface(nextSurface);
+		surfaceTransitionTimeout = setTimeout(() => {
+			setExitingSurface(null);
+			surfaceTransitionTimeout = undefined;
+		}, 520);
+	});
 
 	onMount(() => {
 		const unsub = authSession.onChange(setAuthState);
 		onCleanup(() => unsub());
+		onCleanup(() => {
+			if (surfaceTransitionTimeout) {
+				clearTimeout(surfaceTransitionTimeout);
+			}
+		});
 		// Hook up the titlebar buttons to their respective IPC events
 		document.getElementById("min-btn")?.addEventListener("click", () => {
 			globalThis.electronAPI.minimize();
@@ -46,9 +140,7 @@ export default function App() {
 			globalThis.electronAPI.close();
 		});
 
-		document.getElementById("help-btn")?.addEventListener("click", () => {
-			globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
-		});
+		document.getElementById("help-btn")?.addEventListener("click", openHelp);
 
 		// Listen for external link clicks intercepted by Electron
 		globalThis.electronAPI.onExternalLinkWarning((url) => {
@@ -70,6 +162,50 @@ export default function App() {
 		globalThis.electronAPI.getWindowState().then((state) => {
 			setIsExpanded(state.isMaximized || state.isFullScreen);
 		});
+
+		const handleGlobalKeydown = (event: KeyboardEvent) => {
+			if (!authState().currentUser) {
+				return;
+			}
+
+			if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+				event.preventDefault();
+				setIsCommandPaletteOpen((open) => !open);
+				return;
+			}
+
+			if (isCommandPaletteOpen()) {
+				return;
+			}
+
+			if (event.key === "F1") {
+				event.preventDefault();
+				openHelp();
+				return;
+			}
+
+			if (event.shiftKey && event.key.toLowerCase() === "l") {
+				event.preventDefault();
+				void authSession.logout();
+				return;
+			}
+
+			if (event.altKey && event.key.toLowerCase() === "m") {
+				event.preventDefault();
+				globalThis.electronAPI.minimize();
+				return;
+			}
+
+			if (event.altKey && event.key === "Enter") {
+				event.preventDefault();
+				globalThis.electronAPI.maximize();
+			}
+		};
+
+		globalThis.addEventListener("keydown", handleGlobalKeydown);
+		onCleanup(() =>
+			globalThis.removeEventListener("keydown", handleGlobalKeydown),
+		);
 	});
 
 	return (
@@ -89,9 +225,14 @@ export default function App() {
 
 				{/* Controls */}
 				<div class="flex h-full" style={{ "-webkit-app-region": "no-drag" }}>
-					<div class="h-full flex items-center justify-center">
-						<CommandPaletteField />
-					</div>
+					<Show when={authState().currentUser}>
+						<div class="h-full flex items-center justify-center">
+							<CommandPaletteField
+								isOpen={isCommandPaletteOpen()}
+								onOpen={() => setIsCommandPaletteOpen(true)}
+							/>
+						</div>
+					</Show>
 
 					<Show when={authState().currentUser}>
 						<div class="h-full px-2 relative flex items-center">
@@ -207,12 +348,87 @@ export default function App() {
 							</div>
 						}
 					>
-						<Show when={authState().currentUser} fallback={<AuthView />}>
-							<HomeView />
-						</Show>
+						<div class="relative h-full w-full overflow-hidden">
+							<Show when={exitingSurface() === "auth"}>
+								<div class="absolute inset-0 z-0">
+									<Motion.div
+										initial={false}
+										animate={{
+											opacity: 0,
+											scale: 1.03,
+											filter: "blur(12px)",
+											y: -10,
+										}}
+										transition={{ duration: 0.42, easing: "ease-in-out" }}
+										class="h-full w-full"
+									>
+										<AuthView />
+									</Motion.div>
+								</div>
+							</Show>
+
+							<Show when={exitingSurface() === "home"}>
+								<div class="absolute inset-0 z-0">
+									<Motion.div
+										initial={false}
+										animate={{
+											opacity: 0,
+											scale: 0.985,
+											filter: "blur(16px)",
+											y: 18,
+										}}
+										transition={{ duration: 0.42, easing: "ease-in-out" }}
+										class="h-full w-full"
+									>
+										<HomeView />
+									</Motion.div>
+								</div>
+							</Show>
+
+							<div class="absolute inset-0 z-10">
+								<Show when={activeSurface() === "home"} fallback={<AuthView />}>
+									<Motion.div
+										initial={{
+											opacity: 0,
+											scale: activeSurface() === "home" ? 0.985 : 1.03,
+											filter:
+												activeSurface() === "home"
+													? "blur(16px)"
+													: "blur(12px)",
+											y: activeSurface() === "home" ? 22 : -12,
+										}}
+										animate={{
+											opacity: 1,
+											scale: 1,
+											filter: "blur(0px)",
+											y: 0,
+										}}
+										transition={{
+											duration: 0.46,
+											easing: [0.22, 1, 0.36, 1],
+										}}
+										class="h-full w-full"
+									>
+										<Show
+											when={activeSurface() === "home"}
+											fallback={<AuthView />}
+										>
+											<HomeView />
+										</Show>
+									</Motion.div>
+								</Show>
+							</div>
+						</div>
 					</Show>
 				</Suspense>
 			</div>
+			<Show when={authState().currentUser}>
+				<CommandPalette
+					open={isCommandPaletteOpen()}
+					onOpenChange={setIsCommandPaletteOpen}
+					actions={commandActions()}
+				/>
+			</Show>
 		</div>
 	);
 }

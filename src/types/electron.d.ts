@@ -10,6 +10,12 @@ export interface IElectronAPI {
 		isMaximized: boolean;
 		isFullScreen: boolean;
 	}>;
+	writeDetailedLog: (payload: {
+		scope: string;
+		event: string;
+		level?: "debug" | "info" | "warn" | "error";
+		data?: Record<string, unknown>;
+	}) => Promise<boolean>;
 	onWindowStateChanged: (
 		callback: (state: { isMaximized: boolean; isFullScreen: boolean }) => void,
 	) => () => void;

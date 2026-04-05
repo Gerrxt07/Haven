@@ -17,6 +17,7 @@ import {
 	fileToImageDataUrl,
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
+import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
@@ -167,19 +168,52 @@ class AuthSessionManager {
 		}
 
 		const currentUserId = this.state.currentUser.id;
+		const traceId = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`;
 		const previousUser = this.state.currentUser;
+		await writeDetailedLog("avatar-upload", "session-upload-start", {
+			traceId,
+			userId: currentUserId,
+			fileName: file.name,
+			fileType: file.type,
+			fileSize: file.size,
+			hasExistingAvatar: Boolean(
+				previousUser.avatar_url ??
+					previousUser.profile_image_url ??
+					previousUser.profile_picture_url ??
+					previousUser.avatar,
+			),
+		});
 		const previewDataUrl = await fileToImageDataUrl(file);
 		await cacheProfileImageDataUrl(
 			currentUserId,
 			previewDataUrl,
 			"local-upload",
 		);
+		await writeDetailedLog("avatar-upload", "session-preview-cached", {
+			traceId,
+			userId: currentUserId,
+			previewLength: previewDataUrl.length,
+		});
 		this.notify();
 
 		try {
-			const updatedUser = await apiUploadProfilePicture(file);
+			const updatedUser = await apiUploadProfilePicture(file, undefined, {
+				traceId,
+				userId: currentUserId,
+			});
 			this.state.currentUser = updatedUser;
 			this.notify();
+			await writeDetailedLog("avatar-upload", "session-user-updated", {
+				traceId,
+				userId: currentUserId,
+				responseUserId: updatedUser.id,
+				avatarUrl:
+					updatedUser.avatar_url ??
+					updatedUser.profile_image_url ??
+					updatedUser.profile_picture_url ??
+					updatedUser.avatar ??
+					null,
+			});
 
 			await primeRelatedUserAvatar(
 				updatedUser.id,
@@ -189,12 +223,25 @@ class AuthSessionManager {
 					updatedUser.avatar ??
 					null,
 			);
+			await writeDetailedLog("avatar-upload", "session-avatar-cache-primed", {
+				traceId,
+				userId: updatedUser.id,
+			});
 
 			return updatedUser;
 		} catch (error) {
 			await clearCachedProfileImage(currentUserId);
 			this.state.currentUser = previousUser;
 			this.notify();
+			await writeDetailedErrorLog(
+				"avatar-upload",
+				"session-upload-failed",
+				error,
+				{
+					traceId,
+					userId: currentUserId,
+				},
+			);
 			throw error;
 		}
 	}
