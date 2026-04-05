@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Haven contributors. Use of this source code is governed by the Haven Source Available License (Haven-SAL) v1.0.
 // Electron main process
 
+import { randomUUID } from "node:crypto";
 import dns from "node:dns/promises";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -141,7 +142,7 @@ async function writeEncryptedFile(
 	filePath: string,
 	encryptedBytes: Buffer,
 ): Promise<void> {
-	const tempPath = `${filePath}.tmp`;
+	const tempPath = `${filePath}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
 	await fs.writeFile(tempPath, encryptedBytes, { mode: 0o600 });
 	await fs.rename(tempPath, filePath);
 }
