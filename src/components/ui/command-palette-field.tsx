@@ -46,14 +46,14 @@ export function CommandPaletteField(props: CommandPaletteFieldProps) {
 			aria-haspopup="dialog"
 			aria-expanded={props.isOpen}
 			onClick={() => props.onOpen()}
-			class="h-6 min-w-42 max-w-56 px-2.5 mr-1 rounded-md border border-white/10 bg-white/5 text-[#b5bac1] flex items-center gap-2 transition-colors duration-200 hover:bg-white/10"
+			class="h-6 min-w-42 max-w-56 px-2.5 mr-1 rounded-md border border-[color:var(--border-subtle)] bg-[color:var(--field-bg)] text-[color:var(--text-tertiary)] flex items-center gap-2 transition-colors duration-200 hover:bg-[color:var(--field-bg-focus)]"
 			animate={{
 				scale: isPressed() ? 0.98 : props.isOpen ? 1.02 : 1,
 				backgroundColor: props.isOpen
-					? "rgba(255,255,255,0.12)"
-					: "rgba(255,255,255,0.05)",
+					? "var(--field-bg-focus)"
+					: "var(--field-bg)",
 				boxShadow: props.isOpen
-					? "0 0 0 1px rgba(255,255,255,0.08), 0 10px 28px rgba(0,0,0,0.32)"
+					? "var(--shadow-float)"
 					: "0 0 0 0 rgba(0,0,0,0)",
 			}}
 			transition={{ duration: 0.18, easing: "ease-out" }}
@@ -66,11 +66,11 @@ export function CommandPaletteField(props: CommandPaletteFieldProps) {
 			<span class="text-[11px] font-medium truncate flex-1 text-left">
 				{t("app", "commandPalette")}
 			</span>
-			<span class="flex items-center gap-1 text-[10px] font-semibold text-[#8e9297]">
-				<span class="min-w-5 h-4 px-1 rounded-sm border border-white/18 bg-[#2b2d31] text-[#dcddde] inline-flex items-center justify-center leading-none shadow-[inset_0_-1px_0_rgba(0,0,0,0.45),0_1px_0_rgba(255,255,255,0.04)]">
+			<span class="flex items-center gap-1 text-[10px] font-semibold text-[color:var(--text-tertiary)]">
+				<span class="min-w-5 h-4 px-1 rounded-sm border border-[color:var(--keycap-border)] bg-[color:var(--keycap-bg)] text-[color:var(--keycap-text)] inline-flex items-center justify-center leading-none shadow-[var(--keycap-shadow)]">
 					Ctrl
 				</span>
-				<span class="min-w-4 h-4 px-1 rounded-sm border border-white/18 bg-[#2b2d31] text-[#dcddde] inline-flex items-center justify-center leading-none shadow-[inset_0_-1px_0_rgba(0,0,0,0.45),0_1px_0_rgba(255,255,255,0.04)]">
+				<span class="min-w-4 h-4 px-1 rounded-sm border border-[color:var(--keycap-border)] bg-[color:var(--keycap-bg)] text-[color:var(--keycap-text)] inline-flex items-center justify-center leading-none shadow-[var(--keycap-shadow)]">
 					K
 				</span>
 			</span>
@@ -90,7 +90,7 @@ function CommandPaletteInput(
 			ref={local.inputRef}
 			{...others}
 			class={cn(
-				"h-12 w-full rounded-xl border border-white/8 bg-white/[0.04] px-12 pr-4 text-[14px] text-white outline-none placeholder:text-[#8b9098] focus:border-white/16 focus:bg-white/[0.06]",
+				"h-12 w-full rounded-xl border border-[color:var(--border-subtle)] bg-[color:var(--field-bg)] px-12 pr-4 text-[14px] text-[color:var(--text-primary)] outline-none placeholder:text-[color:var(--text-tertiary)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)]",
 				local.class,
 			)}
 		/>
@@ -113,6 +113,9 @@ export function CommandPalette(props: CommandPaletteProps) {
 			return haystack.includes(normalizedQuery);
 		});
 	});
+
+	const quickActions = createMemo(() => filteredActions().slice(0, 4));
+	const otherActions = createMemo(() => filteredActions().slice(4));
 
 	createEffect(() => {
 		if (!props.open) {
@@ -152,17 +155,15 @@ export function CommandPalette(props: CommandPaletteProps) {
 
 	return (
 		<Portal>
-			<div
-				class={cn(
-					"fixed inset-0 z-[120]",
-					props.open ? "pointer-events-auto" : "pointer-events-none",
-				)}
-			>
+			<div class="fixed inset-0 z-[120]">
 				<Motion.button
 					type="button"
 					aria-label={t("app", "commandPaletteClose")}
 					tabIndex={props.open ? 0 : -1}
-					class="absolute inset-0 border-none bg-[radial-gradient(circle_at_top,rgba(112,126,148,0.26),rgba(7,9,12,0.88)_56%)] p-0 backdrop-blur-[2px]"
+					class={cn(
+						"absolute inset-0 border-none bg-[image:var(--command-overlay)] p-0 backdrop-blur-[2px]",
+						props.open ? "pointer-events-auto" : "pointer-events-none",
+					)}
 					initial={false}
 					animate={{
 						opacity: props.open ? 1 : 0,
@@ -187,7 +188,10 @@ export function CommandPalette(props: CommandPaletteProps) {
 							duration: 0.3,
 							easing: [0.22, 1, 0.36, 1],
 						}}
-						class="pointer-events-auto w-full max-w-2xl origin-top overflow-hidden rounded-[28px] border border-white/10 bg-[#111317]/92 shadow-[0_30px_110px_rgba(0,0,0,0.58)] backdrop-blur-2xl"
+						class={cn(
+							"w-full max-w-2xl origin-top overflow-hidden rounded-[28px] border border-[color:var(--command-border)] bg-[color:var(--command-bg)] shadow-[var(--shadow-command)] backdrop-blur-2xl",
+							props.open ? "pointer-events-auto" : "pointer-events-none",
+						)}
 						onClick={(event) => event.stopPropagation()}
 					>
 						<Motion.div
@@ -201,13 +205,13 @@ export function CommandPalette(props: CommandPaletteProps) {
 								delay: props.open ? 0.04 : 0,
 								easing: [0.22, 1, 0.36, 1],
 							}}
-							class="relative border-b border-white/8 px-4 py-4"
+							class="relative border-b border-[color:var(--border-subtle)] px-4 py-4"
 						>
 							<Search
 								size={16}
 								stroke-width={2}
 								aria-hidden="true"
-								class="absolute left-8 top-1/2 -translate-y-1/2 text-[#8b9098]"
+								class="absolute left-8 top-1/2 -translate-y-1/2 text-[color:var(--text-tertiary)]"
 							/>
 							<CommandPaletteInput
 								inputRef={(element) => {
@@ -246,33 +250,33 @@ export function CommandPalette(props: CommandPaletteProps) {
 								delay: props.open ? 0.07 : 0,
 								easing: [0.22, 1, 0.36, 1],
 							}}
-							class="max-h-[52vh] overflow-y-auto px-3 py-3"
+							class="px-3 py-3"
 						>
-							<div class="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#777d86]">
-								<span>{t("app", "commandPaletteQuickActions")}</span>
-								<span>{filteredActions().length}</span>
-							</div>
-
 							<Show
 								when={filteredActions().length > 0}
 								fallback={
-									<div class="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-8 text-center">
-										<div class="text-[14px] font-semibold text-white">
+									<div class="rounded-2xl border border-dashed border-[color:var(--border-subtle)] bg-[color:var(--surface-subtle)] px-4 py-8 text-center">
+										<div class="text-[14px] font-semibold text-[color:var(--text-primary)]">
 											{t("app", "commandPaletteNoResults")}
 										</div>
-										<div class="mt-1 text-[12px] text-[#8b9098]">
+										<div class="mt-1 text-[12px] text-[color:var(--text-tertiary)]">
 											{t("app", "commandPaletteNoResultsHint")}
 										</div>
 									</div>
 								}
 							>
+								<div class="mb-2 flex items-center justify-between px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-tertiary)]">
+									<span>{t("app", "commandPaletteQuickActions")}</span>
+									<span>{filteredActions().length}</span>
+								</div>
+
 								<div class="space-y-2">
-									<For each={filteredActions()}>
+									<For each={quickActions()}>
 										{(action, index) => (
 											<Motion.button
 												type="button"
 												tabIndex={props.open ? 0 : -1}
-												class="group flex w-full items-center gap-3 rounded-2xl border border-transparent bg-white/[0.03] px-4 py-3 text-left transition-colors duration-150 hover:border-white/10 hover:bg-white/[0.06]"
+												class="group flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[color:var(--surface-subtle)] px-4 py-3 text-left transition-colors duration-150 hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--field-bg-focus)]"
 												initial={false}
 												animate={{
 													opacity: props.open ? 1 : 0,
@@ -287,7 +291,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 													void runAction(action);
 												}}
 											>
-												<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1b2028] text-[#d4d8de] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+												<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--command-icon-bg)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
 													<action.icon
 														size={18}
 														stroke-width={2}
@@ -295,20 +299,74 @@ export function CommandPalette(props: CommandPaletteProps) {
 													/>
 												</div>
 												<div class="min-w-0 flex-1">
-													<div class="truncate text-[14px] font-semibold text-white">
+													<div class="truncate text-[14px] font-semibold text-[color:var(--text-primary)]">
 														{action.label}
 													</div>
-													<div class="truncate text-[12px] text-[#8b9098]">
+													<div class="truncate text-[12px] text-[color:var(--text-tertiary)]">
 														{action.description}
 													</div>
 												</div>
-												<div class="rounded-lg border border-white/10 bg-[#151920] px-2 py-1 text-[11px] font-semibold text-[#aeb4bc]">
-													{action.shortcut}
-												</div>
+												<Show when={action.shortcut}>
+													<div class="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--command-shortcut-bg)] px-2 py-1 text-[11px] font-semibold text-[color:var(--text-tertiary)]">
+														{action.shortcut}
+													</div>
+												</Show>
 											</Motion.button>
 										)}
 									</For>
 								</div>
+
+								<Show when={otherActions().length > 0}>
+									<div class="mt-4 mb-2 flex items-center justify-between px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--text-tertiary)]">
+										<span>{t("app", "commandPaletteOtherActions")}</span>
+										<span>{otherActions().length}</span>
+									</div>
+									<div class="max-h-[30vh] overflow-y-auto pr-1 space-y-2">
+										<For each={otherActions()}>
+											{(action, index) => (
+												<Motion.button
+													type="button"
+													tabIndex={props.open ? 0 : -1}
+													class="group flex w-full items-center gap-3 rounded-2xl border border-transparent bg-[color:var(--surface-subtle)] px-4 py-3 text-left transition-colors duration-150 hover:border-[color:var(--border-subtle)] hover:bg-[color:var(--field-bg-focus)]"
+													initial={false}
+													animate={{
+														opacity: props.open ? 1 : 0,
+														y: props.open ? 0 : 10,
+													}}
+													transition={{
+														duration: 0.22,
+														delay: props.open ? 0.16 + index() * 0.02 : 0,
+														easing: [0.22, 1, 0.36, 1],
+													}}
+													onClick={() => {
+														void runAction(action);
+													}}
+												>
+													<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--command-icon-bg)] text-[color:var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+														<action.icon
+															size={18}
+															stroke-width={2}
+															aria-hidden="true"
+														/>
+													</div>
+													<div class="min-w-0 flex-1">
+														<div class="truncate text-[14px] font-semibold text-[color:var(--text-primary)]">
+															{action.label}
+														</div>
+														<div class="truncate text-[12px] text-[color:var(--text-tertiary)]">
+															{action.description}
+														</div>
+													</div>
+													<Show when={action.shortcut}>
+														<div class="rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--command-shortcut-bg)] px-2 py-1 text-[11px] font-semibold text-[color:var(--text-tertiary)]">
+															{action.shortcut}
+														</div>
+													</Show>
+												</Motion.button>
+											)}
+										</For>
+									</div>
+								</Show>
 							</Show>
 						</Motion.div>
 
@@ -323,14 +381,14 @@ export function CommandPalette(props: CommandPaletteProps) {
 								delay: props.open ? 0.1 : 0,
 								easing: [0.22, 1, 0.36, 1],
 							}}
-							class="flex items-center justify-between border-t border-white/8 px-4 py-3 text-[11px] text-[#7e848d]"
+							class="flex items-center justify-between border-t border-[color:var(--border-subtle)] px-4 py-3 text-[11px] text-[color:var(--text-subtle)]"
 						>
 							<div class="flex items-center gap-2">
 								<Command size={14} stroke-width={2} aria-hidden="true" />
 								<span>{t("app", "commandPaletteFooter")}</span>
 							</div>
 							<div class="flex items-center gap-2">
-								<kbd class="rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-semibold text-[#d5d9df]">
+								<kbd class="rounded border border-[color:var(--border-subtle)] bg-[color:var(--field-bg)] px-1.5 py-0.5 font-semibold text-[color:var(--text-primary)]">
 									Esc
 								</kbd>
 								<span>{t("app", "commandPaletteClose")}</span>

@@ -2,6 +2,165 @@
 
 :root {
 	color-scheme: dark;
+	--app-bg: #272727;
+	--app-text: #f8f9fb;
+	--app-text-muted: #b3b6bc;
+
+	--titlebar-bg: #1e1f22;
+	--titlebar-text: #a0a0a0;
+	--titlebar-icon: #b9bbbe;
+	--titlebar-icon-hover: #dcddde;
+	--titlebar-hover: rgba(255, 255, 255, 0.1);
+	--titlebar-divider: rgba(255, 255, 255, 0.1);
+	--titlebar-close-hover: #e81123;
+	--titlebar-close-text: #ffffff;
+
+	--surface-primary: #313338;
+	--surface-secondary: #1e1f22;
+	--surface-tertiary: #111317;
+	--surface-raised: rgba(17, 19, 23, 0.92);
+	--surface-subtle: rgba(255, 255, 255, 0.03);
+
+	--text-primary: #ffffff;
+	--text-secondary: rgba(255, 255, 255, 0.7);
+	--text-tertiary: #8b9098;
+	--text-subtle: #7e848d;
+	--text-inverse: #0f1114;
+
+	--border-subtle: rgba(255, 255, 255, 0.1);
+	--border-strong: rgba(255, 255, 255, 0.18);
+
+	--field-bg: rgba(255, 255, 255, 0.05);
+	--field-bg-focus: rgba(255, 255, 255, 0.1);
+	--field-border: rgba(255, 255, 255, 0.1);
+	--field-border-focus: rgba(255, 255, 255, 0.3);
+	--field-placeholder: rgba(255, 255, 255, 0.4);
+	--field-ring: rgba(255, 255, 255, 0.12);
+
+	--button-primary-bg: #ffffff;
+	--button-primary-text: #0f1114;
+	--button-primary-hover: rgba(255, 255, 255, 0.9);
+	--button-primary-shadow: rgba(255, 255, 255, 0.2);
+	--button-secondary-border: rgba(255, 255, 255, 0.2);
+	--button-secondary-text: #ffffff;
+	--button-secondary-hover: rgba(255, 255, 255, 0.05);
+
+	--card-bg: rgba(0, 0, 0, 0.3);
+	--card-border: rgba(255, 255, 255, 0.1);
+	--shadow-card: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+	--shadow-float:
+		0 0 0 1px rgba(255, 255, 255, 0.08), 0 10px 28px rgba(0, 0, 0, 0.32);
+	--shadow-command: 0 30px 110px rgba(0, 0, 0, 0.58);
+
+	--command-overlay: radial-gradient(
+		circle at top,
+		rgba(112, 126, 148, 0.26),
+		rgba(7, 9, 12, 0.88) 56%
+	);
+	--command-bg: rgba(17, 19, 23, 0.92);
+	--command-border: rgba(255, 255, 255, 0.1);
+	--command-icon-bg: #1b2028;
+	--command-shortcut-bg: #151920;
+	--keycap-bg: #2b2d31;
+	--keycap-border: rgba(255, 255, 255, 0.18);
+	--keycap-text: #dcddde;
+	--keycap-shadow:
+		inset 0 -1px 0 rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04);
+
+	--tooltip-bg: #111214;
+	--tooltip-text: #dcddde;
+
+	--auth-bg-image: url("form_background.png");
+	--auth-option-border: rgba(255, 255, 255, 0.1);
+	--auth-option-bg: rgba(255, 255, 255, 0.04);
+	--auth-option-selected: rgba(255, 255, 255, 0.12);
+	--auth-option-ring: rgba(255, 255, 255, 0.45);
+
+	--accent-primary: #5865f2;
+	--accent-success: #23a559;
+}
+
+:root[data-theme="light"] {
+	color-scheme: light;
+	--app-bg: #f4f5f9;
+	--app-text: #1f2937;
+	--app-text-muted: #6b7280;
+
+	--titlebar-bg: #eef0f4;
+	--titlebar-text: #4b5563;
+	--titlebar-icon: #4b5563;
+	--titlebar-icon-hover: #111827;
+	--titlebar-hover: rgba(17, 24, 39, 0.08);
+	--titlebar-divider: rgba(17, 24, 39, 0.12);
+	--titlebar-close-hover: #d62839;
+	--titlebar-close-text: #ffffff;
+
+	--surface-primary: #f6f7fb;
+	--surface-secondary: #edf0f5;
+	--surface-tertiary: #e3e6ee;
+	--surface-raised: rgba(255, 255, 255, 0.92);
+	--surface-subtle: rgba(17, 24, 39, 0.04);
+
+	--text-primary: #1f2937;
+	--text-secondary: #4b5563;
+	--text-tertiary: #6b7280;
+	--text-subtle: #7b8496;
+	--text-inverse: #ffffff;
+
+	--border-subtle: rgba(15, 23, 42, 0.12);
+	--border-strong: rgba(15, 23, 42, 0.2);
+
+	--field-bg: #ffffff;
+	--field-bg-focus: #ffffff;
+	--field-border: rgba(15, 23, 42, 0.16);
+	--field-border-focus: rgba(76, 111, 255, 0.6);
+	--field-placeholder: rgba(107, 114, 128, 0.7);
+	--field-ring: rgba(76, 111, 255, 0.2);
+
+	--button-primary-bg: #111827;
+	--button-primary-text: #ffffff;
+	--button-primary-hover: #1f2937;
+	--button-primary-shadow: rgba(17, 24, 39, 0.2);
+	--button-secondary-border: rgba(17, 24, 39, 0.2);
+	--button-secondary-text: #1f2937;
+	--button-secondary-hover: rgba(17, 24, 39, 0.06);
+
+	--card-bg: rgba(255, 255, 255, 0.86);
+	--card-border: rgba(15, 23, 42, 0.12);
+	--shadow-card: 0 12px 28px rgba(15, 23, 42, 0.12);
+	--shadow-float:
+		0 0 0 1px rgba(15, 23, 42, 0.12), 0 12px 24px rgba(15, 23, 42, 0.12);
+	--shadow-command: 0 26px 80px rgba(15, 23, 42, 0.18);
+
+	--command-overlay: radial-gradient(
+		circle at top,
+		rgba(226, 231, 242, 0.9),
+		rgba(215, 221, 235, 0.55) 60%
+	);
+	--command-bg: rgba(255, 255, 255, 0.92);
+	--command-border: rgba(15, 23, 42, 0.12);
+	--command-icon-bg: #e3e7f0;
+	--command-shortcut-bg: #e6e9f1;
+	--keycap-bg: #e4e7ef;
+	--keycap-border: rgba(15, 23, 42, 0.16);
+	--keycap-text: #1f2937;
+	--keycap-shadow:
+		inset 0 -1px 0 rgba(15, 23, 42, 0.16), 0 1px 0 rgba(255, 255, 255, 0.6);
+
+	--tooltip-bg: #111827;
+	--tooltip-text: #f9fafb;
+
+	--auth-bg-image:
+		radial-gradient(
+			circle at top right,
+			rgba(255, 255, 255, 0.9),
+			rgba(230, 234, 244, 0.95)
+		),
+		linear-gradient(120deg, #eef2ff 0%, #f8fafc 60%, #f1f5f9 100%);
+	--auth-option-border: rgba(15, 23, 42, 0.16);
+	--auth-option-bg: rgba(255, 255, 255, 0.7);
+	--auth-option-selected: rgba(17, 24, 39, 0.08);
+	--auth-option-ring: rgba(17, 24, 39, 0.35);
 }
 
 body {
@@ -10,6 +169,19 @@ body {
 	overflow: hidden; /* Prevent body scrolling */
 	user-select: none;
 	-webkit-user-select: none;
+	background: var(--app-bg);
+	color: var(--text-primary);
+}
+
+body.theme-transition,
+body.theme-transition * {
+	transition:
+		background-color 200ms ease,
+		color 200ms ease,
+		border-color 200ms ease,
+		box-shadow 200ms ease,
+		fill 200ms ease,
+		stroke 200ms ease;
 }
 
 #app {

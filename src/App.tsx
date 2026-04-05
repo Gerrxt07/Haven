@@ -2,8 +2,10 @@ import {
 	LogOut,
 	MessageCircleQuestion,
 	Minus,
+	Moon,
 	Settings,
 	Square,
+	Sun,
 	User,
 	X,
 } from "lucide-solid";
@@ -30,6 +32,7 @@ import {
 } from "./components/ui/tooltip";
 import { t, tf } from "./i18n";
 import { authSession } from "./lib/auth/session";
+import { currentTheme, toggleTheme } from "./lib/theme";
 
 const HomeView = lazy(() => import("./views/Home"));
 const AuthView = lazy(() => import("./views/Auth"));
@@ -60,10 +63,24 @@ export default function App() {
 			run: openHelp,
 		},
 		{
+			id: "toggle-theme",
+			label:
+				currentTheme() === "dark"
+					? t("app", "commandThemeLight")
+					: t("app", "commandThemeDark"),
+			description:
+				currentTheme() === "dark"
+					? t("app", "commandThemeLightDesc")
+					: t("app", "commandThemeDarkDesc"),
+			shortcut: "",
+			icon: currentTheme() === "dark" ? Sun : Moon,
+			run: () => toggleTheme(),
+		},
+		{
 			id: "logout",
 			label: t("app", "commandLogout"),
 			description: t("app", "commandLogoutDesc"),
-			shortcut: "Shift+L",
+			shortcut: "",
 			icon: LogOut,
 			run: () => authSession.logout(),
 		},
@@ -184,12 +201,6 @@ export default function App() {
 				return;
 			}
 
-			if (event.shiftKey && event.key.toLowerCase() === "l") {
-				event.preventDefault();
-				void authSession.logout();
-				return;
-			}
-
 			if (event.altKey && event.key.toLowerCase() === "m") {
 				event.preventDefault();
 				globalThis.electronAPI.minimize();
@@ -209,17 +220,17 @@ export default function App() {
 	});
 
 	return (
-		<div class="flex flex-col h-screen w-full bg-[#272727] text-white">
+		<div class="flex flex-col h-screen w-full bg-[color:var(--app-bg)] text-[color:var(--text-primary)]">
 			{/* Titlebar */}
 			<div
-				class="h-8 bg-[#1e1f22] flex justify-between items-center select-none relative"
+				class="h-8 bg-[color:var(--titlebar-bg)] flex justify-between items-center select-none relative"
 				style={{ "-webkit-app-region": "drag" }}
 			>
 				{/* Spacer */}
 				<div class="w-34.5"></div>
 
 				{/* Center Title */}
-				<div class="absolute inset-0 flex justify-center items-center text-[13px] font-semibold text-[#a0a0a0] pointer-events-none">
+				<div class="absolute inset-0 flex justify-center items-center text-[13px] font-semibold text-[color:var(--titlebar-text)] pointer-events-none">
 					{t("app", "title")}
 				</div>
 
@@ -240,7 +251,7 @@ export default function App() {
 								<TooltipTrigger
 									as="button"
 									id="account-btn"
-									class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+									class="h-full border-none bg-transparent text-[color:var(--titlebar-text)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[color:var(--titlebar-icon-hover)] p-0"
 								>
 									<User size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
@@ -253,7 +264,7 @@ export default function App() {
 								<TooltipTrigger
 									as="button"
 									id="settings-btn"
-									class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+									class="h-full border-none bg-transparent text-[color:var(--titlebar-text)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[color:var(--titlebar-icon-hover)] p-0"
 								>
 									<Settings size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
@@ -267,7 +278,7 @@ export default function App() {
 							<TooltipTrigger
 								as="button"
 								id="help-btn"
-								class="h-full border-none bg-transparent text-[#a0a0a0] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[#dcddde] p-0"
+								class="h-full border-none bg-transparent text-[color:var(--titlebar-text)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[color:var(--titlebar-icon-hover)] p-0"
 							>
 								<MessageCircleQuestion
 									size={15}
@@ -280,20 +291,20 @@ export default function App() {
 					</div>
 
 					<div class="h-full flex items-center justify-center pr-1">
-						<div class="w-px h-4 bg-white/10"></div>
+						<div class="w-px h-4 bg-[color:var(--titlebar-divider)]"></div>
 					</div>
 
 					<button
 						type="button"
 						id="min-btn"
-						class="w-11.5 h-full border-none bg-transparent text-[#b9bbbe] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-white/10"
+						class="w-11.5 h-full border-none bg-transparent text-[color:var(--titlebar-icon)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-[color:var(--titlebar-hover)]"
 					>
 						<Minus size={14} stroke-width={2} aria-hidden="true" />
 					</button>
 					<button
 						type="button"
 						id="max-btn"
-						class="w-11.5 h-full border-none bg-transparent text-[#b9bbbe] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-white/10"
+						class="w-11.5 h-full border-none bg-transparent text-[color:var(--titlebar-icon)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-[color:var(--titlebar-hover)]"
 					>
 						{isExpanded() ? (
 							<svg
@@ -325,7 +336,7 @@ export default function App() {
 					<button
 						type="button"
 						id="close-btn"
-						class="w-11.5 h-full border-none bg-transparent text-[#b9bbbe] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-[#e81123] hover:text-white"
+						class="w-11.5 h-full border-none bg-transparent text-[color:var(--titlebar-icon)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:bg-[color:var(--titlebar-close-hover)] hover:text-[color:var(--titlebar-close-text)]"
 					>
 						<X size={14} stroke-width={2} aria-hidden="true" />
 					</button>
