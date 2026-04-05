@@ -8,6 +8,7 @@ export const en = {
 		commandPalette: "Commands",
 		commandPaletteSearchPlaceholder: "Search commands and quick actions",
 		commandPaletteQuickActions: "Quick Actions",
+		commandPaletteOtherActions: "Other Actions",
 		commandPaletteNoResults: "No commands found",
 		commandPaletteNoResultsHint: "Try a different keyword or shortcut.",
 		commandPaletteFooter: "Press Enter to run the first matching action.",
@@ -22,6 +23,10 @@ export const en = {
 		commandMaximizeDesc: "Expand Haven to fill the screen.",
 		commandRestore: "Restore Window",
 		commandRestoreDesc: "Return Haven to its previous window size.",
+		commandThemeLight: "Switch to Light Mode",
+		commandThemeLightDesc: "Use the bright, eye-friendly light theme.",
+		commandThemeDark: "Switch to Dark Mode",
+		commandThemeDarkDesc: "Use the darker, focus-first theme.",
 		commandCloseWindow: "Close Window",
 		commandCloseWindowDesc: "Close the current Haven window.",
 		externalLinkWarning:
@@ -51,6 +56,13 @@ export const en = {
 		welcomeTitle: "Welcome to Haven",
 		welcomeDesc:
 			"Haven is your new home for secure, real-time communication. Connect with friends and communities effortlessly.",
+		themeSelectLabel: "Choose your look",
+		themeSelectHint: "Pick a theme to continue",
+		themeDark: "Dark",
+		themeDarkDesc: "Low-glare, focused, immersive.",
+		themeLight: "Light",
+		themeLightDesc: "Bright, calm, and easy on the eyes.",
+		themeShortcutHint: "You can switch later from Commands.",
 		step1Title: "Choose a Username",
 		step1Desc:
 			"Your username is unique and identifies you. You can change your display name later.",

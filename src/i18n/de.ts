@@ -8,6 +8,7 @@ export const de = {
 		commandPalette: "Kurzbefehle",
 		commandPaletteSearchPlaceholder: "Nach Befehlen und Quick Actions suchen",
 		commandPaletteQuickActions: "Quick Actions",
+		commandPaletteOtherActions: "Weitere Aktionen",
 		commandPaletteNoResults: "Keine Befehle gefunden",
 		commandPaletteNoResultsHint:
 			"Versuche ein anderes Stichwort oder einen Shortcut.",
@@ -25,6 +26,10 @@ export const de = {
 		commandMaximizeDesc: "Vergrößert Haven auf die gesamte Fensterfläche.",
 		commandRestore: "Fenster wiederherstellen",
 		commandRestoreDesc: "Setzt Haven auf die vorherige Fenstergröße zurück.",
+		commandThemeLight: "Zu Light Mode wechseln",
+		commandThemeLightDesc: "Aktiviert das helle, augenfreundliche Design.",
+		commandThemeDark: "Zu Dark Mode wechseln",
+		commandThemeDarkDesc: "Aktiviert das dunkle, fokussierte Design.",
 		commandCloseWindow: "Fenster schließen",
 		commandCloseWindowDesc: "Schließt das aktuelle Haven-Fenster.",
 		externalLinkWarning:
@@ -54,6 +59,13 @@ export const de = {
 		welcomeTitle: "Willkommen bei Haven",
 		welcomeDesc:
 			"Haven ist dein neues Zuhause für sichere Echtzeit-Kommunikation. Verbinde dich mühelos mit Freunden und Communities.",
+		themeSelectLabel: "Wähle deinen Look",
+		themeSelectHint: "Theme auswählen, um fortzufahren",
+		themeDark: "Dark",
+		themeDarkDesc: "Wenig Blendung, klarer Fokus.",
+		themeLight: "Light",
+		themeLightDesc: "Hell, ruhig und augenschonend.",
+		themeShortcutHint: "Später kannst du über Kurzbefehle wechseln.",
 		step1Title: "Wähle einen Benutzernamen",
 		step1Desc:
 			"Dein Benutzername ist einmalig und identifiziert dich. Den Anzeigenamen kannst du später jederzeit ändern.",

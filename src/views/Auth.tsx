@@ -1,10 +1,11 @@
 import { validate as validateEmail } from "email-validator";
 import { ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-solid";
-import { createSignal, Match, Switch } from "solid-js";
+import { createSignal, Match, Show, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 import { currentLang, t } from "../i18n";
 import { HttpApiError } from "../lib/api";
 import { authSession } from "../lib/auth/session";
+import { currentTheme, hasThemeSelection, setTheme } from "../lib/theme";
 
 export default function AuthView() {
 	const [view, setView] = createSignal<"welcome" | "login" | "register">(
@@ -22,6 +23,7 @@ export default function AuthView() {
 
 	const [error, setError] = createSignal("");
 	const [loading, setLoading] = createSignal(false);
+	const needsThemeSelection = () => !hasThemeSelection();
 
 	const handleUsernameInput = (val: string) => {
 		setUsername(val.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -181,29 +183,82 @@ export default function AuthView() {
 	return (
 		<div
 			class="w-full h-full flex items-center justify-center bg-cover bg-center"
-			style={{ "background-image": "url('form_background.png')" }}
+			style={{ "background-image": "var(--auth-bg-image)" }}
 		>
 			<Motion.div
 				initial={{ opacity: 0, y: 20, scale: 0.98 }}
 				animate={{ opacity: 1, y: 0, scale: 1 }}
 				transition={{ duration: 0.5, easing: "ease-out" }}
-				class="bg-black/30 backdrop-blur-xl border border-white/10 p-10 min-w-100 w-full max-w-lg rounded-3xl shadow-[0_8px_32px_0_rgba(0,0,0,0.5)]"
+				class="bg-[color:var(--card-bg)] backdrop-blur-xl border border-[color:var(--card-border)] p-10 min-w-100 w-full max-w-lg rounded-3xl shadow-[var(--shadow-card)]"
 			>
 				<Switch>
 					<Match when={view() === "welcome"}>
 						<div class="text-center">
-							<h1 class="text-white text-4xl font-bold tracking-tight mb-4">
+							<h1 class="text-[color:var(--text-primary)] text-4xl font-bold tracking-tight mb-4">
 								{t("auth", "welcomeTitle")}
 							</h1>
-							<p class="text-white/70 text-lg leading-relaxed mb-8">
+							<p class="text-[color:var(--text-secondary)] text-lg leading-relaxed mb-8">
 								{t("auth", "welcomeDesc")}
 							</p>
+
+							<Show when={needsThemeSelection()}>
+								<div class="mb-8 rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-4 text-left">
+									<div class="flex items-center justify-between mb-4">
+										<div class="text-[12px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-tertiary)]">
+											{t("auth", "themeSelectLabel")}
+										</div>
+										<div class="text-[11px] font-medium text-[color:var(--text-tertiary)]">
+											{t("auth", "themeSelectHint")}
+										</div>
+									</div>
+									<div class="grid grid-cols-2 gap-3">
+										<button
+											type="button"
+											onClick={() => setTheme("dark")}
+											class="group rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-3 text-left transition-all duration-200 hover:bg-[color:var(--auth-option-selected)]"
+											classList={{
+												"ring-2 ring-[color:var(--auth-option-ring)] border-[color:var(--auth-option-ring)]":
+													currentTheme() === "dark",
+											}}
+										>
+											<div class="h-14 rounded-xl bg-[#1b1c20] border border-white/8 mb-3" />
+											<div class="text-[14px] font-semibold text-[color:var(--text-primary)]">
+												{t("auth", "themeDark")}
+											</div>
+											<div class="text-[12px] text-[color:var(--text-tertiary)]">
+												{t("auth", "themeDarkDesc")}
+											</div>
+										</button>
+										<button
+											type="button"
+											onClick={() => setTheme("light")}
+											class="group rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-3 text-left transition-all duration-200 hover:bg-[color:var(--auth-option-selected)]"
+											classList={{
+												"ring-2 ring-[color:var(--auth-option-ring)] border-[color:var(--auth-option-ring)]":
+													currentTheme() === "light",
+											}}
+										>
+											<div class="h-14 rounded-xl bg-[#f2f4f8] border border-black/10 mb-3" />
+											<div class="text-[14px] font-semibold text-[color:var(--text-primary)]">
+												{t("auth", "themeLight")}
+											</div>
+											<div class="text-[12px] text-[color:var(--text-tertiary)]">
+												{t("auth", "themeLightDesc")}
+											</div>
+										</button>
+									</div>
+									<div class="mt-3 text-[11px] text-[color:var(--text-tertiary)]">
+										{t("auth", "themeShortcutHint")}
+									</div>
+								</div>
+							</Show>
 
 							<div class="flex flex-col gap-4 mt-6">
 								<button
 									type="button"
 									onClick={() => setView("register")}
-									class="w-full bg-white hover:bg-white/90 text-black font-bold p-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-white/20"
+									disabled={needsThemeSelection()}
+									class="w-full bg-[color:var(--button-primary-bg)] hover:bg-[color:var(--button-primary-hover)] text-[color:var(--button-primary-text)] font-bold p-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_8px_24px_var(--button-primary-shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{t("auth", "startRegisterBtn")}
 								</button>
@@ -211,7 +266,8 @@ export default function AuthView() {
 								<button
 									type="button"
 									onClick={() => setView("login")}
-									class="w-full bg-transparent hover:bg-white/5 border border-white/20 text-white font-bold p-4 rounded-xl transition-all duration-300"
+									disabled={needsThemeSelection()}
+									class="w-full bg-transparent hover:bg-[color:var(--button-secondary-hover)] border border-[color:var(--button-secondary-border)] text-[color:var(--button-secondary-text)] font-bold p-4 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{t("auth", "loginBtn")}
 								</button>
@@ -221,7 +277,7 @@ export default function AuthView() {
 
 					<Match when={view() === "login"}>
 						<div>
-							<h2 class="text-white text-3xl font-bold tracking-tight text-center mb-8">
+							<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight text-center mb-8">
 								{t("auth", "loginTitle")}
 							</h2>
 
@@ -239,14 +295,14 @@ export default function AuthView() {
 								<div class="flex flex-col gap-1.5 p-1">
 									<label
 										for="email_login"
-										class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+										class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 									>
 										{t("auth", "email")}
 									</label>
 									<input
 										id="email_login"
 										type="email"
-										class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300"
+										class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
 										value={email()}
 										onInput={(e) => setEmail(e.target.value)}
 										required
@@ -256,7 +312,7 @@ export default function AuthView() {
 								<div class="flex flex-col gap-1.5 p-1">
 									<label
 										for="password_login"
-										class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+										class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 									>
 										{t("auth", "password")}
 									</label>
@@ -264,14 +320,14 @@ export default function AuthView() {
 										<input
 											id="password_login"
 											type={showPassword() ? "text" : "password"}
-											class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300 w-full pr-12"
+											class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300 w-full pr-12"
 											value={password()}
 											onInput={(e) => setPassword(e.target.value)}
 											required
 										/>
 										<button
 											type="button"
-											class="absolute right-4 text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center justify-center"
+											class="absolute right-4 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)] transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center justify-center"
 											onClick={() => setShowPassword(!showPassword())}
 											tabIndex={-1}
 										>
@@ -287,16 +343,16 @@ export default function AuthView() {
 								<button
 									type="submit"
 									disabled={loading()}
-									class="w-full bg-white hover:bg-white/90 text-black font-bold p-4 rounded-xl mt-6 transition-all duration-300 shadow-lg hover:shadow-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+									class="w-full bg-[color:var(--button-primary-bg)] hover:bg-[color:var(--button-primary-hover)] text-[color:var(--button-primary-text)] font-bold p-4 rounded-xl mt-6 transition-all duration-300 shadow-lg hover:shadow-[0_8px_24px_var(--button-primary-shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{loading() ? t("auth", "loadingBtn") : t("auth", "loginBtn")}
 								</button>
 							</form>
 
-							<p class="text-white/60 text-sm mt-6 text-center font-medium">
+							<p class="text-[color:var(--text-tertiary)] text-sm mt-6 text-center font-medium">
 								<button
 									type="button"
-									class="text-white hover:text-white/80 underline decoration-white/30 hover:decoration-white transition-all cursor-pointer bg-transparent border-none p-0 font-bold"
+									class="text-[color:var(--text-primary)] hover:text-[color:var(--text-secondary)] underline decoration-[color:var(--border-subtle)] hover:decoration-[color:var(--text-tertiary)] transition-all cursor-pointer bg-transparent border-none p-0 font-bold"
 									onClick={() => {
 										setView("welcome");
 										setError("");
@@ -314,11 +370,11 @@ export default function AuthView() {
 								<button
 									type="button"
 									onClick={goBack}
-									class="text-white/60 hover:text-white transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center gap-2"
+									class="text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)] transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center gap-2"
 								>
 									<ArrowLeft size={20} />
 								</button>
-								<span class="text-white/40 font-medium text-sm">
+								<span class="text-[color:var(--text-tertiary)] font-medium text-sm">
 									Step {step()} / 5
 								</span>
 							</div>
@@ -340,22 +396,24 @@ export default function AuthView() {
 										animate={{ opacity: 1, x: 0 }}
 										class="flex flex-col gap-4"
 									>
-										<h2 class="text-white text-3xl font-bold tracking-tight">
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
 											{t("auth", "step1Title")}
 										</h2>
-										<p class="text-white/70 mb-4">{t("auth", "step1Desc")}</p>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step1Desc")}
+										</p>
 
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="username_reg"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "username")}
 											</label>
 											<input
 												id="username_reg"
 												type="text"
-												class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300"
+												class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
 												value={username()}
 												onInput={(e) => handleUsernameInput(e.target.value)}
 												onKeyDown={(e) => e.key === "Enter" && goNext()}
@@ -374,22 +432,24 @@ export default function AuthView() {
 										animate={{ opacity: 1, x: 0 }}
 										class="flex flex-col gap-4"
 									>
-										<h2 class="text-white text-3xl font-bold tracking-tight">
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
 											{t("auth", "step2Title")}
 										</h2>
-										<p class="text-white/70 mb-4">{t("auth", "step2Desc")}</p>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step2Desc")}
+										</p>
 
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="displayName_reg"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "displayName")}
 											</label>
 											<input
 												id="displayName_reg"
 												type="text"
-												class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300"
+												class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
 												value={displayName()}
 												onInput={(e) => setDisplayName(e.target.value)}
 												onKeyDown={(e) => e.key === "Enter" && goNext()}
@@ -408,15 +468,17 @@ export default function AuthView() {
 										animate={{ opacity: 1, x: 0 }}
 										class="flex flex-col gap-4"
 									>
-										<h2 class="text-white text-3xl font-bold tracking-tight">
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
 											{t("auth", "step3Title")}
 										</h2>
-										<p class="text-white/70 mb-4">{t("auth", "step3Desc")}</p>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step3Desc")}
+										</p>
 
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="dob_reg"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "dob")}
 											</label>
@@ -428,7 +490,7 @@ export default function AuthView() {
 														? t("auth", "dobFormatDe")
 														: t("auth", "dobFormatEn")
 												}
-												class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300"
+												class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
 												value={dob()}
 												onInput={(e) => handleDobInput(e.target.value)}
 												onKeyDown={(e) => e.key === "Enter" && goNext()}
@@ -446,22 +508,24 @@ export default function AuthView() {
 										animate={{ opacity: 1, x: 0 }}
 										class="flex flex-col gap-4"
 									>
-										<h2 class="text-white text-3xl font-bold tracking-tight">
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
 											{t("auth", "step4Title")}
 										</h2>
-										<p class="text-white/70 mb-4">{t("auth", "step4Desc")}</p>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step4Desc")}
+										</p>
 
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="email_reg"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "email")}
 											</label>
 											<input
 												id="email_reg"
 												type="email"
-												class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300"
+												class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
 												value={email()}
 												onInput={(e) => setEmail(e.target.value)}
 												onKeyDown={(e) => e.key === "Enter" && goNext()}
@@ -478,15 +542,17 @@ export default function AuthView() {
 										animate={{ opacity: 1, x: 0 }}
 										class="flex flex-col gap-4"
 									>
-										<h2 class="text-white text-3xl font-bold tracking-tight">
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
 											{t("auth", "step5Title")}
 										</h2>
-										<p class="text-white/70 mb-4">{t("auth", "step5Desc")}</p>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step5Desc")}
+										</p>
 
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="password_reg"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "password")}
 											</label>
@@ -494,7 +560,7 @@ export default function AuthView() {
 												<input
 													id="password_reg"
 													type={showPassword() ? "text" : "password"}
-													class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300 w-full pr-12"
+													class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300 w-full pr-12"
 													value={password()}
 													onInput={(e) => setPassword(e.target.value)}
 													required
@@ -504,7 +570,7 @@ export default function AuthView() {
 												/>
 												<button
 													type="button"
-													class="absolute right-4 text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center justify-center"
+													class="absolute right-4 text-[color:var(--text-tertiary)] hover:text-[color:var(--text-primary)] transition-colors cursor-pointer bg-transparent border-none p-0 flex items-center justify-center"
 													onClick={() => setShowPassword(!showPassword())}
 													tabIndex={-1}
 												>
@@ -520,7 +586,7 @@ export default function AuthView() {
 										<div class="flex flex-col gap-1.5 p-1">
 											<label
 												for="password_confirm"
-												class="text-white/70 text-xs font-semibold tracking-wider ml-1 uppercase"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
 											>
 												{t("auth", "confirmPassword")}
 											</label>
@@ -528,7 +594,7 @@ export default function AuthView() {
 												<input
 													id="password_confirm"
 													type={showPassword() ? "text" : "password"}
-													class="bg-white/5 text-white placeholder-white/40 p-3.5 rounded-xl border border-white/10 focus:border-white/30 focus:bg-white/10 focus:ring-2 focus:ring-white/10 outline-none transition-all duration-300 w-full pr-12"
+													class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300 w-full pr-12"
 													value={confirmPassword()}
 													onInput={(e) => setConfirmPassword(e.target.value)}
 													onKeyDown={(e) => e.key === "Enter" && goNext()}
@@ -546,7 +612,7 @@ export default function AuthView() {
 								type="button"
 								onClick={goNext}
 								disabled={loading()}
-								class="w-full bg-white flex items-center justify-center gap-2 hover:bg-white/90 text-black font-bold p-4 rounded-xl mt-8 transition-all duration-300 shadow-lg hover:shadow-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+								class="w-full bg-[color:var(--button-primary-bg)] flex items-center justify-center gap-2 hover:bg-[color:var(--button-primary-hover)] text-[color:var(--button-primary-text)] font-bold p-4 rounded-xl mt-8 transition-all duration-300 shadow-lg hover:shadow-[0_8px_24px_var(--button-primary-shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
 							>
 								{loading()
 									? t("auth", "loadingBtn")

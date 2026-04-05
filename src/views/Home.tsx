@@ -90,15 +90,15 @@ export default function Home() {
 	};
 
 	return (
-		<div class="flex h-full w-full bg-[#313338] text-white">
+		<div class="flex h-full w-full bg-[color:var(--surface-primary)] text-[color:var(--text-primary)]">
 			{/* Workspace Sidebar */}
-			<nav class="w-14 sm:w-16 shrink-0 bg-[#1e1f22] flex flex-col items-center py-3 overflow-y-auto hidden-scrollbar transition-all duration-200">
+			<nav class="w-14 sm:w-16 shrink-0 bg-[color:var(--surface-secondary)] flex flex-col items-center py-3 overflow-y-auto hidden-scrollbar transition-all duration-200">
 				{/* Top: Home */}
 				<Tooltip placement="right">
 					<TooltipTrigger
 						as="button"
 						aria-label="Home"
-						class="w-10 h-10 sm:w-11 sm:h-11 rounded-3xl hover:rounded-2xl transition-all duration-300 ease-out bg-transparent hover:bg-[#5865f2] text-[#dbdee1] hover:text-white flex items-center justify-center shrink-0 mb-2 group"
+						class="w-10 h-10 sm:w-11 sm:h-11 rounded-3xl hover:rounded-2xl transition-all duration-300 ease-out bg-transparent hover:bg-[color:var(--accent-primary)] text-[color:var(--text-secondary)] hover:text-[color:var(--text-inverse)] flex items-center justify-center shrink-0 mb-2 group"
 					>
 						<HomeIcon size={22} stroke-width={2} />
 					</TooltipTrigger>
@@ -109,7 +109,7 @@ export default function Home() {
 					<TooltipTrigger
 						as="button"
 						aria-label="Explorer"
-						class="w-10 h-10 sm:w-11 sm:h-11 rounded-3xl hover:rounded-2xl transition-all duration-300 ease-out bg-transparent hover:bg-[#23a559] text-[#23a559] hover:text-white flex items-center justify-center shrink-0 group"
+						class="w-10 h-10 sm:w-11 sm:h-11 rounded-3xl hover:rounded-2xl transition-all duration-300 ease-out bg-transparent hover:bg-[color:var(--accent-success)] text-[color:var(--accent-success)] hover:text-[color:var(--text-inverse)] flex items-center justify-center shrink-0 group"
 					>
 						<Compass size={22} stroke-width={2} />
 					</TooltipTrigger>
@@ -117,7 +117,7 @@ export default function Home() {
 				</Tooltip>
 
 				{/* Separator - underneath default actions, before servers */}
-				<div class="w-6 sm:w-8 h-0.5 bg-[#35363c] rounded-full mx-auto my-3 transition-all duration-300" />
+				<div class="w-6 sm:w-8 h-0.5 bg-[color:var(--border-subtle)] rounded-full mx-auto my-3 transition-all duration-300" />
 				{/* Spacer (Servers list will go here in the future) */}
 				<div class="flex-1 w-full flex flex-col items-center gap-2">
 					{/* Placeholder for server icons */}
@@ -161,7 +161,7 @@ export default function Home() {
 			</nav>
 
 			{/* Main Content Area */}
-			<div class="flex-1 bg-[#313338] rounded-tl-lg overflow-hidden flex flex-col">
+			<div class="flex-1 bg-[color:var(--surface-primary)] rounded-tl-lg overflow-hidden flex flex-col">
 				<div class="flex-1 p-4">{t("home", "title")}</div>
 			</div>
 		</div>
