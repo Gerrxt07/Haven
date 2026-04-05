@@ -8,6 +8,7 @@ export type ApiErrorKind =
 	| "conflict"
 	| "validation"
 	| "bad-request"
+	| "too-many-requests"
 	| "server"
 	| "unknown";
 
@@ -40,6 +41,8 @@ export type AuthUserResponse = {
 	username: string;
 	display_name: string;
 	email: string;
+	email_verified?: boolean;
+	two_factor_enabled?: boolean;
 	avatar_url?: string | null;
 	profile_image_url?: string | null;
 	profile_picture_url?: string | null;
@@ -52,6 +55,19 @@ export type AuthUserResponse = {
 	account_status: string;
 	token_version: number;
 	created_at: string;
+};
+
+export type StatusResponse = {
+	status: string;
+};
+
+export type EmailVerificationRequest = {
+	email: string;
+};
+
+export type EmailVerificationConfirmRequest = {
+	email: string;
+	code: string;
 };
 
 export type LoginRequest = {

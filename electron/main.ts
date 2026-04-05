@@ -33,6 +33,23 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAppQuitting = false;
 
+function restoreMainWindow(): void {
+	if (!mainWindow) {
+		createWindow();
+		return;
+	}
+
+	if (mainWindow.isMinimized()) {
+		mainWindow.restore();
+	}
+
+	if (!mainWindow.isVisible()) {
+		mainWindow.show();
+	}
+
+	mainWindow.focus();
+}
+
 type DetailedLogPayload = {
 	scope: string;
 	event: string;
@@ -424,6 +441,16 @@ for (const arg of process.argv) {
 	}
 }
 
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!hasSingleInstanceLock) {
+	app.quit();
+} else {
+	app.on("second-instance", () => {
+		restoreMainWindow();
+	});
+}
+
 function createWindow() {
 	const primaryDisplay = screen.getPrimaryDisplay();
 	const { width: screenWidth, height: screenHeight } =
@@ -540,9 +567,7 @@ function createTray() {
 		{
 			label: "Haven öffnen",
 			click: () => {
-				mainWindow?.show();
-				if (mainWindow?.isMinimized()) mainWindow.restore();
-				mainWindow?.focus();
+				restoreMainWindow();
 			},
 		},
 		{ type: "separator" },
@@ -558,9 +583,7 @@ function createTray() {
 	tray.setContextMenu(contextMenu);
 
 	tray.on("click", () => {
-		mainWindow?.show();
-		if (mainWindow?.isMinimized()) mainWindow.restore();
-		mainWindow?.focus();
+		restoreMainWindow();
 	});
 }
 

@@ -2,14 +2,19 @@ import {
 	type AuthTokens,
 	type AuthUserResponse,
 	apiClient,
+	apiConfirmEmailVerification,
 	apiLogin,
 	apiMe,
 	apiRefresh,
 	apiRegister,
+	apiRequestEmailVerification,
 	apiUploadProfilePicture,
+	type EmailVerificationConfirmRequest,
+	type EmailVerificationRequest,
 	HttpApiError,
 	type LoginRequest,
 	type RegisterRequest,
+	type StatusResponse,
 } from "../api";
 import {
 	cacheProfileImageDataUrl,
@@ -126,6 +131,18 @@ class AuthSessionManager {
 
 	async register(payload: RegisterRequest): Promise<AuthUserResponse> {
 		return apiRegister(payload);
+	}
+
+	async requestEmailVerification(
+		payload: EmailVerificationRequest,
+	): Promise<StatusResponse> {
+		return apiRequestEmailVerification(payload);
+	}
+
+	async confirmEmailVerification(
+		payload: EmailVerificationConfirmRequest,
+	): Promise<StatusResponse> {
+		return apiConfirmEmailVerification(payload);
 	}
 
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {

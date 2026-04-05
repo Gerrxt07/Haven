@@ -5,11 +5,14 @@ import type {
 	CreateChannelRequestDto,
 	CreateMessageRequestDto,
 	CreateServerRequestDto,
+	EmailVerificationConfirmRequest,
+	EmailVerificationRequest,
 	LoginRequest,
 	MessageDto,
 	RefreshRequest,
 	RegisterRequest,
 	ServerDto,
+	StatusResponse,
 } from "./models";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -64,6 +67,15 @@ export function assertAuthUser(
 	assert(isString(value.username), "missing username");
 	assert(isString(value.display_name), "missing display_name");
 	assert(isString(value.email), "missing email");
+	if (value.email_verified !== undefined) {
+		assert(typeof value.email_verified === "boolean", "invalid email_verified");
+	}
+	if (value.two_factor_enabled !== undefined) {
+		assert(
+			typeof value.two_factor_enabled === "boolean",
+			"invalid two_factor_enabled",
+		);
+	}
 	if (value.avatar_url !== undefined && value.avatar_url !== null) {
 		assert(isString(value.avatar_url), "invalid avatar_url");
 	}
@@ -103,6 +115,26 @@ export function assertAuthUser(
 	assert(isString(value.account_status), "missing account_status");
 	assert(isNumber(value.token_version), "missing token_version");
 	assert(isString(value.created_at), "missing created_at");
+}
+
+export function assertEmailVerificationRequest(
+	payload: EmailVerificationRequest,
+): void {
+	assert(payload.email.includes("@"), "invalid email");
+}
+
+export function assertEmailVerificationConfirmRequest(
+	payload: EmailVerificationConfirmRequest,
+): void {
+	assert(payload.email.includes("@"), "invalid email");
+	assert(/^\d{6}$/.test(payload.code), "invalid verification code");
+}
+
+export function assertStatusResponse(
+	value: unknown,
+): asserts value is StatusResponse {
+	assert(isObject(value), "invalid status response");
+	assert(isString(value.status), "missing status");
 }
 
 export function assertCreateServerRequest(

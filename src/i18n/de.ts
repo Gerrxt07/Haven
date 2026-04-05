@@ -77,15 +77,28 @@ export const de = {
 			"Wir passen Haven für dich an. Es gibt aktuell kein Mindest- oder Höchstalter.",
 		step4Title: "Wie lautet deine E-Mail?",
 		step4Desc:
-			"Wir nutzen dies zur Verifizierung. Das Code-System kommt erst später, dieser Schritt wird also fürs Erste übersprungen.",
+			"Wir senden dir einen 6-stelligen Verifizierungscode an diese Adresse.",
 		step5Title: "Erstelle ein Passwort",
 		step5Desc:
 			"Mache es sicher! Du brauchst mind. 10 Zeichen, inkl. Großbuchstaben und Sonderzeichen.",
+		step6Title: "Bestätige deine E-Mail",
+		step6Desc:
+			"Gib den 6-stelligen Code aus deiner E-Mail ein, um die Account-Erstellung abzuschließen.",
+		verificationCode: "VERIFIZIERUNGSCODE",
 		confirmPassword: "PASSWORT WIEDERHOLEN",
 		errPasswordMismatch: "Die Passwörter stimmen nicht überein.",
+		errVerificationCode: "Bitte gib den 6-stelligen Verifizierungscode ein.",
+		errVerificationCodeInvalid: "Der Verifizierungscode ist ungültig.",
+		errVerificationCodeExpired:
+			"Der Verifizierungscode ist abgelaufen. Fordere einen neuen an.",
+		errTooManyRequests:
+			"Zu viele Versuche. Bitte warte kurz und versuche es erneut.",
+		errInvalidCredentials: "Ungültige E-Mail oder ungültiges Passwort.",
 		nextBtn: "Weiter",
 		backBtn: "Zurück",
-		finishBtn: "Account erstellen",
+		finishBtn: "Bestätigen & Einloggen",
+		createBtn: "Account erstellen",
+		resendCodeBtn: "Code erneut senden",
 		startRegisterBtn: "Jetzt Loslegen",
 		loginLink: "Hast du schon einen Account? Hier einloggen",
 		registerLink: "Neu bei Haven? Hier registrieren",

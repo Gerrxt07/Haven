@@ -1,11 +1,10 @@
 import { validate as validateEmail } from "email-validator";
 import { ArrowLeft, ArrowRight, Eye, EyeOff } from "lucide-solid";
-import { createSignal, Match, Show, Switch } from "solid-js";
+import { createSignal, Match, Switch } from "solid-js";
 import { Motion } from "solid-motionone";
 import { currentLang, t } from "../i18n";
 import { HttpApiError } from "../lib/api";
 import { authSession } from "../lib/auth/session";
-import { currentTheme, hasThemeSelection, setTheme } from "../lib/theme";
 
 export default function AuthView() {
 	const [view, setView] = createSignal<"welcome" | "login" | "register">(
@@ -20,10 +19,10 @@ export default function AuthView() {
 	const [username, setUsername] = createSignal("");
 	const [displayName, setDisplayName] = createSignal("");
 	const [dob, setDob] = createSignal("");
+	const [verificationCode, setVerificationCode] = createSignal("");
 
 	const [error, setError] = createSignal("");
 	const [loading, setLoading] = createSignal(false);
-	const needsThemeSelection = () => !hasThemeSelection();
 
 	const handleUsernameInput = (val: string) => {
 		setUsername(val.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -108,6 +107,11 @@ export default function AuthView() {
 				setError(t("auth", "errPasswordMismatch"));
 				return false;
 			}
+		} else if (currentStep === 6) {
+			if (!/^\d{6}$/.test(verificationCode().trim())) {
+				setError(t("auth", "errVerificationCode"));
+				return false;
+			}
 		}
 		return true;
 	};
@@ -117,8 +121,10 @@ export default function AuthView() {
 		if (!isValid) return;
 		if (step() < 5) {
 			setStep(step() + 1);
-		} else {
+		} else if (step() === 5) {
 			await registerUser();
+		} else {
+			await verifyEmailAndLogin();
 		}
 	};
 
@@ -143,16 +149,81 @@ export default function AuthView() {
 				date_of_birth: parsedDobValid as string,
 				locale: currentLang(),
 			});
+			await authSession.requestEmailVerification({
+				email: email(),
+			});
+			setVerificationCode("");
+			setStep(6);
+		} catch (err: unknown) {
+			console.error("Auth error", err);
+			setError(readAuthError(err));
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const verifyEmailAndLogin = async () => {
+		setLoading(true);
+		try {
+			await authSession.confirmEmailVerification({
+				email: email(),
+				code: verificationCode().trim(),
+			});
 			await authSession.login({
 				email: email(),
 				password: password(),
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
-			setError(t("auth", "errorGeneric"));
+			setError(readAuthError(err));
 		} finally {
 			setLoading(false);
 		}
+	};
+
+	const resendVerificationCode = async () => {
+		setLoading(true);
+		setError("");
+		try {
+			await authSession.requestEmailVerification({
+				email: email(),
+			});
+		} catch (err: unknown) {
+			console.error("Auth error", err);
+			setError(readAuthError(err));
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const readAuthError = (err: unknown): string => {
+		if (!(err instanceof HttpApiError)) {
+			return t("auth", "errorGeneric");
+		}
+
+		if (err.apiError.kind === "too-many-requests") {
+			return t("auth", "errTooManyRequests");
+		}
+
+		const message = err.apiError.message.toLowerCase();
+		if (message.includes("invalid verification code")) {
+			return t("auth", "errVerificationCodeInvalid");
+		}
+		if (
+			message.includes("verification code expired") ||
+			message.includes("verification code not found")
+		) {
+			return t("auth", "errVerificationCodeExpired");
+		}
+
+		if (
+			err.apiError.kind === "unauthorized" ||
+			err.apiError.kind === "forbidden"
+		) {
+			return t("auth", "errInvalidCredentials");
+		}
+
+		return t("auth", "errorGeneric");
 	};
 
 	const loginUser = async (e: Event) => {
@@ -166,15 +237,7 @@ export default function AuthView() {
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
-			if (
-				err instanceof HttpApiError &&
-				(err.apiError.kind === "unauthorized" ||
-					err.apiError.kind === "forbidden")
-			) {
-				setError("Invalid email or password");
-			} else {
-				setError(t("auth", "errorGeneric"));
-			}
+			setError(readAuthError(err));
 		} finally {
 			setLoading(false);
 		}
@@ -201,63 +264,10 @@ export default function AuthView() {
 								{t("auth", "welcomeDesc")}
 							</p>
 
-							<Show when={needsThemeSelection()}>
-								<div class="mb-8 rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-4 text-left">
-									<div class="flex items-center justify-between mb-4">
-										<div class="text-[12px] font-semibold uppercase tracking-[0.2em] text-[color:var(--text-tertiary)]">
-											{t("auth", "themeSelectLabel")}
-										</div>
-										<div class="text-[11px] font-medium text-[color:var(--text-tertiary)]">
-											{t("auth", "themeSelectHint")}
-										</div>
-									</div>
-									<div class="grid grid-cols-2 gap-3">
-										<button
-											type="button"
-											onClick={() => setTheme("dark")}
-											class="group rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-3 text-left transition-all duration-200 hover:bg-[color:var(--auth-option-selected)]"
-											classList={{
-												"ring-2 ring-[color:var(--auth-option-ring)] border-[color:var(--auth-option-ring)]":
-													currentTheme() === "dark",
-											}}
-										>
-											<div class="h-14 rounded-xl bg-[#1b1c20] border border-white/8 mb-3" />
-											<div class="text-[14px] font-semibold text-[color:var(--text-primary)]">
-												{t("auth", "themeDark")}
-											</div>
-											<div class="text-[12px] text-[color:var(--text-tertiary)]">
-												{t("auth", "themeDarkDesc")}
-											</div>
-										</button>
-										<button
-											type="button"
-											onClick={() => setTheme("light")}
-											class="group rounded-2xl border border-[color:var(--auth-option-border)] bg-[color:var(--auth-option-bg)] p-3 text-left transition-all duration-200 hover:bg-[color:var(--auth-option-selected)]"
-											classList={{
-												"ring-2 ring-[color:var(--auth-option-ring)] border-[color:var(--auth-option-ring)]":
-													currentTheme() === "light",
-											}}
-										>
-											<div class="h-14 rounded-xl bg-[#f2f4f8] border border-black/10 mb-3" />
-											<div class="text-[14px] font-semibold text-[color:var(--text-primary)]">
-												{t("auth", "themeLight")}
-											</div>
-											<div class="text-[12px] text-[color:var(--text-tertiary)]">
-												{t("auth", "themeLightDesc")}
-											</div>
-										</button>
-									</div>
-									<div class="mt-3 text-[11px] text-[color:var(--text-tertiary)]">
-										{t("auth", "themeShortcutHint")}
-									</div>
-								</div>
-							</Show>
-
 							<div class="flex flex-col gap-4 mt-6">
 								<button
 									type="button"
 									onClick={() => setView("register")}
-									disabled={needsThemeSelection()}
 									class="w-full bg-[color:var(--button-primary-bg)] hover:bg-[color:var(--button-primary-hover)] text-[color:var(--button-primary-text)] font-bold p-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-[0_8px_24px_var(--button-primary-shadow)] disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{t("auth", "startRegisterBtn")}
@@ -266,7 +276,6 @@ export default function AuthView() {
 								<button
 									type="button"
 									onClick={() => setView("login")}
-									disabled={needsThemeSelection()}
 									class="w-full bg-transparent hover:bg-[color:var(--button-secondary-hover)] border border-[color:var(--button-secondary-border)] text-[color:var(--button-secondary-text)] font-bold p-4 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{t("auth", "loginBtn")}
@@ -375,7 +384,7 @@ export default function AuthView() {
 									<ArrowLeft size={20} />
 								</button>
 								<span class="text-[color:var(--text-tertiary)] font-medium text-sm">
-									Step {step()} / 5
+									Step {step()} / 6
 								</span>
 							</div>
 
@@ -606,6 +615,56 @@ export default function AuthView() {
 										</div>
 									</Motion.div>
 								</Match>
+
+								<Match when={step() === 6}>
+									<Motion.div
+										initial={{ opacity: 0, x: 20 }}
+										animate={{ opacity: 1, x: 0 }}
+										class="flex flex-col gap-4"
+									>
+										<h2 class="text-[color:var(--text-primary)] text-3xl font-bold tracking-tight">
+											{t("auth", "step6Title")}
+										</h2>
+										<p class="text-[color:var(--text-secondary)] mb-4">
+											{t("auth", "step6Desc")}
+										</p>
+
+										<div class="flex flex-col gap-1.5 p-1">
+											<label
+												for="verification_code"
+												class="text-[color:var(--text-secondary)] text-xs font-semibold tracking-wider ml-1 uppercase"
+											>
+												{t("auth", "verificationCode")}
+											</label>
+											<input
+												id="verification_code"
+												type="text"
+												inputMode="numeric"
+												pattern="\d{6}"
+												maxLength={6}
+												class="bg-[color:var(--field-bg)] text-[color:var(--text-primary)] placeholder-[color:var(--field-placeholder)] p-3.5 rounded-xl border border-[color:var(--field-border)] focus:border-[color:var(--field-border-focus)] focus:bg-[color:var(--field-bg-focus)] focus:ring-2 focus:ring-[color:var(--field-ring)] outline-none transition-all duration-300"
+												value={verificationCode()}
+												onInput={(e) =>
+													setVerificationCode(
+														e.target.value.replace(/\D/g, "").slice(0, 6),
+													)
+												}
+												onKeyDown={(e) => e.key === "Enter" && goNext()}
+												required
+												autofocus
+											/>
+										</div>
+
+										<button
+											type="button"
+											onClick={resendVerificationCode}
+											disabled={loading()}
+											class="w-full bg-transparent hover:bg-[color:var(--button-secondary-hover)] border border-[color:var(--button-secondary-border)] text-[color:var(--button-secondary-text)] font-bold p-3 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											{t("auth", "resendCodeBtn")}
+										</button>
+									</Motion.div>
+								</Match>
 							</Switch>
 
 							<button
@@ -617,9 +676,11 @@ export default function AuthView() {
 								{loading()
 									? t("auth", "loadingBtn")
 									: step() === 5
-										? t("auth", "finishBtn")
-										: t("auth", "nextBtn")}
-								{!loading() && step() < 5 && <ArrowRight size={20} />}
+										? t("auth", "createBtn")
+										: step() === 6
+											? t("auth", "finishBtn")
+											: t("auth", "nextBtn")}
+								{!loading() && step() < 6 && <ArrowRight size={20} />}
 							</button>
 						</div>
 					</Match>

@@ -14,6 +14,8 @@ function statusToKind(status: number): ApiError["kind"] {
 			return "conflict";
 		case 422:
 			return "validation";
+		case 429:
+			return "too-many-requests";
 		default:
 			return status >= 500 ? "server" : "unknown";
 	}

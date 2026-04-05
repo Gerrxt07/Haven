@@ -73,16 +73,27 @@ export const en = {
 		step3Desc:
 			"We use this to customize Haven for you. There is no minimum or maximum age requirement right now.",
 		step4Title: "What's your email?",
-		step4Desc:
-			"We use this for verification. Our code system is coming later, so this step is skipped for now.",
+		step4Desc: "We'll send a 6-digit verification code to this address.",
 		step5Title: "Create a password",
 		step5Desc:
 			"Make it strong! You need at least 10 chars, including an uppercase letter and a special character.",
+		step6Title: "Verify your email",
+		step6Desc:
+			"Enter the 6-digit code we sent to your email address to finish creating your account.",
+		verificationCode: "VERIFICATION CODE",
 		confirmPassword: "CONFIRM PASSWORD",
 		errPasswordMismatch: "The passwords do not match.",
+		errVerificationCode: "Please enter the 6-digit verification code.",
+		errVerificationCodeInvalid: "The verification code is invalid.",
+		errVerificationCodeExpired:
+			"The verification code has expired. Request a new one.",
+		errTooManyRequests: "Too many attempts. Please wait and try again.",
+		errInvalidCredentials: "Invalid email or password.",
 		nextBtn: "Next",
 		backBtn: "Back",
-		finishBtn: "Create Account",
+		finishBtn: "Verify & Login",
+		createBtn: "Create Account",
+		resendCodeBtn: "Resend Code",
 		startRegisterBtn: "Get Started",
 		loginLink: "Already have an account? Login here",
 		registerLink: "New to Haven? Register here",

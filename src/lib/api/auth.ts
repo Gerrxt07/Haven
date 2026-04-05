@@ -3,16 +3,22 @@ import { apiClient } from "./index";
 import type {
 	AuthTokens,
 	AuthUserResponse,
+	EmailVerificationConfirmRequest,
+	EmailVerificationRequest,
 	LoginRequest,
 	RefreshRequest,
 	RegisterRequest,
+	StatusResponse,
 } from "./models";
 import {
 	assertAuthTokens,
 	assertAuthUser,
+	assertEmailVerificationConfirmRequest,
+	assertEmailVerificationRequest,
 	assertLoginRequest,
 	assertRefreshRequest,
 	assertRegisterRequest,
+	assertStatusResponse,
 } from "./validation";
 
 const PROFILE_PICTURE_UPLOAD_PATH = "/users/me/avatar";
@@ -71,6 +77,36 @@ export async function apiMe(signal?: AbortSignal): Promise<AuthUserResponse> {
 		signal,
 	});
 	assertAuthUser(response);
+	return response;
+}
+
+export async function apiRequestEmailVerification(
+	payload: EmailVerificationRequest,
+	signal?: AbortSignal,
+): Promise<StatusResponse> {
+	assertEmailVerificationRequest(payload);
+	const response = await apiClient.post<
+		EmailVerificationRequest,
+		StatusResponse
+	>("/auth/email/verification/request", payload, {
+		signal,
+	});
+	assertStatusResponse(response);
+	return response;
+}
+
+export async function apiConfirmEmailVerification(
+	payload: EmailVerificationConfirmRequest,
+	signal?: AbortSignal,
+): Promise<StatusResponse> {
+	assertEmailVerificationConfirmRequest(payload);
+	const response = await apiClient.post<
+		EmailVerificationConfirmRequest,
+		StatusResponse
+	>("/auth/email/verification/confirm", payload, {
+		signal,
+	});
+	assertStatusResponse(response);
 	return response;
 }
 

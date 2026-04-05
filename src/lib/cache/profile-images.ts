@@ -222,30 +222,37 @@ export async function resolveProfileImageForUser(
 			return avatarUrl;
 		}
 
-		const response = await fetch(avatarUrl, {
-			cache: "force-cache",
-			headers: accessToken
-				? {
-						authorization: `Bearer ${accessToken}`,
-					}
-				: undefined,
-		});
-		if (!response.ok) {
-			throw new Error(`Failed to fetch avatar (${response.status})`);
-		}
+		try {
+			const response = await fetch(avatarUrl, {
+				cache: "force-cache",
+				headers: accessToken
+					? {
+							authorization: `Bearer ${accessToken}`,
+						}
+					: undefined,
+			});
+			if (!response.ok) {
+				throw new Error(`Failed to fetch avatar (${response.status})`);
+			}
 
-		const blob = await response.blob();
-		const dataUrl = await blobToDataUrl(blob);
-		await cacheProfileImageDataUrl(userId, dataUrl, avatarUrl);
-		return dataUrl;
+			const blob = await response.blob();
+			const dataUrl = await blobToDataUrl(blob);
+			await cacheProfileImageDataUrl(userId, dataUrl, avatarUrl);
+			return dataUrl;
+		} catch {
+			const lastKnownImage = persisted?.dataUrl ?? memory?.dataUrl;
+			if (lastKnownImage) {
+				return lastKnownImage;
+			}
+
+			return fallbackImage;
+		}
 	})();
 
 	inFlightByUser.set(userId, task);
 
 	try {
 		return await task;
-	} catch {
-		return fallbackImage;
 	} finally {
 		inFlightByUser.delete(userId);
 	}
