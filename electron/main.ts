@@ -138,13 +138,52 @@ async function writeSecureNamespace(
 	return true;
 }
 
+function getErrorCode(error: unknown): string | undefined {
+	if (typeof error !== "object" || error === null || !("code" in error)) {
+		return undefined;
+	}
+
+	const { code } = error as { code?: unknown };
+	return typeof code === "string" ? code : undefined;
+}
+
+async function cleanupTempFile(tempPath: string): Promise<void> {
+	try {
+		await fs.rm(tempPath, { force: true });
+	} catch {
+		// Best-effort cleanup only.
+	}
+}
+
 async function writeEncryptedFile(
 	filePath: string,
 	encryptedBytes: Buffer,
 ): Promise<void> {
 	const tempPath = `${filePath}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
 	await fs.writeFile(tempPath, encryptedBytes, { mode: 0o600 });
-	await fs.rename(tempPath, filePath);
+
+	try {
+		await fs.rename(tempPath, filePath);
+		return;
+	} catch (error) {
+		const errorCode = getErrorCode(error);
+		const canRetryWithReplace =
+			process.platform === "win32" &&
+			(errorCode === "EEXIST" || errorCode === "EPERM");
+
+		if (!canRetryWithReplace) {
+			await cleanupTempFile(tempPath);
+			throw error;
+		}
+	}
+
+	try {
+		await fs.rm(filePath, { force: true });
+		await fs.rename(tempPath, filePath);
+	} catch (error) {
+		await cleanupTempFile(tempPath);
+		throw error;
+	}
 }
 
 ipcMain.handle(
