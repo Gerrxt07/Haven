@@ -7,10 +7,13 @@ import type {
 	CreateServerRequestDto,
 	EmailVerificationConfirmRequest,
 	EmailVerificationRequest,
+	FriendDto,
+	FriendRequestDto,
 	LoginRequest,
 	MessageDto,
 	RefreshRequest,
 	RegisterRequest,
+	SendFriendRequestDto,
 	ServerDto,
 	StatusResponse,
 } from "./models";
@@ -212,5 +215,65 @@ export function assertMessageDtoList(
 	assert(Array.isArray(value), "invalid messages response");
 	for (const entry of value) {
 		assertMessageDto(entry);
+	}
+}
+
+export function assertSendFriendRequest(payload: SendFriendRequestDto): void {
+	assert(
+		payload.username.trim().length >= 3,
+		"invalid username: must be at least 3 characters",
+	);
+}
+
+export function assertFriendRequestDto(
+	value: unknown,
+): asserts value is FriendRequestDto {
+	assert(isObject(value), "invalid friend request response");
+	assert(isNumber(value.id), "missing friend_request.id");
+	assert(isNumber(value.from_user_id), "missing friend_request.from_user_id");
+	assert(isString(value.from_username), "missing friend_request.from_username");
+	assert(
+		isString(value.from_display_name),
+		"missing friend_request.from_display_name",
+	);
+	assert(isNumber(value.to_user_id), "missing friend_request.to_user_id");
+	assert(isString(value.to_username), "missing friend_request.to_username");
+	assert(
+		isString(value.to_display_name),
+		"missing friend_request.to_display_name",
+	);
+	assert(isString(value.status), "missing friend_request.status");
+	assert(isString(value.created_at), "missing friend_request.created_at");
+	assert(isString(value.updated_at), "missing friend_request.updated_at");
+}
+
+export function assertFriendRequestDtoList(
+	value: unknown,
+): asserts value is FriendRequestDto[] {
+	assert(Array.isArray(value), "invalid friend requests response");
+	for (const entry of value) {
+		assertFriendRequestDto(entry);
+	}
+}
+
+export function assertFriendDto(value: unknown): asserts value is FriendDto {
+	assert(isObject(value), "invalid friend response");
+	assert(isNumber(value.id), "missing friend.id");
+	assert(isNumber(value.user_id), "missing friend.user_id");
+	assert(isNumber(value.friend_user_id), "missing friend.friend_user_id");
+	assert(isString(value.friend_username), "missing friend.friend_username");
+	assert(
+		isString(value.friend_display_name),
+		"missing friend.friend_display_name",
+	);
+	assert(isString(value.created_at), "missing friend.created_at");
+}
+
+export function assertFriendDtoList(
+	value: unknown,
+): asserts value is FriendDto[] {
+	assert(Array.isArray(value), "invalid friends response");
+	for (const entry of value) {
+		assertFriendDto(entry);
 	}
 }

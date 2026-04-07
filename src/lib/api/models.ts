@@ -170,6 +170,36 @@ export type CreateMessageRequestDto = {
 	}>;
 };
 
+export type FriendRequestStatus = "pending" | "accepted" | "declined";
+
+export type FriendRequestDto = {
+	id: number;
+	from_user_id: number;
+	from_username: string;
+	from_display_name: string;
+	from_avatar_url?: string | null;
+	to_user_id: number;
+	to_username: string;
+	to_display_name: string;
+	status: FriendRequestStatus;
+	created_at: string;
+	updated_at: string;
+};
+
+export type FriendDto = {
+	id: number;
+	user_id: number;
+	friend_user_id: number;
+	friend_username: string;
+	friend_display_name: string;
+	friend_avatar_url?: string | null;
+	created_at: string;
+};
+
+export type SendFriendRequestDto = {
+	username: string;
+};
+
 export type E2eePublicBundle = {
 	user_id: number;
 	identity_key: string;

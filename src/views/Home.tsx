@@ -1,4 +1,4 @@
-import { Compass, Home as HomeIcon, MessageCircle } from "lucide-solid";
+import { Compass, Home as HomeIcon, MessageCircle, Users } from "lucide-solid";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import {
 	Tooltip,
@@ -8,13 +8,15 @@ import {
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { resolveProfileImageForUser } from "../lib/cache/profile-images";
+import { friendsStore } from "../lib/friends/store";
 import {
 	writeDetailedErrorLog,
 	writeDetailedLog,
 } from "../lib/logging/detailed";
+import FriendsPanel from "./FriendsPanel";
 
 export default function Home() {
-	type SidebarArea = "home" | "messages" | "explorer";
+	type SidebarArea = "home" | "messages" | "explorer" | "friends";
 
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
 	const [isUploadingImage, setIsUploadingImage] = createSignal(false);
@@ -175,7 +177,7 @@ export default function Home() {
 						as="button"
 						aria-label="Explorer"
 						onClick={() => openArea("explorer")}
-						class={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-3xl transition-all duration-300 ease-out flex items-center justify-center shrink-0 group ${
+						class={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-3xl transition-all duration-300 ease-out flex items-center justify-center shrink-0 mb-2 group ${
 							isAreaActive("explorer")
 								? "rounded-2xl bg-(--accent-success) text-(--text-inverse) shadow-[0_0_0_2px_rgba(35,165,89,0.32),0_10px_24px_rgba(35,165,89,0.25)]"
 								: "bg-transparent text-(--accent-success) hover:bg-(--accent-success) hover:text-(--text-inverse)"
@@ -192,6 +194,40 @@ export default function Home() {
 						<Compass size={22} stroke-width={2} />
 					</TooltipTrigger>
 					<TooltipContent>{t("home", "sidebar_explorer")}</TooltipContent>
+				</Tooltip>
+
+				{/* Top: Friends */}
+				<Tooltip placement="right">
+					<TooltipTrigger
+						as="button"
+						aria-label="Friends"
+						onClick={() => openArea("friends")}
+						class={`relative w-10 h-10 sm:w-11 sm:h-11 rounded-3xl transition-all duration-300 ease-out flex items-center justify-center shrink-0 group ${
+							isAreaActive("friends")
+								? "rounded-2xl bg-[#8b5cf6] text-(--text-inverse) shadow-[0_0_0_2px_rgba(139,92,246,0.3),0_10px_24px_rgba(139,92,246,0.25)]"
+								: "bg-transparent text-[#a78bfa] hover:bg-[#8b5cf6] hover:text-(--text-inverse)"
+						}`}
+					>
+						<div
+							class={`absolute -left-2 h-7 w-1.5 rounded-full transition-all duration-300 ${
+								isAreaActive("friends")
+									? "opacity-100"
+									: "opacity-0 group-hover:opacity-70"
+							}`}
+							style={{ "background-color": "#8b5cf6" }}
+						/>
+						<div class="relative">
+							<Users size={22} stroke-width={2} />
+							{friendsStore.incoming.length > 0 && !isAreaActive("friends") && (
+								<span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-(--accent-primary) text-(--text-inverse) text-[9px] font-bold flex items-center justify-center leading-none">
+									{friendsStore.incoming.length > 9
+										? "9+"
+										: friendsStore.incoming.length}
+								</span>
+							)}
+						</div>
+					</TooltipTrigger>
+					<TooltipContent>{t("home", "sidebar_friends")}</TooltipContent>
 				</Tooltip>
 
 				{/* Separator - underneath default actions, before servers */}
@@ -240,26 +276,32 @@ export default function Home() {
 
 			{/* Main Content Area */}
 			<div class="flex-1 bg-(--surface-primary) rounded-tl-lg overflow-hidden flex flex-col">
-				<div class="flex-1 p-4 flex flex-col gap-3">
-					<h2 class="text-xl font-semibold">
-						{isAreaActive("messages")
-							? t("home", "messages_title")
-							: isAreaActive("explorer")
-								? t("home", "explorer_title")
-								: t("home", "title")}
-					</h2>
-					<p class="text-sm text-(--text-secondary) max-w-2xl">
-						{t("home", "messages_preview_hint")}
-					</p>
-					<div class="pt-1">
-						<button
-							type="button"
-							onClick={simulateIncomingMessage}
-							class="px-3 py-2 rounded-lg bg-(--surface-secondary) hover:bg-(--surface-tertiary) text-sm transition-colors duration-200"
-						>
-							{t("home", "simulate_message_btn")}
-						</button>
-					</div>
+				<div class="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+					{isAreaActive("friends") ? (
+						<FriendsPanel />
+					) : (
+						<>
+							<h2 class="text-xl font-semibold">
+								{isAreaActive("messages")
+									? t("home", "messages_title")
+									: isAreaActive("explorer")
+										? t("home", "explorer_title")
+										: t("home", "title")}
+							</h2>
+							<p class="text-sm text-(--text-secondary) max-w-2xl">
+								{t("home", "messages_preview_hint")}
+							</p>
+							<div class="pt-1">
+								<button
+									type="button"
+									onClick={simulateIncomingMessage}
+									class="px-3 py-2 rounded-lg bg-(--surface-secondary) hover:bg-(--surface-tertiary) text-sm transition-colors duration-200"
+								>
+									{t("home", "simulate_message_btn")}
+								</button>
+							</div>
+						</>
+					)}
 				</div>
 			</div>
 		</div>
