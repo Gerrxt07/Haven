@@ -20,27 +20,27 @@ export default function FriendsPanel() {
 	const [acceptingId, setAcceptingId] = createSignal<number | null>(null);
 	const [decliningId, setDecliningId] = createSignal<number | null>(null);
 	let addInputRef: HTMLInputElement | undefined;
-	let statusTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
+	let statusResetTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
 	onMount(() => {
 		void friendsService.init();
 	});
 
 	onCleanup(() => {
-		if (statusTimer !== null) {
-			globalThis.clearTimeout(statusTimer);
+		if (statusResetTimer !== null) {
+			globalThis.clearTimeout(statusResetTimer);
 		}
 	});
 
 	createEffect(() => {
 		if (addStatus() === "success" || addStatus() === "error") {
-			if (statusTimer !== null) {
-				globalThis.clearTimeout(statusTimer);
+			if (statusResetTimer !== null) {
+				globalThis.clearTimeout(statusResetTimer);
 			}
-			statusTimer = globalThis.setTimeout(() => {
+			statusResetTimer = globalThis.setTimeout(() => {
 				setAddStatus("idle");
 				setAddError(null);
-				statusTimer = null;
+				statusResetTimer = null;
 			}, 3500);
 		}
 	});
@@ -251,7 +251,7 @@ export default function FriendsPanel() {
 										</span>
 									</div>
 									<span class="ml-auto shrink-0 text-xs text-(--text-tertiary) bg-(--surface-tertiary) px-2 py-0.5 rounded-full">
-										pending
+										{t("friends", "pending_status")}
 									</span>
 								</div>
 							)}

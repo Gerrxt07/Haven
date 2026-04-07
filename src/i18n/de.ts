@@ -72,6 +72,7 @@ export const de = {
 		loading: "Laden...",
 		refresh: "Aktualisieren",
 		badge_incoming: "{{count}} neu",
+		pending_status: "ausstehend",
 	},
 	auth: {
 		loginTitle: "Willkommen zurück!",

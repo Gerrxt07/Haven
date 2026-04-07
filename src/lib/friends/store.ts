@@ -1,5 +1,9 @@
 import { createStore } from "solid-js/store";
 import type { FriendDto, FriendRequestDto } from "../api";
+import {
+	assertFriendDtoList,
+	assertFriendRequestDtoList,
+} from "../api/validation";
 
 const CACHE_NAMESPACE = "friends-cache";
 const INCOMING_CACHE_KEY = "requests.incoming";
@@ -144,21 +148,25 @@ export async function loadFriendsFromCache(): Promise<void> {
 		]);
 
 		if (rawIncoming) {
-			const parsed = JSON.parse(rawIncoming) as FriendRequestDto[];
+			const parsed: unknown = JSON.parse(rawIncoming);
+			assertFriendRequestDtoList(parsed);
 			setFriendsStore(
 				"incoming",
 				parsed.filter((r) => r.status === "pending"),
 			);
 		}
 		if (rawOutgoing) {
-			const parsed = JSON.parse(rawOutgoing) as FriendRequestDto[];
+			const parsed: unknown = JSON.parse(rawOutgoing);
+			assertFriendRequestDtoList(parsed);
 			setFriendsStore(
 				"outgoing",
 				parsed.filter((r) => r.status === "pending"),
 			);
 		}
 		if (rawFriends) {
-			setFriendsStore("friends", JSON.parse(rawFriends) as FriendDto[]);
+			const parsed: unknown = JSON.parse(rawFriends);
+			assertFriendDtoList(parsed);
+			setFriendsStore("friends", parsed);
 		}
 	} catch {
 		// Cache may be corrupted – silently ignore and rely on fresh server data
