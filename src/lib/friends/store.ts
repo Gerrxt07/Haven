@@ -98,10 +98,12 @@ async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
 	const api = getElectronApi();
 	if (!api) return;
 	try {
+		// Only persist pending requests — processed ones must not survive in cache
+		const pending = requests.filter((r) => r.status === "pending");
 		await api.secureStoreSet(
 			CACHE_NAMESPACE,
 			INCOMING_CACHE_KEY,
-			JSON.stringify(requests),
+			JSON.stringify(pending),
 		);
 	} catch {
 		// Non-critical – cache write failures should not surface to the user
@@ -112,10 +114,12 @@ async function persistOutgoing(requests: FriendRequestDto[]): Promise<void> {
 	const api = getElectronApi();
 	if (!api) return;
 	try {
+		// Only persist pending requests — processed ones must not survive in cache
+		const pending = requests.filter((r) => r.status === "pending");
 		await api.secureStoreSet(
 			CACHE_NAMESPACE,
 			OUTGOING_CACHE_KEY,
-			JSON.stringify(requests),
+			JSON.stringify(pending),
 		);
 	} catch {
 		// Non-critical
