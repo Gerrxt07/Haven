@@ -7,4 +7,5 @@ export * from "./auth";
 export * from "./chat";
 export * from "./client";
 export * from "./errors";
+export * from "./friends";
 export * from "./models";
