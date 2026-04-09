@@ -106,7 +106,7 @@
 		"asar": true
 	},
 	"dependencies": {
-		"@chenglou/pretext": "0.0.4",
+		"@chenglou/pretext": "0.0.5",
 		"@kobalte/core": "0.13.11",
 		"@tanstack/solid-query": "5.96.2",
 		"@tanstack/solid-virtual": "3.13.23",
