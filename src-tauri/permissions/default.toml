@@ -1,0 +1,21 @@
+[[permission]]
+identifier = "default"
+description = "Allows the Haven frontend to invoke the Tauri shell commands."
+commands.allow = [
+  "minimize_window",
+  "toggle_maximize_window",
+  "close_window",
+  "get_window_state",
+  "write_detailed_log",
+  "secure_store_set",
+  "secure_store_get",
+  "secure_store_delete",
+  "store_token",
+  "load_token",
+  "delete_token",
+  "validate_email_domain",
+  "open_external_url",
+  "get_update_candidate",
+  "set_update_candidate",
+  "migrate_legacy_state"
+]

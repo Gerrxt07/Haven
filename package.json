@@ -25,8 +25,6 @@
 		"typescript": "6.0.2",
 		"typescript-eslint": "8.58.1",
 		"vite": "8.0.8",
-		"vite-plugin-electron": "0.29.1",
-		"vite-plugin-electron-renderer": "0.14.6",
 		"vite-plugin-solid": "2.11.12"
 	},
 	"scripts": {
@@ -38,7 +36,8 @@
 		"knip": "knip",
 		"prepare": "husky",
 		"check": "bun run format && bun run typecheck",
-		"dev": "bun run check && tauri dev",
+		"dev": "tauri dev",
+		"dev:web": "vite --host 0.0.0.0 --port 1420 --strictPort",
 		"build:web": "bun run check && vite build",
 		"build": "bun run build:web && tauri build",
 		"tauri": "tauri",

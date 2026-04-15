@@ -32,6 +32,7 @@ import {
 } from "./components/ui/tooltip";
 import { t, tf } from "./i18n";
 import { authSession } from "./lib/auth/session";
+import { nativeApp } from "./lib/native";
 import { currentTheme, toggleTheme } from "./lib/theme";
 
 const HomeView = lazy(() => import("./views/Home"));
@@ -50,7 +51,14 @@ export default function App() {
 	let surfaceTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const openHelp = () => {
-		globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
+		const userConfirmed = globalThis.confirm(
+			tf("app", "externalLinkWarning", {
+				url: "https://haven.becloudly.eu/help",
+			}),
+		);
+		if (userConfirmed) {
+			void nativeApp.openExternalUrl("https://haven.becloudly.eu/help");
+		}
 	};
 
 	const commandActions = createMemo<CommandPaletteAction[]>(() => [
@@ -90,7 +98,7 @@ export default function App() {
 			description: t("app", "commandMinimizeDesc"),
 			shortcut: "Alt+M",
 			icon: Minus,
-			run: () => globalThis.electronAPI.minimize(),
+			run: () => void nativeApp.minimize(),
 		},
 		{
 			id: "toggle-maximize",
@@ -102,7 +110,7 @@ export default function App() {
 				: t("app", "commandMaximizeDesc"),
 			shortcut: "Alt+Enter",
 			icon: Square,
-			run: () => globalThis.electronAPI.maximize(),
+			run: () => void nativeApp.maximize(),
 		},
 		{
 			id: "close-window",
@@ -110,7 +118,7 @@ export default function App() {
 			description: t("app", "commandCloseWindowDesc"),
 			shortcut: "Alt+F4",
 			icon: X,
-			run: () => globalThis.electronAPI.close(),
+			run: () => void nativeApp.close(),
 		},
 	]);
 
@@ -146,37 +154,24 @@ export default function App() {
 		});
 		// Hook up the titlebar buttons to their respective IPC events
 		document.getElementById("min-btn")?.addEventListener("click", () => {
-			globalThis.electronAPI.minimize();
+			void nativeApp.minimize();
 		});
 
 		document.getElementById("max-btn")?.addEventListener("click", () => {
-			globalThis.electronAPI.maximize();
+			void nativeApp.maximize();
 		});
 
 		document.getElementById("close-btn")?.addEventListener("click", () => {
-			globalThis.electronAPI.close();
+			void nativeApp.close();
 		});
 
 		document.getElementById("help-btn")?.addEventListener("click", openHelp);
 
-		// Listen for external link clicks intercepted by Electron
-		globalThis.electronAPI.onExternalLinkWarning((url) => {
-			// TODO: Replace this native confirm with a beautifully styled SolidJS Modal / Dialog later
-			console.log(`[Link Intercepted]: ${url}`);
-			const userConfirmed = globalThis.confirm(
-				tf("app", "externalLinkWarning", { url }),
-			);
-
-			if (userConfirmed) {
-				globalThis.electronAPI.confirmOpenUrl(url);
-			}
-		});
-
-		globalThis.electronAPI.onWindowStateChanged((state) => {
+		void nativeApp.onWindowStateChanged((state) => {
 			setIsExpanded(state.isMaximized || state.isFullScreen);
 		});
 
-		globalThis.electronAPI.getWindowState().then((state) => {
+		void nativeApp.getWindowState().then((state) => {
 			setIsExpanded(state.isMaximized || state.isFullScreen);
 		});
 
@@ -203,13 +198,13 @@ export default function App() {
 
 			if (event.altKey && event.key.toLowerCase() === "m") {
 				event.preventDefault();
-				globalThis.electronAPI.minimize();
+				void nativeApp.minimize();
 				return;
 			}
 
 			if (event.altKey && event.key === "Enter") {
 				event.preventDefault();
-				globalThis.electronAPI.maximize();
+				void nativeApp.maximize();
 			}
 		};
 

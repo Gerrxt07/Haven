@@ -1,3 +1,5 @@
+import { nativeApp } from "../native";
+
 type DetailedLogLevel = "debug" | "info" | "warn" | "error";
 
 type DetailedLogData = Record<string, unknown>;
@@ -25,12 +27,8 @@ export async function writeDetailedLog(
 	data?: DetailedLogData,
 	level: DetailedLogLevel = "info",
 ): Promise<void> {
-	if (!globalThis.electronAPI?.writeDetailedLog) {
-		return;
-	}
-
 	try {
-		await globalThis.electronAPI.writeDetailedLog({
+		await nativeApp.writeDetailedLog({
 			scope,
 			event,
 			level,

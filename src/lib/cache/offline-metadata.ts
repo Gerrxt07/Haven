@@ -1,4 +1,5 @@
 import type { MessageDto } from "../api";
+import { nativeApp } from "../native";
 
 const CACHE_NAMESPACE = "offline-cache";
 const CACHE_KEY = "messages-cache-key";
@@ -12,14 +13,6 @@ type MessageMetadata = Pick<
 	| "created_at"
 	| "updated_at"
 >;
-
-function getElectronApi(): NonNullable<(typeof globalThis)["electronAPI"]> {
-	const api = globalThis.electronAPI;
-	if (!api) {
-		throw new Error("electronAPI unavailable");
-	}
-	return api;
-}
 
 function encode(bytes: Uint8Array): string {
 	return btoa(String.fromCharCode(...bytes));
@@ -38,8 +31,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 async function getOrCreateCacheKey(): Promise<CryptoKey> {
-	const electronApi = getElectronApi();
-	const existing = await electronApi.secureStoreGet(CACHE_NAMESPACE, CACHE_KEY);
+	const existing = await nativeApp.secureStoreGet(CACHE_NAMESPACE, CACHE_KEY);
 
 	if (existing) {
 		const keyBytes = decode(existing);
@@ -53,7 +45,7 @@ async function getOrCreateCacheKey(): Promise<CryptoKey> {
 	}
 
 	const key = crypto.getRandomValues(new Uint8Array(32));
-	await electronApi.secureStoreSet(CACHE_NAMESPACE, CACHE_KEY, encode(key));
+	await nativeApp.secureStoreSet(CACHE_NAMESPACE, CACHE_KEY, encode(key));
 	return crypto.subtle.importKey("raw", toArrayBuffer(key), "AES-GCM", false, [
 		"encrypt",
 		"decrypt",
@@ -64,7 +56,7 @@ export async function persistChannelMetadata(
 	channelId: number,
 	messages: MessageDto[],
 ): Promise<void> {
-	if (!globalThis.electronAPI || messages.length === 0) {
+	if (messages.length === 0) {
 		return;
 	}
 
@@ -85,8 +77,7 @@ export async function persistChannelMetadata(
 	);
 
 	const payload = JSON.stringify({ iv: encode(iv), data: encode(ciphertext) });
-	const electronApi = getElectronApi();
-	await electronApi.secureStoreSet(
+	await nativeApp.secureStoreSet(
 		CACHE_NAMESPACE,
 		`channel:${channelId}`,
 		payload,
@@ -96,12 +87,7 @@ export async function persistChannelMetadata(
 export async function loadChannelMetadata(
 	channelId: number,
 ): Promise<MessageDto[] | null> {
-	if (!globalThis.electronAPI) {
-		return null;
-	}
-
-	const electronApi = getElectronApi();
-	const raw = await electronApi.secureStoreGet(
+	const raw = await nativeApp.secureStoreGet(
 		CACHE_NAMESPACE,
 		`channel:${channelId}`,
 	);

@@ -3,9 +3,13 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { authSession } from "../auth/session";
 import { decryptIncomingMessage } from "../e2ee/client";
 import { x3dhInitiatorSharedSecret } from "../e2ee/x3dh";
+import {
+	type NativeDesktopApi,
+	resetNativeDesktopApiForTests,
+	setNativeDesktopApiForTests,
+} from "../native";
 
 const originalFetch = globalThis.fetch;
-const originalElectronApi = globalThis.electronAPI;
 
 function setMockFetch(
 	handler: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
@@ -17,22 +21,20 @@ function setMockFetch(
 	}) as typeof globalThis.fetch;
 }
 
-function createMockElectronApi(
+function createMockNativeApi(
 	values: Record<string, string | null>,
-): typeof globalThis.electronAPI {
+): NativeDesktopApi {
 	return {
-		platform: "linux",
-		minimize: () => {},
-		maximize: () => {},
-		close: () => {},
+		minimize: async () => {},
+		maximize: async () => {},
+		close: async () => {},
 		getUpdateCandidate: async () => null,
 		setUpdateCandidate: async () => true,
 		validateEmailDomain: async () => true,
 		getWindowState: async () => ({ isMaximized: false, isFullScreen: false }),
 		writeDetailedLog: async () => true,
-		onWindowStateChanged: () => () => {},
-		onExternalLinkWarning: () => () => {},
-		confirmOpenUrl: () => {},
+		onWindowStateChanged: async () => () => {},
+		openExternalUrl: async () => true,
 		storeToken: async () => true,
 		loadToken: async () => values.legacyToken ?? null,
 		deleteToken: async () => true,
@@ -45,22 +47,25 @@ function createMockElectronApi(
 			delete values[key];
 			return true;
 		},
+		migrateLegacyState: async () => false,
 	};
 }
 
 afterEach(async () => {
 	globalThis.fetch = originalFetch;
-	globalThis.electronAPI = originalElectronApi;
+	resetNativeDesktopApiForTests();
 	await authSession.logout();
 });
 
 describe("Failure handling", () => {
 	it("recovers by invalidating session when refresh token is expired", async () => {
-		globalThis.electronAPI = createMockElectronApi({
-			"token.refresh": "expired-refresh-token",
-			"token.access": null,
-			legacyToken: null,
-		});
+		setNativeDesktopApiForTests(
+			createMockNativeApi({
+				"token.refresh": "expired-refresh-token",
+				"token.access": null,
+				legacyToken: null,
+			}),
+		);
 
 		setMockFetch(
 			async () =>
@@ -87,7 +92,7 @@ describe("Failure handling", () => {
 	});
 
 	it("fails decrypt when ratchet state is missing", async () => {
-		globalThis.electronAPI = createMockElectronApi({});
+		setNativeDesktopApiForTests(createMockNativeApi({}));
 		await expect(
 			decryptIncomingMessage({
 				selfUserId: 1,

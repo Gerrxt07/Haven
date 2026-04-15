@@ -4,6 +4,7 @@ import {
 	assertFriendDtoList,
 	assertFriendRequestDtoList,
 } from "../api/validation";
+import { nativeApp } from "../native";
 
 const CACHE_NAMESPACE = "friends-cache";
 const INCOMING_CACHE_KEY = "requests.incoming";
@@ -88,19 +89,11 @@ export function addFriend(friend: FriendDto): void {
 
 // ── SecureStore persistence helpers ─────────────────────────────────────────
 
-function getElectronApi(): NonNullable<
-	(typeof globalThis)["electronAPI"]
-> | null {
-	return globalThis.electronAPI ?? null;
-}
-
 async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
-	const api = getElectronApi();
-	if (!api) return;
 	try {
 		// Only persist pending requests — processed ones must not survive in cache
 		const pending = requests.filter((r) => r.status === "pending");
-		await api.secureStoreSet(
+		await nativeApp.secureStoreSet(
 			CACHE_NAMESPACE,
 			INCOMING_CACHE_KEY,
 			JSON.stringify(pending),
@@ -111,12 +104,10 @@ async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
 }
 
 async function persistOutgoing(requests: FriendRequestDto[]): Promise<void> {
-	const api = getElectronApi();
-	if (!api) return;
 	try {
 		// Only persist pending requests — processed ones must not survive in cache
 		const pending = requests.filter((r) => r.status === "pending");
-		await api.secureStoreSet(
+		await nativeApp.secureStoreSet(
 			CACHE_NAMESPACE,
 			OUTGOING_CACHE_KEY,
 			JSON.stringify(pending),
@@ -127,10 +118,8 @@ async function persistOutgoing(requests: FriendRequestDto[]): Promise<void> {
 }
 
 async function persistFriends(friends: FriendDto[]): Promise<void> {
-	const api = getElectronApi();
-	if (!api) return;
 	try {
-		await api.secureStoreSet(
+		await nativeApp.secureStoreSet(
 			CACHE_NAMESPACE,
 			FRIENDS_CACHE_KEY,
 			JSON.stringify(friends),
@@ -141,14 +130,11 @@ async function persistFriends(friends: FriendDto[]): Promise<void> {
 }
 
 export async function loadFriendsFromCache(): Promise<void> {
-	const api = getElectronApi();
-	if (!api) return;
-
 	try {
 		const [rawIncoming, rawOutgoing, rawFriends] = await Promise.all([
-			api.secureStoreGet(CACHE_NAMESPACE, INCOMING_CACHE_KEY),
-			api.secureStoreGet(CACHE_NAMESPACE, OUTGOING_CACHE_KEY),
-			api.secureStoreGet(CACHE_NAMESPACE, FRIENDS_CACHE_KEY),
+			nativeApp.secureStoreGet(CACHE_NAMESPACE, INCOMING_CACHE_KEY),
+			nativeApp.secureStoreGet(CACHE_NAMESPACE, OUTGOING_CACHE_KEY),
+			nativeApp.secureStoreGet(CACHE_NAMESPACE, FRIENDS_CACHE_KEY),
 		]);
 
 		if (rawIncoming) {

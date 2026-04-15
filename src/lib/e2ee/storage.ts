@@ -1,19 +1,13 @@
+import { nativeApp } from "../native";
 import type { IdentityKeyPair, RatchetState } from "./types";
 
 const NS = "e2ee";
-
-function assertElectronApi() {
-	if (!globalThis.electronAPI) {
-		throw new Error("electronAPI unavailable");
-	}
-}
 
 export async function saveIdentity(
 	userId: number,
 	identity: IdentityKeyPair,
 ): Promise<void> {
-	assertElectronApi();
-	const ok = await globalThis.electronAPI.secureStoreSet(
+	const ok = await nativeApp.secureStoreSet(
 		NS,
 		`identity:${userId}`,
 		JSON.stringify(identity),
@@ -26,11 +20,7 @@ export async function saveIdentity(
 export async function loadIdentity(
 	userId: number,
 ): Promise<IdentityKeyPair | null> {
-	assertElectronApi();
-	const value = await globalThis.electronAPI.secureStoreGet(
-		NS,
-		`identity:${userId}`,
-	);
+	const value = await nativeApp.secureStoreGet(NS, `identity:${userId}`);
 	if (!value) return null;
 	return JSON.parse(value) as IdentityKeyPair;
 }
@@ -39,8 +29,7 @@ export async function saveSignedPrekeyPrivate(
 	userId: number,
 	value: string,
 ): Promise<void> {
-	assertElectronApi();
-	const ok = await globalThis.electronAPI.secureStoreSet(
+	const ok = await nativeApp.secureStoreSet(
 		NS,
 		`signed-prekey:${userId}`,
 		value,
@@ -53,8 +42,7 @@ export async function saveSignedPrekeyPrivate(
 export async function loadSignedPrekeyPrivate(
 	userId: number,
 ): Promise<string | null> {
-	assertElectronApi();
-	return globalThis.electronAPI.secureStoreGet(NS, `signed-prekey:${userId}`);
+	return nativeApp.secureStoreGet(NS, `signed-prekey:${userId}`);
 }
 
 export async function saveOneTimePrekeyPrivate(
@@ -62,8 +50,7 @@ export async function saveOneTimePrekeyPrivate(
 	prekeyId: number,
 	value: string,
 ): Promise<void> {
-	assertElectronApi();
-	const ok = await globalThis.electronAPI.secureStoreSet(
+	const ok = await nativeApp.secureStoreSet(
 		NS,
 		`otp:${userId}:${prekeyId}`,
 		value,
@@ -77,27 +64,21 @@ export async function loadOneTimePrekeyPrivate(
 	userId: number,
 	prekeyId: number,
 ): Promise<string | null> {
-	assertElectronApi();
-	return globalThis.electronAPI.secureStoreGet(NS, `otp:${userId}:${prekeyId}`);
+	return nativeApp.secureStoreGet(NS, `otp:${userId}:${prekeyId}`);
 }
 
 export async function deleteOneTimePrekeyPrivate(
 	userId: number,
 	prekeyId: number,
 ): Promise<void> {
-	assertElectronApi();
-	await globalThis.electronAPI.secureStoreDelete(
-		NS,
-		`otp:${userId}:${prekeyId}`,
-	);
+	await nativeApp.secureStoreDelete(NS, `otp:${userId}:${prekeyId}`);
 }
 
 export async function saveRatchetState(
 	conversationKey: string,
 	state: RatchetState,
 ): Promise<void> {
-	assertElectronApi();
-	const ok = await globalThis.electronAPI.secureStoreSet(
+	const ok = await nativeApp.secureStoreSet(
 		NS,
 		`ratchet:${conversationKey}`,
 		JSON.stringify(state),
@@ -110,8 +91,7 @@ export async function saveRatchetState(
 export async function loadRatchetState(
 	conversationKey: string,
 ): Promise<RatchetState | null> {
-	assertElectronApi();
-	const value = await globalThis.electronAPI.secureStoreGet(
+	const value = await nativeApp.secureStoreGet(
 		NS,
 		`ratchet:${conversationKey}`,
 	);
@@ -123,8 +103,7 @@ export async function saveConversationSecret(
 	conversationKey: string,
 	secretB64: string,
 ): Promise<void> {
-	assertElectronApi();
-	const ok = await globalThis.electronAPI.secureStoreSet(
+	const ok = await nativeApp.secureStoreSet(
 		NS,
 		`conv-secret:${conversationKey}`,
 		secretB64,
@@ -137,9 +116,5 @@ export async function saveConversationSecret(
 export async function loadConversationSecret(
 	conversationKey: string,
 ): Promise<string | null> {
-	assertElectronApi();
-	return globalThis.electronAPI.secureStoreGet(
-		NS,
-		`conv-secret:${conversationKey}`,
-	);
+	return nativeApp.secureStoreGet(NS, `conv-secret:${conversationKey}`);
 }

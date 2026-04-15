@@ -23,6 +23,7 @@ import {
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
 import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
+import { nativeApp } from "../native";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
@@ -85,16 +86,12 @@ class AuthSessionManager {
 	}
 
 	async bootstrapFromStorage(): Promise<void> {
-		if (!globalThis.electronAPI) {
-			this.state.isReady = true;
-			this.notify();
-			return;
-		}
+		await nativeApp.migrateLegacyState();
 
 		const [legacyToken, accessToken, refreshToken] = await Promise.all([
-			globalThis.electronAPI.loadToken(),
-			globalThis.electronAPI.secureStoreGet(TOKEN_NAMESPACE, ACCESS_TOKEN_KEY),
-			globalThis.electronAPI.secureStoreGet(TOKEN_NAMESPACE, REFRESH_TOKEN_KEY),
+			nativeApp.loadToken(),
+			nativeApp.secureStoreGet(TOKEN_NAMESPACE, ACCESS_TOKEN_KEY),
+			nativeApp.secureStoreGet(TOKEN_NAMESPACE, REFRESH_TOKEN_KEY),
 		]);
 
 		this.state.accessToken = accessToken ?? legacyToken;
@@ -102,7 +99,7 @@ class AuthSessionManager {
 		this.notify();
 
 		if (legacyToken && accessToken !== legacyToken) {
-			await globalThis.electronAPI.deleteToken();
+			await nativeApp.deleteToken();
 		}
 
 		if (!this.state.accessToken && this.state.refreshToken) {
@@ -162,20 +159,10 @@ class AuthSessionManager {
 		};
 		this.notify();
 
-		if (!globalThis.electronAPI) {
-			return;
-		}
-
 		await Promise.all([
-			globalThis.electronAPI.deleteToken(),
-			globalThis.electronAPI.secureStoreDelete(
-				TOKEN_NAMESPACE,
-				ACCESS_TOKEN_KEY,
-			),
-			globalThis.electronAPI.secureStoreDelete(
-				TOKEN_NAMESPACE,
-				REFRESH_TOKEN_KEY,
-			),
+			nativeApp.deleteToken(),
+			nativeApp.secureStoreDelete(TOKEN_NAMESPACE, ACCESS_TOKEN_KEY),
+			nativeApp.secureStoreDelete(TOKEN_NAMESPACE, REFRESH_TOKEN_KEY),
 		]);
 	}
 
@@ -335,18 +322,14 @@ class AuthSessionManager {
 		this.state.refreshToken = tokens.refresh_token;
 		this.notify();
 
-		if (!globalThis.electronAPI) {
-			return;
-		}
-
 		await Promise.all([
-			globalThis.electronAPI.storeToken(tokens.access_token),
-			globalThis.electronAPI.secureStoreSet(
+			nativeApp.storeToken(tokens.access_token),
+			nativeApp.secureStoreSet(
 				TOKEN_NAMESPACE,
 				ACCESS_TOKEN_KEY,
 				tokens.access_token,
 			),
-			globalThis.electronAPI.secureStoreSet(
+			nativeApp.secureStoreSet(
 				TOKEN_NAMESPACE,
 				REFRESH_TOKEN_KEY,
 				tokens.refresh_token,

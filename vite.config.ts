@@ -6,6 +6,11 @@ export default defineConfig({
 	experimental: {
 		rolldown: true,
 	},
+	server: {
+		host: "0.0.0.0",
+		port: 1420,
+		strictPort: true,
+	},
 	resolve: {
 		alias: {
 			"@": resolve(__dirname, "./src"),

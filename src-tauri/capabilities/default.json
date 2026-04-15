@@ -2,10 +2,9 @@
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
 	"description": "Default capability for the Haven main window.",
-	"windows": [
-		"main"
-	],
+	"windows": ["main"],
 	"permissions": [
+		"default",
 		"core:default",
 		"core:event:allow-listen",
 		"core:event:allow-unlisten",
@@ -15,4 +14,3 @@
 		"opener:default"
 	]
 }
-

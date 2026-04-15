@@ -15,12 +15,11 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
 		"paths": {
-			"@/*": ["./src/*"],
-			"@electron/*": ["./electron/*"]
+			"@/*": ["./src/*"]
 		},
 		"jsx": "preserve",
 		"jsxImportSource": "solid-js",
 		"types": ["bun"]
 	},
-	"include": ["src", "electron"]
+	"include": ["src"]
 }

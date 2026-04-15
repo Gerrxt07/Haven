@@ -1,8 +1,8 @@
 import type { AuthUserResponse } from "../api";
+import { nativeApp } from "../native";
 
 const PROFILE_CACHE_NAMESPACE = "profile-image-cache";
 const PROFILE_CACHE_PREFIX = "user:";
-const PROFILE_LOCAL_STORAGE_PREFIX = "haven.profile-image.";
 const API_ORIGIN = "https://havenapi.becloudly.eu";
 
 type CachedProfileImage = {
@@ -70,34 +70,18 @@ function normalizeAvatarUrl(value: string): string {
 	return new URL(value, API_ORIGIN).toString();
 }
 
-function secureStoreAvailable(): boolean {
-	return typeof globalThis.electronAPI !== "undefined";
-}
-
 function toStorageKey(userId: number): string {
 	return `${PROFILE_CACHE_PREFIX}${userId}`;
-}
-
-function toLocalStorageKey(userId: number): string {
-	return `${PROFILE_LOCAL_STORAGE_PREFIX}${userId}`;
 }
 
 async function readPersisted(
 	userId: number,
 ): Promise<CachedProfileImage | null> {
 	try {
-		if (secureStoreAvailable()) {
-			const raw = await globalThis.electronAPI.secureStoreGet(
-				PROFILE_CACHE_NAMESPACE,
-				toStorageKey(userId),
-			);
-			if (!raw) {
-				return null;
-			}
-			return JSON.parse(raw) as CachedProfileImage;
-		}
-
-		const raw = globalThis.localStorage?.getItem(toLocalStorageKey(userId));
+		const raw = await nativeApp.secureStoreGet(
+			PROFILE_CACHE_NAMESPACE,
+			toStorageKey(userId),
+		);
 		if (!raw) {
 			return null;
 		}
@@ -116,16 +100,11 @@ async function persist(
 	const payload = JSON.stringify(entry);
 
 	try {
-		if (secureStoreAvailable()) {
-			await globalThis.electronAPI.secureStoreSet(
-				PROFILE_CACHE_NAMESPACE,
-				toStorageKey(userId),
-				payload,
-			);
-			return;
-		}
-
-		globalThis.localStorage?.setItem(toLocalStorageKey(userId), payload);
+		await nativeApp.secureStoreSet(
+			PROFILE_CACHE_NAMESPACE,
+			toStorageKey(userId),
+			payload,
+		);
 	} catch {
 		// Ignore cache write failures.
 	}
@@ -135,15 +114,10 @@ export async function clearCachedProfileImage(userId: number): Promise<void> {
 	memoryCache.delete(userId);
 
 	try {
-		if (secureStoreAvailable()) {
-			await globalThis.electronAPI.secureStoreDelete(
-				PROFILE_CACHE_NAMESPACE,
-				toStorageKey(userId),
-			);
-			return;
-		}
-
-		globalThis.localStorage?.removeItem(toLocalStorageKey(userId));
+		await nativeApp.secureStoreDelete(
+			PROFILE_CACHE_NAMESPACE,
+			toStorageKey(userId),
+		);
 	} catch {
 		// Ignore cache delete failures.
 	}

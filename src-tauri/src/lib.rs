@@ -1,6 +1,6 @@
 use std::{
 	collections::HashMap,
-	path::{Path, PathBuf},
+	path::PathBuf,
 	sync::Mutex,
 };
 
@@ -8,7 +8,6 @@ use hickory_resolver::{config::*, TokioAsyncResolver};
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
 use tauri::{
-	image::Image,
 	menu::{Menu, MenuItem, PredefinedMenuItem},
 	tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 	AppHandle, Emitter, Manager, WindowEvent,
@@ -148,7 +147,7 @@ fn setup_tray(app: &AppHandle) -> Result<(), tauri::Error> {
 	let separator = PredefinedMenuItem::separator(app)?;
 	let menu = Menu::with_items(app, &[&open, &separator, &quit])?;
 
-	let icon = app.default_window_icon().map(Image::from);
+	let icon = app.default_window_icon().cloned();
 
 	let mut builder = TrayIconBuilder::new().menu(&menu);
 	if let Some(icon) = icon {
@@ -321,7 +320,7 @@ async fn validate_email_domain(domain: String) -> Result<bool, String> {
 		.lookup_ip(normalized)
 		.await
 		.map(|lookup| lookup.iter().next().is_some())
-		unwrap_or(false);
+		.unwrap_or(false);
 
 	Ok(has_ip)
 }
@@ -392,11 +391,12 @@ async fn migrate_legacy_state(app: AppHandle) -> Result<bool, String> {
 
 fn register_window_events(app: &AppHandle) {
 	if let Some(window) = app.get_webview_window("main") {
+		let window_for_events = window.clone();
 		let app_handle = app.clone();
 		window.on_window_event(move |event| match event {
 			WindowEvent::CloseRequested { api, .. } => {
 				api.prevent_close();
-				let _ = event.window().hide();
+				let _ = window_for_events.hide();
 			}
 			WindowEvent::Focused(_)
 			| WindowEvent::Resized(_)
