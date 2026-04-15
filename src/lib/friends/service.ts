@@ -49,6 +49,32 @@ function isFriendPayload(payload: Record<string, unknown>): payload is {
 	);
 }
 
+function extractFriendFromPayload(
+	payload: Record<string, unknown>,
+): {
+	id: number;
+	user_id: number;
+	friend_user_id: number;
+	friend_username: string;
+	friend_display_name: string;
+	friend_avatar_url?: string | null;
+	created_at: string;
+} | null {
+	if (isFriendPayload(payload)) {
+		return payload;
+	}
+
+	const nested = payload.friend;
+	if (nested !== null && typeof nested === "object") {
+		const candidate = nested as Record<string, unknown>;
+		if (isFriendPayload(candidate)) {
+			return candidate;
+		}
+	}
+
+	return null;
+}
+
 function getCurrentUserId(): number | null {
 	return authSession.snapshot().currentUser?.id ?? null;
 }
@@ -102,8 +128,9 @@ class FriendsService {
 						upsertIncomingRequest(request);
 					}
 				}
-				if (isFriendPayload(event.payload)) {
-					addFriend(event.payload);
+				const friend = extractFriendFromPayload(event.payload);
+				if (friend) {
+					addFriend(friend);
 				}
 			},
 		);
@@ -173,8 +200,12 @@ class FriendsService {
 		requestId: number,
 	): Promise<{ ok: boolean; error?: string }> {
 		try {
-			const request = await apiAcceptFriendRequest(requestId);
+			const [request, friends] = await Promise.all([
+				apiAcceptFriendRequest(requestId),
+				apiGetFriends(),
+			]);
 			upsertIncomingRequest(request);
+			setFriends(friends);
 			return { ok: true };
 		} catch (error) {
 			const message =

@@ -11,6 +11,34 @@ import { t, tf } from "../i18n";
 import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
 
+const AVATAR_BASE_URL = "https://havenapi.becloudly.eu";
+
+function resolveFriendAvatarUrl(avatarUrl?: string | null): string | null {
+	if (typeof avatarUrl !== "string") {
+		return null;
+	}
+
+	const trimmed = avatarUrl.trim();
+	if (!trimmed) {
+		return null;
+	}
+
+	if (/^(data:|blob:|https?:)/i.test(trimmed)) {
+		return trimmed;
+	}
+
+	try {
+		return new URL(trimmed, AVATAR_BASE_URL).toString();
+	} catch {
+		return null;
+	}
+}
+
+function friendInitial(displayName: string): string {
+	const trimmed = displayName.trim();
+	return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?";
+}
+
 export default function FriendsPanel() {
 	const [addUsername, setAddUsername] = createSignal("");
 	const [addStatus, setAddStatus] = createSignal<
@@ -283,21 +311,42 @@ export default function FriendsPanel() {
 				>
 					<div class="flex flex-col gap-1.5">
 						<For each={friendsStore.friends}>
-							{(friend) => (
-								<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-(--surface-secondary)">
-									<div class="w-8 h-8 rounded-full bg-(--accent-primary) flex items-center justify-center text-(--text-inverse) text-sm font-bold shrink-0">
-										{friend.friend_display_name.charAt(0).toUpperCase()}
+							{(friend) => {
+								const avatarUrl = resolveFriendAvatarUrl(
+									friend.friend_avatar_url,
+								);
+
+								return (
+									<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-(--surface-secondary)">
+										<Show
+											when={avatarUrl}
+											fallback={
+												<div class="w-8 h-8 rounded-full bg-(--accent-primary) flex items-center justify-center text-(--text-inverse) text-sm font-bold shrink-0">
+													{friendInitial(friend.friend_display_name)}
+												</div>
+											}
+										>
+											{(src) => (
+												<img
+													src={src()}
+													alt={`${friend.friend_display_name} avatar`}
+													class="w-8 h-8 rounded-full object-cover shrink-0"
+													loading="lazy"
+													referrerPolicy="no-referrer"
+												/>
+											)}
+										</Show>
+										<div class="flex flex-col min-w-0">
+											<span class="text-sm font-medium text-(--text-primary) truncate">
+												{friend.friend_display_name}
+											</span>
+											<span class="text-xs text-(--text-secondary) truncate">
+												@{friend.friend_username}
+											</span>
+										</div>
 									</div>
-									<div class="flex flex-col min-w-0">
-										<span class="text-sm font-medium text-(--text-primary) truncate">
-											{friend.friend_display_name}
-										</span>
-										<span class="text-xs text-(--text-secondary) truncate">
-											@{friend.friend_username}
-										</span>
-									</div>
-								</div>
-							)}
+								);
+							}}
 						</For>
 					</div>
 				</Show>
