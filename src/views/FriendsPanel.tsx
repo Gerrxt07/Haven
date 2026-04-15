@@ -7,6 +7,7 @@ import {
 	onMount,
 	Show,
 } from "solid-js";
+import type { JSX } from "solid-js";
 import { t, tf } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { friendsService } from "../lib/friends/service";
