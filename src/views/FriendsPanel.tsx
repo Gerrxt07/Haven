@@ -8,35 +8,60 @@ import {
 	Show,
 } from "solid-js";
 import { t, tf } from "../i18n";
+import { authSession } from "../lib/auth/session";
 import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
 
-const AVATAR_BASE_URL = "https://havenapi.becloudly.eu";
-
-function resolveFriendAvatarUrl(avatarUrl?: string | null): string | null {
-	if (typeof avatarUrl !== "string") {
-		return null;
-	}
-
-	const trimmed = avatarUrl.trim();
-	if (!trimmed) {
-		return null;
-	}
-
-	if (/^(data:|blob:|https?:)/i.test(trimmed)) {
-		return trimmed;
-	}
-
-	try {
-		return new URL(trimmed, AVATAR_BASE_URL).toString();
-	} catch {
-		return null;
-	}
-}
+import type { AuthUserResponse } from "../lib/api";
+import { resolveProfileImageForUser } from "../lib/cache/profile-images";
 
 function friendInitial(displayName: string): string {
 	const trimmed = displayName.trim();
 	return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?";
+}
+
+function FriendAvatar(props: {
+	userId: number;
+	displayName: string;
+	avatarUrl?: string | null;
+}): JSX.Element {
+	const fallbackProfileImage = new URL(
+		"profile.png",
+		globalThis.location.href,
+	).toString();
+	const [avatarSrc, setAvatarSrc] = createSignal(fallbackProfileImage);
+	let resolveToken = 0;
+
+	createEffect(() => {
+		const token = ++resolveToken;
+		const friendUser = {
+			id: props.userId,
+			avatar_url: props.avatarUrl,
+		} as unknown as AuthUserResponse;
+
+		void resolveProfileImageForUser(
+			friendUser,
+			fallbackProfileImage,
+			authSession.accessToken,
+		).then((src) => {
+			if (token !== resolveToken) {
+				return;
+			}
+			setAvatarSrc(src);
+		});
+	});
+
+	return (
+		<img
+			src={avatarSrc()}
+			alt={`${props.displayName} avatar`}
+			class="w-8 h-8 rounded-full object-cover shrink-0"
+			loading="lazy"
+			onError={(e) => {
+				e.currentTarget.src = fallbackProfileImage;
+			}}
+		/>
+	);
 }
 
 export default function FriendsPanel() {
@@ -312,30 +337,13 @@ export default function FriendsPanel() {
 					<div class="flex flex-col gap-1.5">
 						<For each={friendsStore.friends}>
 							{(friend) => {
-								const avatarUrl = resolveFriendAvatarUrl(
-									friend.friend_avatar_url,
-								);
-
 								return (
 									<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-(--surface-secondary)">
-										<Show
-											when={avatarUrl}
-											fallback={
-												<div class="w-8 h-8 rounded-full bg-(--accent-primary) flex items-center justify-center text-(--text-inverse) text-sm font-bold shrink-0">
-													{friendInitial(friend.friend_display_name)}
-												</div>
-											}
-										>
-											{(src) => (
-												<img
-													src={src()}
-													alt={`${friend.friend_display_name} avatar`}
-													class="w-8 h-8 rounded-full object-cover shrink-0"
-													loading="lazy"
-													referrerPolicy="no-referrer"
-												/>
-											)}
-										</Show>
+										<FriendAvatar
+											userId={friend.friend_user_id}
+											displayName={friend.friend_display_name}
+											avatarUrl={friend.friend_avatar_url}
+										/>
 										<div class="flex flex-col min-w-0">
 											<span class="text-sm font-medium text-(--text-primary) truncate">
 												{friend.friend_display_name}
