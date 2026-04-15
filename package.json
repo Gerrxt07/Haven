@@ -35,15 +35,17 @@
 		"lint-staged": "lint-staged",
 		"knip": "knip",
 		"prepare": "husky",
-		"check": "bun run format && bun run typecheck",
+		"check": "bun run typecheck",
+		"check:full": "bun run lint && bun run typecheck",
 		"dev": "tauri dev",
 		"dev:web": "vite --host 0.0.0.0 --port 1420 --strictPort",
 		"build:web": "bun run check && vite build",
-		"build": "bun run build:web && tauri build",
+		"build": "tauri build --no-bundle",
 		"tauri": "tauri",
-		"package:win": "bun run build -- --bundles nsis",
-		"package:mac": "bun run build -- --bundles dmg,app",
-		"package:linux": "bun run build -- --bundles appimage,deb"
+		"package": "bun run package:win",
+		"package:win": "node ./scripts/prepare-release-dir.mjs && bun run typecheck && cargo check --manifest-path src-tauri/Cargo.toml && tauri build --bundles nsis && node ./scripts/collect-tauri-bundles.mjs win32",
+		"package:mac": "node ./scripts/prepare-release-dir.mjs && bun run typecheck && cargo check --manifest-path src-tauri/Cargo.toml && tauri build --bundles dmg,app && node ./scripts/collect-tauri-bundles.mjs darwin",
+		"package:linux": "node ./scripts/prepare-release-dir.mjs && bun run typecheck && cargo check --manifest-path src-tauri/Cargo.toml && tauri build --bundles appimage,deb && node ./scripts/collect-tauri-bundles.mjs linux"
 	},
 	"dependencies": {
 		"@chenglou/pretext": "0.0.5",

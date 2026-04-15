@@ -78,17 +78,19 @@ This starts the Vite dev server and the Tauri shell together.
 - `bun run lint` - Biome checks
 - `bun run knip` - unused files and dependencies analysis
 - `bun run test` - Bun test run
-- `bun run check` - format and typecheck
+- `bun run check` - packaging-safe TypeScript validation
+- `bun run check:full` - Biome checks plus TypeScript validation
 
 ### Development and Build
 
 - `bun run dev` - start the Tauri desktop app in development
 - `bun run dev:web` - start only the Vite dev server used by Tauri
-- `bun run build:web` - run checks, then build the frontend
-- `bun run build` - build the frontend and the Tauri desktop app
-- `bun run package:win` - build Windows bundles
-- `bun run package:mac` - build macOS bundles
-- `bun run package:linux` - build Linux bundles
+- `bun run build:web` - run packaging-safe checks, then build the frontend
+- `bun run build` - build the frontend and the Tauri desktop app without installers
+- `bun run package` - build the default Windows installer flow and collect artifacts in `release/`
+- `bun run package:win` - build Windows bundles and collect artifacts in `release/`
+- `bun run package:mac` - build macOS bundles and collect artifacts in `release/`
+- `bun run package:linux` - build Linux bundles and collect artifacts in `release/`
 
 ## Project Structure
 
