@@ -9,6 +9,7 @@ import {
 	HttpApiError,
 	type PresenceEvent,
 } from "../api";
+import { authSession } from "../auth/session";
 import { realtimeManager } from "../realtime";
 import {
 	addFriend,
@@ -48,6 +49,10 @@ function isFriendPayload(payload: Record<string, unknown>): payload is {
 	);
 }
 
+function getCurrentUserId(): number | null {
+	return authSession.snapshot().currentUser?.id ?? null;
+}
+
 class FriendsService {
 	private wsUnsubscribers: Array<() => void> = [];
 	private initialized = false;
@@ -66,7 +71,18 @@ class FriendsService {
 			"friend_request_received",
 			(event: PresenceEvent) => {
 				if (isFriendRequestPayload(event.payload)) {
-					upsertIncomingRequest(event.payload.request);
+					const currentUserId = getCurrentUserId();
+					if (currentUserId === null) return;
+
+					const { request } = event.payload;
+					if (request.to_user_id === currentUserId) {
+						upsertIncomingRequest(request);
+						return;
+					}
+
+					if (request.from_user_id === currentUserId) {
+						upsertOutgoingRequest(request);
+					}
 				}
 			},
 		);
@@ -75,7 +91,16 @@ class FriendsService {
 			"friend_request_accepted",
 			(event: PresenceEvent) => {
 				if (isFriendRequestPayload(event.payload)) {
-					upsertOutgoingRequest(event.payload.request);
+					const currentUserId = getCurrentUserId();
+					if (currentUserId === null) return;
+
+					const { request } = event.payload;
+					if (request.from_user_id === currentUserId) {
+						upsertOutgoingRequest(request);
+					}
+					if (request.to_user_id === currentUserId) {
+						upsertIncomingRequest(request);
+					}
 				}
 				if (isFriendPayload(event.payload)) {
 					addFriend(event.payload);
@@ -87,7 +112,16 @@ class FriendsService {
 			"friend_request_declined",
 			(event: PresenceEvent) => {
 				if (isFriendRequestPayload(event.payload)) {
-					upsertOutgoingRequest(event.payload.request);
+					const currentUserId = getCurrentUserId();
+					if (currentUserId === null) return;
+
+					const { request } = event.payload;
+					if (request.from_user_id === currentUserId) {
+						upsertOutgoingRequest(request);
+					}
+					if (request.to_user_id === currentUserId) {
+						upsertIncomingRequest(request);
+					}
 				}
 			},
 		);
