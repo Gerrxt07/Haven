@@ -80,6 +80,7 @@
 			]
 		},
 		"win": {
+			"signAndEditExecutable": false,
 			"target": [
 				"nsis",
 				"zip"
