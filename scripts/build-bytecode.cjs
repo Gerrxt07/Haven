@@ -8,24 +8,17 @@ v8.setFlagsFromString("--no-lazy");
 
 const mainDir = path.resolve(__dirname, "../dist-electron");
 
-// 1. Viel stärkere Obfuscation-Parameter
 function obfuscateJavaScript(inputCode) {
 	const result = JavaScriptObfuscator.obfuscate(inputCode, {
 		compact: true,
-		controlFlowFlattening: true,
-		controlFlowFlatteningThreshold: 0.75,
-		deadCodeInjection: true,
-		deadCodeInjectionThreshold: 0.4,
-		disableConsoleOutput: true,
+		disableConsoleOutput: false,
 		identifierNamesGenerator: "hexadecimal",
 		renameGlobals: false,
-		selfDefending: true,
+		selfDefending: false,
 		simplify: true,
-		splitStrings: true,
-		splitStringsChunkLength: 10,
 		stringArray: true,
-		stringArrayEncoding: ["base64", "rc4"],
-		stringArrayThreshold: 0.75,
+		stringArrayEncoding: ["base64"],
+		stringArrayThreshold: 0.6,
 		target: "node",
 		transformObjectKeys: true,
 		unicodeEscapeSequence: false,
@@ -43,9 +36,7 @@ async function buildBytecode() {
 
 	const files = fs.readdirSync(mainDir);
 
-	// 2. Aufteilung in Bytecode-Ziele und Obfuscation-Only-Ziele
 	const bytecodeTargets = new Set(["main.js"]);
-	const obfuscateOnlyTargets = new Set(["preload.js"]); // Preload wird "nur" verschleiert
 
 	for (const file of files) {
 		if (!file.endsWith(".js")) {
@@ -76,22 +67,7 @@ async function buildBytecode() {
 			fs.writeFileSync(filePath, loaderCode);
 		}
 
-		// Fall B: Nur Obfuscation (preload.js)
-		else if (obfuscateOnlyTargets.has(file)) {
-			console.log(
-				`Obfuscating ${file} (bleibt als .js für Sandbox-Kompatibilität)...`,
-			);
-			const obfuscatedCode = obfuscateJavaScript(sourceCode);
-			fs.writeFileSync(filePath, obfuscatedCode);
-
-			// Lösche eventuelle alte .jsc Dateien, falls vorhanden
-			const staleJscPath = path.join(mainDir, file.replace(/\.js$/, ".jsc"));
-			if (fs.existsSync(staleJscPath)) {
-				fs.unlinkSync(staleJscPath);
-			}
-		}
-
-		// Fall C: Wird komplett ignoriert
+		// Other files stay untouched.
 		else {
 			console.log(`Skipping ${file}.`);
 		}
