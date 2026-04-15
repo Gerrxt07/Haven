@@ -32,6 +32,11 @@ const maxStoredSecretLength = 8192;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAppQuitting = false;
+const WINDOWS_APP_USER_MODEL_ID = "com.haven.app";
+
+if (process.platform === "win32") {
+	app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
+}
 
 function restoreMainWindow(): void {
 	if (!mainWindow) {

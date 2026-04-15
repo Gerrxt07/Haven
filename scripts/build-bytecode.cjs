@@ -1,11 +1,33 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const bytenode = require("bytenode");
+const JavaScriptObfuscator = require("javascript-obfuscator");
 const v8 = require("node:v8");
 
 v8.setFlagsFromString("--no-lazy");
 
 const mainDir = path.resolve(__dirname, "../dist-electron");
+
+function obfuscateJavaScript(inputCode) {
+	const result = JavaScriptObfuscator.obfuscate(inputCode, {
+		compact: true,
+		controlFlowFlattening: false,
+		deadCodeInjection: false,
+		disableConsoleOutput: false,
+		identifierNamesGenerator: "hexadecimal",
+		renameGlobals: false,
+		selfDefending: false,
+		simplify: true,
+		stringArray: true,
+		stringArrayEncoding: ["base64"],
+		stringArrayThreshold: 0.75,
+		target: "node",
+		transformObjectKeys: true,
+		unicodeEscapeSequence: false,
+	});
+
+	return result.getObfuscatedCode();
+}
 
 async function buildBytecode() {
 	if (!fs.existsSync(mainDir)) {
@@ -36,6 +58,11 @@ async function buildBytecode() {
 
 		const filePath = path.join(mainDir, file);
 		const outputJsc = filePath.replace(/\.js$/, ".jsc");
+		const sourceCode = fs.readFileSync(filePath, "utf8");
+
+		console.log(`Obfuscating ${file}...`);
+		const obfuscatedCode = obfuscateJavaScript(sourceCode);
+		fs.writeFileSync(filePath, obfuscatedCode);
 
 		console.log(`Compiling ${file} to bytecode...`);
 		await bytenode.compileFile({
