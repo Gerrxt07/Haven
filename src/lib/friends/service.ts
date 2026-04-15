@@ -49,9 +49,7 @@ function isFriendPayload(payload: Record<string, unknown>): payload is {
 	);
 }
 
-function extractFriendFromPayload(
-	payload: Record<string, unknown>,
-): {
+function extractFriendFromPayload(payload: Record<string, unknown>): {
 	id: number;
 	user_id: number;
 	friend_user_id: number;
