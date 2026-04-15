@@ -1,0 +1,27 @@
+[package]
+name = "haven-tauri"
+version = "2026.4.15"
+description = "Haven desktop shell powered by Tauri"
+authors = ["Cloudly <haven@becloudly.eu>"]
+license = "LicenseRef-Haven-SAL-1.0"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "haven_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.3", features = [] }
+
+[dependencies]
+dirs = "6.0.0"
+hickory-resolver = { version = "0.24.4", features = ["tokio-runtime"] }
+keyring = { version = "3.6.1", default-features = false, features = ["apple-native", "linux-native", "windows-native"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
+tauri = { version = "2.3.1", features = ["tray-icon", "image-png"] }
+tauri-plugin-opener = "2.2.6"
+tauri-plugin-window-state = "2.2.1"
+tokio = { version = "1.43.0", features = ["fs", "io-util", "macros", "rt-multi-thread", "sync"] }
+

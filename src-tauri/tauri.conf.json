@@ -1,0 +1,40 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Haven",
+	"version": "2026.4.15",
+	"identifier": "com.haven.app",
+	"build": {
+		"beforeDevCommand": "bun run check",
+		"beforeBuildCommand": "bun run build:web",
+		"devUrl": "http://localhost:1420",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"title": "Haven",
+				"width": 1280,
+				"height": 720,
+				"minWidth": 1280,
+				"minHeight": 720,
+				"resizable": true,
+				"decorations": false,
+				"visible": false,
+				"backgroundColor": "#272727"
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"createUpdaterArtifacts": false,
+		"icon": [
+			"../public/logo.png"
+		]
+	}
+}
+

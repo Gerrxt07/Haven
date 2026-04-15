@@ -42,6 +42,8 @@ dist/
 dist-electron/
 release/
 build/
+src-tauri/target/
+src-tauri/gen/
 *.tgz
 *.zip
 *.tar.gz
