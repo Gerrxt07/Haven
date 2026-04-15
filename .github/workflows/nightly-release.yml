@@ -62,17 +62,23 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build for Windows
+      - name: Build application bundle
+        run: bun run build
+
+      - name: Run protection pipeline
+        run: bun run protect
+
+      - name: Package for Windows
         if: matrix.os == 'windows-latest'
-        run: bun run package:win
+        run: bunx electron-builder --win --publish never
 
-      - name: Build for Linux
+      - name: Package for Linux
         if: matrix.os == 'ubuntu-latest'
-        run: bun run package:linux
+        run: bunx electron-builder --linux --publish never
 
-      - name: Build for MacOS
+      - name: Package for MacOS
         if: matrix.os == 'macos-latest'
-        run: bun run package:mac
+        run: bunx electron-builder --mac --publish never
 
       - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v3
