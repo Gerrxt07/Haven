@@ -1,4 +1,5 @@
 import { RefreshCw, UserPlus, Users } from "lucide-solid";
+import type { JSX } from "solid-js";
 import {
 	createEffect,
 	createSignal,
@@ -7,19 +8,12 @@ import {
 	onMount,
 	Show,
 } from "solid-js";
-import type { JSX } from "solid-js";
 import { t, tf } from "../i18n";
+import type { AuthUserResponse } from "../lib/api";
 import { authSession } from "../lib/auth/session";
+import { resolveProfileImageForUser } from "../lib/cache/profile-images";
 import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
-
-import type { AuthUserResponse } from "../lib/api";
-import { resolveProfileImageForUser } from "../lib/cache/profile-images";
-
-function friendInitial(displayName: string): string {
-	const trimmed = displayName.trim();
-	return trimmed.length > 0 ? trimmed.charAt(0).toUpperCase() : "?";
-}
 
 function FriendAvatar(props: {
 	userId: number;
