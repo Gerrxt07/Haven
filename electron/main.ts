@@ -17,6 +17,7 @@ import {
 	shell,
 	Tray,
 } from "electron";
+import { initializeSecureLogger, secureLogger } from "./secure-logger";
 import {
 	getUpdateChannelCandidate,
 	runStartupUpdateFlow,
@@ -38,21 +39,37 @@ if (process.platform === "win32") {
 	app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
 }
 
+// Initialize secure logging
+initializeSecureLogger();
+secureLogger.logLifecycle("app-starting", {
+	platform: process.platform,
+	arch: process.arch,
+	nodeVersion: process.version,
+	electronVersion: process.versions.electron,
+	isPackaged: app.isPackaged,
+	cwd: process.cwd(),
+});
+
 function restoreMainWindow(): void {
+	secureLogger.logWindowState("restore-requested");
 	if (!mainWindow) {
+		secureLogger.logWindowState("window-null-creating-new");
 		createWindow();
 		return;
 	}
 
 	if (mainWindow.isMinimized()) {
+		secureLogger.logWindowState("restoring-from-minimized");
 		mainWindow.restore();
 	}
 
 	if (!mainWindow.isVisible()) {
+		secureLogger.logWindowState("showing-hidden-window");
 		mainWindow.show();
 	}
 
 	mainWindow.focus();
+	secureLogger.logWindowState("window-restored");
 }
 
 type DetailedLogPayload = {
@@ -99,37 +116,71 @@ function isTrustedSender(sender: Electron.WebContents): boolean {
 
 // Listeners to save and load tokens securely
 ipcMain.handle("secure-store-token", async (event, token: string) => {
-	if (!isTrustedSender(event.sender)) return false;
+	secureLogger.logIpc("in", "secure-store-token", "main", {
+		hasToken: !!token,
+	});
+	if (!isTrustedSender(event.sender)) {
+		secureLogger.logSecurity("untrusted-sender-rejected", {
+			channel: "secure-store-token",
+		});
+		return false;
+	}
 	if (typeof token !== "string" || token.length < 1) return false;
 	if (token.length > maxStoredSecretLength) return false;
 
 	if (safeStorage.isEncryptionAvailable()) {
 		const encryptedToken = safeStorage.encryptString(token);
 		await writeEncryptedFile(authFilePath, encryptedToken);
+		secureLogger.logSecurity("token-stored", { path: authFilePath });
 		return true;
 	}
+	secureLogger.logSecurity(
+		"token-storage-failed",
+		{ reason: "encryption-unavailable" },
+		"error",
+	);
 	return false; // Handle fallback if encryption isn't available
 });
 
 ipcMain.handle("secure-load-token", async (event) => {
-	if (!isTrustedSender(event.sender)) return null;
+	secureLogger.logIpc("in", "secure-load-token", "main");
+	if (!isTrustedSender(event.sender)) {
+		secureLogger.logSecurity("untrusted-sender-rejected", {
+			channel: "secure-load-token",
+		});
+		return null;
+	}
 	if (!safeStorage.isEncryptionAvailable()) return null;
 
 	try {
 		const encryptedToken = await fs.readFile(authFilePath);
+		secureLogger.logSecurity("token-loaded");
 		return safeStorage.decryptString(encryptedToken);
 	} catch {
+		secureLogger.debug("auth", "token-load-failed", {
+			reason: "file-not-found-or-decryption-failed",
+		});
 		return null;
 	}
 });
 
 ipcMain.handle("secure-delete-token", async (event) => {
-	if (!isTrustedSender(event.sender)) return false;
+	secureLogger.logIpc("in", "secure-delete-token", "main");
+	if (!isTrustedSender(event.sender)) {
+		secureLogger.logSecurity("untrusted-sender-rejected", {
+			channel: "secure-delete-token",
+		});
+		return false;
+	}
 
 	try {
 		await fs.unlink(authFilePath);
+		secureLogger.logSecurity("token-deleted");
 		return true;
 	} catch {
+		secureLogger.debug("auth", "token-delete-failed", {
+			reason: "file-not-found",
+		});
 		return false;
 	}
 });
@@ -248,7 +299,13 @@ async function writeEncryptedFile(
 ipcMain.handle(
 	"secure-store-set",
 	async (event, namespace: string, key: string, value: string) => {
-		if (!isTrustedSender(event.sender)) return false;
+		secureLogger.logIpc("in", "secure-store-set", "main", { namespace, key });
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "secure-store-set",
+			});
+			return false;
+		}
 
 		const ns = sanitizeNamespace(namespace);
 		const safeKey = sanitizeKey(key);
@@ -263,8 +320,16 @@ ipcMain.handle(
 		doc[safeKey] = value;
 
 		try {
-			return await writeSecureNamespace(ns, doc);
-		} catch {
+			const result = await writeSecureNamespace(ns, doc);
+			secureLogger.logSecurity("secure-store-set-success", {
+				namespace: ns,
+				key: safeKey,
+			});
+			return result;
+		} catch (error) {
+			secureLogger.logError("secure-store", "write-failed", error, {
+				namespace: ns,
+			});
 			return false;
 		}
 	},
@@ -273,7 +338,13 @@ ipcMain.handle(
 ipcMain.handle(
 	"secure-store-get",
 	async (event, namespace: string, key: string) => {
-		if (!isTrustedSender(event.sender)) return null;
+		secureLogger.logIpc("in", "secure-store-get", "main", { namespace, key });
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "secure-store-get",
+			});
+			return null;
+		}
 
 		const ns = sanitizeNamespace(namespace);
 		const safeKey = sanitizeKey(key);
@@ -282,6 +353,12 @@ ipcMain.handle(
 		}
 
 		const doc = await readSecureNamespace(ns);
+		const hasValue = !!doc[safeKey];
+		secureLogger.logIpc("out", "secure-store-get", "main", {
+			namespace: ns,
+			key: safeKey,
+			found: hasValue,
+		});
 		return doc[safeKey] ?? null;
 	},
 );
@@ -289,7 +366,16 @@ ipcMain.handle(
 ipcMain.handle(
 	"secure-store-delete",
 	async (event, namespace: string, key: string) => {
-		if (!isTrustedSender(event.sender)) return false;
+		secureLogger.logIpc("in", "secure-store-delete", "main", {
+			namespace,
+			key,
+		});
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "secure-store-delete",
+			});
+			return false;
+		}
 
 		const ns = sanitizeNamespace(namespace);
 		const safeKey = sanitizeKey(key);
@@ -305,8 +391,17 @@ ipcMain.handle(
 		delete doc[safeKey];
 
 		try {
-			return await writeSecureNamespace(ns, doc);
-		} catch {
+			const result = await writeSecureNamespace(ns, doc);
+			secureLogger.logSecurity("secure-store-delete-success", {
+				namespace: ns,
+				key: safeKey,
+			});
+			return result;
+		} catch (error) {
+			secureLogger.logError("secure-store", "delete-failed", error, {
+				namespace: ns,
+				key: safeKey,
+			});
 			return false;
 		}
 	},
@@ -324,7 +419,9 @@ function notifyWindowStateChanged() {
 		return;
 	}
 
-	mainWindow.webContents.send("window-state-changed", getCurrentWindowState());
+	const state = getCurrentWindowState();
+	secureLogger.logWindowState("state-changed", state);
+	mainWindow.webContents.send("window-state-changed", state);
 }
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
@@ -440,6 +537,11 @@ const dangerousArgs = [
 
 for (const arg of process.argv) {
 	if (dangerousArgs.some((danger) => arg.startsWith(danger))) {
+		secureLogger.logSecurity(
+			"dangerous-arg-detected",
+			{ arg: arg.split("=")[0] },
+			"error",
+		);
 		console.error("Dangerous command line argument detected. Exiting.");
 		app.quit();
 		process.exit(1);
@@ -449,17 +551,22 @@ for (const arg of process.argv) {
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 
 if (!hasSingleInstanceLock) {
+	secureLogger.logLifecycle("single-instance-lock-failed", { quitting: true });
 	app.quit();
 } else {
+	secureLogger.logLifecycle("single-instance-lock-acquired");
 	app.on("second-instance", () => {
+		secureLogger.logLifecycle("second-instance-detected");
 		restoreMainWindow();
 	});
 }
 
 function createWindow() {
+	secureLogger.logWindowState("creating-window");
 	const primaryDisplay = screen.getPrimaryDisplay();
 	const { width: screenWidth, height: screenHeight } =
 		primaryDisplay.workAreaSize;
+	secureLogger.logWindowState("screen-info", { screenWidth, screenHeight });
 
 	const width = Math.max(1280, Math.floor(screenWidth * 0.8));
 	const height = Math.max(720, Math.floor(screenHeight * 0.8));
@@ -491,21 +598,30 @@ function createWindow() {
 			webviewTag: false,
 		},
 	});
+	secureLogger.logWindowState("window-created", { width, height });
 
 	if (process.env.VITE_DEV_SERVER_URL) {
+		secureLogger.logWindowState("loading-dev-url", {
+			url: process.env.VITE_DEV_SERVER_URL,
+		});
 		mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
 	} else {
+		secureLogger.logWindowState("loading-production-file");
 		mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));
 	}
 
 	mainWindow.on("close", (event) => {
 		if (!isAppQuitting) {
+			secureLogger.logWindowState("close-prevented-hiding");
 			event.preventDefault();
 			mainWindow?.hide();
+		} else {
+			secureLogger.logWindowState("window-closing");
 		}
 	});
 
 	mainWindow.once("ready-to-show", () => {
+		secureLogger.logWindowState("ready-to-show");
 		mainWindow?.show();
 		notifyWindowStateChanged();
 	});
@@ -522,14 +638,27 @@ function createWindow() {
 		}, 100);
 	}
 
-	mainWindow.on("maximize", notifyWindowStateChangedThrottled);
-	mainWindow.on("unmaximize", notifyWindowStateChangedThrottled);
-	mainWindow.on("enter-full-screen", notifyWindowStateChangedThrottled);
-	mainWindow.on("leave-full-screen", notifyWindowStateChangedThrottled);
+	mainWindow.on("maximize", () => {
+		secureLogger.logWindowState("maximized");
+		notifyWindowStateChangedThrottled();
+	});
+	mainWindow.on("unmaximize", () => {
+		secureLogger.logWindowState("unmaximized");
+		notifyWindowStateChangedThrottled();
+	});
+	mainWindow.on("enter-full-screen", () => {
+		secureLogger.logWindowState("enter-full-screen");
+		notifyWindowStateChangedThrottled();
+	});
+	mainWindow.on("leave-full-screen", () => {
+		secureLogger.logWindowState("leave-full-screen");
+		notifyWindowStateChangedThrottled();
+	});
 	mainWindow.on("resize", notifyWindowStateChangedThrottled);
 
 	// Prevent links from navigating inside the app
 	mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+		secureLogger.logNavigation(url, "window-open-attempt");
 		if (isSafeExternalHttpUrl(url)) {
 			// Trigger a warning in the frontend UI instead of opening immediately
 			mainWindow?.webContents.send("show-external-link-warning", url);
@@ -540,15 +669,19 @@ function createWindow() {
 	// Prevent drag-and-drop navigation (e.g., dropping an HTML file into the chat)
 	mainWindow.webContents.on("will-navigate", (event, url) => {
 		if (!isTrustedAppUrl(url)) {
+			secureLogger.logSecurity("untrusted-navigation-blocked", { url });
 			event.preventDefault();
 			// Trigger a warning in the frontend UI instead of opening immediately
 			if (isSafeExternalHttpUrl(url)) {
 				mainWindow?.webContents.send("show-external-link-warning", url);
 			}
+		} else {
+			secureLogger.logNavigation(url, "will-navigate");
 		}
 	});
 
 	mainWindow.webContents.on("will-attach-webview", (event) => {
+		secureLogger.logSecurity("webview-attachment-blocked");
 		event.preventDefault();
 	});
 }
@@ -601,6 +734,7 @@ app.commandLine.appendSwitch(
 );
 
 app.whenReady().then(() => {
+	secureLogger.logLifecycle("app-ready");
 	nativeTheme.themeSource = "dark";
 	createTray();
 
@@ -659,6 +793,10 @@ app.whenReady().then(() => {
 
 		if (dangerousExtensions.includes(ext)) {
 			event.preventDefault(); // Block the download entirely
+			secureLogger.logDownload(fileName, "blocked", {
+				reason: "dangerous-extension",
+				ext,
+			});
 
 			// Optionally notify the renderer to show a warning UI
 			webContents.send(
@@ -667,8 +805,14 @@ app.whenReady().then(() => {
 			);
 			console.warn(`Blocked dangerous download: ${fileName}`);
 		} else {
+			secureLogger.logDownload(fileName, "started");
 			// Optional: Force a "Save As" dialog so files don't silently drop into the Downloads folder
 			item.setSaveDialogOptions({ title: "Save File" });
+			item.once("done", (_, state) => {
+				if (state === "completed") {
+					secureLogger.logDownload(fileName, "completed");
+				}
+			});
 		}
 	});
 
@@ -721,6 +865,8 @@ app.whenReady().then(() => {
 		return getCurrentWindowState();
 	});
 
+	secureLogger.logLifecycle("ipc-handlers-registered");
+
 	ipcMain.handle(
 		"write-detailed-log",
 		async (event, payload: DetailedLogPayload) => {
@@ -742,6 +888,8 @@ app.whenReady().then(() => {
 		if (!isTrustedSender(event.sender)) return null;
 		return getUpdateChannelCandidate();
 	});
+
+	secureLogger.logLifecycle("updater-initialized");
 
 	ipcMain.handle(
 		"updater-set-candidate",
@@ -804,43 +952,75 @@ app.whenReady().then(() => {
 
 	// Listen for user confirming to open an external link from the UI warning
 	ipcMain.on("confirm-open-url", (event, url) => {
-		if (!isTrustedSender(event.sender)) return;
+		secureLogger.logIpc("in", "confirm-open-url", "main", { url });
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "confirm-open-url",
+			});
+			return;
+		}
 		if (typeof url !== "string") {
 			return;
 		}
 
 		if (isSafeExternalHttpUrl(url)) {
+			secureLogger.logNavigation(url, "external-url-opened");
 			shell.openExternal(url);
 		}
 	});
 
 	// IPC listeners for the custom title bar
 	ipcMain.on("window-minimize", (event) => {
-		if (!isTrustedSender(event.sender)) return;
+		secureLogger.logIpc("in", "window-minimize", "main");
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "window-minimize",
+			});
+			return;
+		}
+		secureLogger.logWindowState("minimize-requested");
 		mainWindow?.minimize();
 	});
 
 	ipcMain.on("window-maximize", (event) => {
-		if (!isTrustedSender(event.sender)) return;
+		secureLogger.logIpc("in", "window-maximize", "main");
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "window-maximize",
+			});
+			return;
+		}
 		if (mainWindow?.isMaximized()) {
+			secureLogger.logWindowState("unmaximize-requested");
 			mainWindow.unmaximize();
 		} else {
+			secureLogger.logWindowState("maximize-requested");
 			mainWindow?.maximize();
 		}
 	});
 
 	ipcMain.on("window-close", (event) => {
-		if (!isTrustedSender(event.sender)) return;
+		secureLogger.logIpc("in", "window-close", "main");
+		if (!isTrustedSender(event.sender)) {
+			secureLogger.logSecurity("untrusted-sender-rejected", {
+				channel: "window-close",
+			});
+			return;
+		}
+		secureLogger.logWindowState("close-requested");
 		mainWindow?.close();
 	});
 
 	app.on("activate", () => {
+		secureLogger.logLifecycle("app-activate");
 		if (BrowserWindow.getAllWindows().length === 0) createWindow();
 	});
 });
 
 app.on("window-all-closed", () => {
+	secureLogger.logLifecycle("window-all-closed");
 	if (process.platform !== "darwin") {
+		secureLogger.logLifecycle("app-quitting");
 		app.quit();
 	}
 });

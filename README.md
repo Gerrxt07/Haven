@@ -89,12 +89,11 @@ bun run dev
 
 ### Packaging and Protection
 
-- `bun run build:bytecode` — compile selected Electron output to bytecode
 - `bun run build:integrity` — generate SHA-256 integrity manifest
-- `bun run protect` — run bytecode + integrity steps
-- `bun run package:win` — build, protect, and package for Windows
-- `bun run package:mac` — build, protect, and package for macOS
-- `bun run package:linux` — build, protect, and package for Linux
+- `bun run protect` — run integrity step
+- `bun run package:win` — build, generate integrity manifest, and package for Windows
+- `bun run package:mac` — build, generate integrity manifest, and package for macOS
+- `bun run package:linux` — build, generate integrity manifest, and package for Linux
 
 ## Project Structure
 
@@ -103,7 +102,7 @@ bun run dev
 - `src/views/` — route/view components
 - `src/types/` — shared renderer-side typings
 - `public/` — static assets
-- `scripts/` — packaging hardening scripts (fuses, bytecode, integrity)
+- `scripts/` — packaging hardening scripts (fuses, integrity)
 - `dist/` — renderer build output
 - `dist-electron/` — Electron build output
 - `release/` — packaged artifacts
@@ -114,7 +113,6 @@ Packaging is configured through `package.json` (`build` section) and outputs to 
 
 Post-build hardening pipeline:
 
-1. compile selected Electron files to bytecode
 1. generate integrity manifest for runtime assets
 1. flip Electron fuses during `afterPack`
 

@@ -1,6 +1,6 @@
 {
 	"name": "haven",
-	"version": "2026.4.16",
+	"version": "2026.4.17",
 	"description": "Your new Voice, Video and Chat application to connect with your friends!",
 	"author": "Cloudly <haven@becloudly.eu>",
 	"license": "LicenseRef-Haven-SAL-1.0",
@@ -14,6 +14,7 @@
 		"@eslint/js": "10.0.1",
 		"@tailwindcss/postcss": "4.2.2",
 		"@types/bun": "1.3.12",
+		"@types/javascript-obfuscator": "0.17.0",
 		"@types/node": "25.6.0",
 		"autoprefixer": "10.5.0",
 		"electron": "42.0.0-beta.3",
@@ -25,6 +26,7 @@
 		"knip": "6.4.1",
 		"lint-staged": "16.4.0",
 		"postcss": "8.5.10",
+		"rollup-plugin-obfuscator": "1.1.0",
 		"shadcn-solid": "0.7.7",
 		"tailwindcss": "4.2.2",
 		"typescript": "6.0.2",
@@ -45,12 +47,11 @@
 		"check": "bun run format && bun run test && bun run typecheck && bun run prepare",
 		"dev": "bun run check && vite",
 		"build": "bun run check && vite build",
-		"package:win": "bun run build && bun run protect && electron-builder --win --publish never",
-		"package:mac": "bun run build && bun run protect && electron-builder --mac --publish never",
-		"package:linux": "bun run build && bun run protect && electron-builder --linux --publish never",
-		"build:bytecode": "node ./scripts/build-bytecode.cjs",
+		"package:win": "bun run build && bun run build:integrity && electron-builder --win --publish never",
+		"package:mac": "bun run build && bun run build:integrity && electron-builder --mac --publish never",
+		"package:linux": "bun run build && bun run build:integrity && electron-builder --linux --publish never",
 		"build:integrity": "bun ./scripts/build-integrity-manifest.mjs",
-		"protect": "bun run build:bytecode && bun run build:integrity"
+		"protect": "bun run build:integrity"
 	},
 	"build": {
 		"appId": "com.haven.app",
@@ -114,7 +115,6 @@
 		"@kobalte/core": "0.13.11",
 		"@tanstack/solid-query": "5.99.0",
 		"@tanstack/solid-virtual": "3.13.23",
-		"bytenode": "1.5.7",
 		"class-variance-authority": "0.7.1",
 		"clsx": "2.1.1",
 		"electron-log": "5.4.3",

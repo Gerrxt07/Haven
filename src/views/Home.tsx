@@ -8,6 +8,7 @@ import {
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { resolveProfileImageForUser } from "../lib/cache/profile-images";
+import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
 import {
 	writeDetailedErrorLog,
@@ -36,6 +37,8 @@ export default function Home() {
 
 	onMount(() => {
 		const unsub = authSession.onChange(setAuthState);
+		// Eagerly initialize friends service to load cache immediately at startup
+		void friendsService.init();
 		onCleanup(() => unsub());
 	});
 
