@@ -59,7 +59,7 @@ Ensure you have the following installed on your system (Windows, macOS, or Linux
    ```bash
    git clone [https://github.com/yourusername/haven.git](https://github.com/yourusername/haven.git)
    cd haven
-````
+   ```
 
 2.  Install dependencies:
 
