@@ -8,7 +8,7 @@ v8.setFlagsFromString("--no-lazy");
 
 const mainDir = path.resolve(__dirname, "../dist-electron");
 
-function obfuscateJavaScript(inputCode) {
+function obfuscateMain(inputCode) {
 	const result = JavaScriptObfuscator.obfuscate(inputCode, {
 		compact: true,
 		controlFlowFlattening: true,
@@ -42,6 +42,24 @@ function obfuscateJavaScript(inputCode) {
 	return result.getObfuscatedCode();
 }
 
+function obfuscatePreload(inputCode) {
+	const result = JavaScriptObfuscator.obfuscate(inputCode, {
+		compact: true,
+		disableConsoleOutput: true,
+		identifierNamesGenerator: "hexadecimal",
+		renameGlobals: false,
+		selfDefending: false,
+		simplify: true,
+		stringArray: true,
+		stringArrayEncoding: ["base64"],
+		stringArrayThreshold: 0.5,
+		target: "node",
+		transformObjectKeys: true,
+		unicodeEscapeSequence: false,
+	});
+	return result.getObfuscatedCode();
+}
+
 async function buildBytecode() {
 	if (!fs.existsSync(mainDir)) {
 		console.log(
@@ -65,7 +83,7 @@ async function buildBytecode() {
 
 		if (bytecodeTargets.has(file)) {
 			console.log(`Obfuscating ${file} vor der Kompilierung...`);
-			const obfuscatedCode = obfuscateJavaScript(sourceCode);
+			const obfuscatedCode = obfuscateMain(sourceCode);
 			fs.writeFileSync(filePath, obfuscatedCode);
 
 			console.log(`Compiling ${file} to bytecode...`);
@@ -82,7 +100,7 @@ async function buildBytecode() {
 			fs.writeFileSync(filePath, loaderCode);
 		} else if (obfuscateOnlyTargets.has(file)) {
 			console.log(`Obfuscating ${file}...`);
-			const obfuscatedCode = obfuscateJavaScript(sourceCode);
+			const obfuscatedCode = obfuscatePreload(sourceCode);
 			fs.writeFileSync(filePath, obfuscatedCode);
 		} else {
 			console.log(`Skipping ${file}.`);
