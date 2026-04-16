@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import electron from "electron";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -183,14 +184,7 @@ async function main() {
 		);
 
 		// Find electron executable
-		const electronModulePath = path.resolve(
-			__dirname,
-			"../node_modules/electron",
-		);
-		const electronPath =
-			process.platform === "win32"
-				? path.join(electronModulePath, "dist/electron.exe")
-				: path.join(electronModulePath, "dist/electron");
+		const electronPath = electron;
 
 		// Use Electron's Node.js to compile (ELECTRON_RUN_AS_NODE=1 makes electron act like node)
 		const compileScript = `
@@ -216,25 +210,20 @@ try {
 				stdio: ["ignore", "pipe", "pipe"],
 				env: {
 					...process.env,
-					ELECTRON_RUN_AS_NODE: "1", // Makes Electron behave like Node.js
+					ELECTRON_RUN_AS_NODE: "1",
 				},
 			});
 
-			let stdout = "";
-			let stderr = "";
-			child.stdout.on("data", (data) => {
-				stdout += data.toString();
-			});
-			child.stderr.on("data", (data) => {
-				stderr += data.toString();
+			child.on("close", (code) => {
+				if (code === 0) {
+					resolve();
+				} else {
+					reject(new Error(`Compilation failed with code ${code}`));
+				}
 			});
 
-			child.on("close", (code) => {
-				if (code !== 0) {
-					reject(new Error(stderr || stdout));
-				} else {
-					resolve();
-				}
+			child.on("error", (error) => {
+				reject(error);
 			});
 		});
 
