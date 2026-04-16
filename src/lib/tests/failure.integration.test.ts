@@ -21,6 +21,7 @@ function createMockElectronApi(
 	values: Record<string, string | null>,
 ): typeof globalThis.electronAPI {
 	return {
+		appVersion: "test",
 		platform: "linux",
 		minimize: () => {},
 		maximize: () => {},

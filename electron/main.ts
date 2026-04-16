@@ -578,7 +578,7 @@ function createWindow() {
 		height,
 		minWidth: 1280,
 		minHeight: 720,
-		title: "Haven",
+		title: `Haven v${app.getVersion()}`,
 		show: false,
 		frame: false,
 		backgroundColor: "#272727",
@@ -622,6 +622,7 @@ function createWindow() {
 
 	mainWindow.once("ready-to-show", () => {
 		secureLogger.logWindowState("ready-to-show");
+		mainWindow?.setTitle(`Haven v${app.getVersion()}`);
 		mainWindow?.show();
 		notifyWindowStateChanged();
 	});

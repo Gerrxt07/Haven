@@ -231,7 +231,7 @@ export default function App() {
 
 				{/* Center Title */}
 				<div class="absolute inset-0 flex justify-center items-center text-[13px] font-semibold text-[color:var(--titlebar-text)] pointer-events-none">
-					{t("app", "title")}
+					{t("app", "title")} v{globalThis.electronAPI.appVersion}
 				</div>
 
 				{/* Controls */}

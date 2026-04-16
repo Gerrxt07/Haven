@@ -46,7 +46,8 @@
 		"prepare": "husky",
 		"check": "bun run format && bun run test && bun run typecheck && bun run prepare",
 		"dev": "bun run check && vite",
-		"build": "bun run check && vite build",
+		"build": "bun run check && vite build && bun run build:bytenode",
+		"build:bytenode": "bun ./scripts/compile-bytenode.mjs",
 		"package:win": "bun run build && bun run build:integrity && electron-builder --win --publish never",
 		"package:mac": "bun run build && bun run build:integrity && electron-builder --mac --publish never",
 		"package:linux": "bun run build && bun run build:integrity && electron-builder --linux --publish never",
@@ -113,6 +114,7 @@
 	"dependencies": {
 		"@chenglou/pretext": "0.0.5",
 		"@kobalte/core": "0.13.11",
+		"bytenode": "1.5.7",
 		"@tanstack/solid-query": "5.99.0",
 		"@tanstack/solid-virtual": "3.13.23",
 		"class-variance-authority": "0.7.1",
