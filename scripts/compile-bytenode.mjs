@@ -36,7 +36,7 @@ async function _compileWithBytenode(inputPath, _outputPath) {
 			[
 				process.platform === "win32"
 					? bytenodeCli.replace(/\\/g, "/")
-					: bytenodeCli.replace(".bin/bytenode", ".bin/bytenode"),
+					: bytenodeCli,
 				"--compile",
 				inputPath,
 			],
@@ -82,8 +82,8 @@ async function _compileWithBytenodeApi(inputPath, outputPath) {
 		const fs = require('fs');
 		const path = require('path');
 		
-		const inputPath = '${inputPath.replace(/\\/g, "\\")}';
-		const outputPath = '${outputPath.replace(/\\/g, "\\")}';
+		const inputPath = '${inputPath.replace(/\\/g, "\\\\")}';
+		const outputPath = '${outputPath.replace(/\\/g, "\\\\")}';
 		
 		try {
 			// Read the source
