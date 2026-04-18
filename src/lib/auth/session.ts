@@ -187,13 +187,24 @@ class AuthSessionManager {
 		return apiConfirmEmailVerification(payload);
 	}
 
-	/// Legacy login using password (for backward compatibility)
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {
+		try {
+			const challengeResponse = await apiLoginChallenge({
+				email: payload.email,
+			});
+			return await this.completeSrpLogin(
+				payload.email,
+				payload.password,
+				challengeResponse,
+			);
+		} catch (error) {
+			if (!this.shouldFallbackToLegacyLogin(error)) {
+				throw error;
+			}
+		}
+
 		const tokens = await apiLogin(payload);
-		await this.persistTokens(tokens);
-		this.state.currentUser = await apiMe();
-		this.notify();
-		return this.state.currentUser;
+		return this.finalizeLogin(tokens);
 	}
 
 	/// SRP login using 2-step challenge-response handshake
@@ -203,17 +214,27 @@ class AuthSessionManager {
 		totpCode?: string,
 		backupCode?: string,
 	): Promise<AuthUserResponse> {
-		// Step 0: Initialize SRP client ephemeral keys
+		const challengeResponse = await apiLoginChallenge({ email });
+		return this.completeSrpLogin(
+			email,
+			password,
+			challengeResponse,
+			totpCode,
+			backupCode,
+		);
+	}
+
+	private async completeSrpLogin(
+		email: string,
+		password: string,
+		challengeResponse: Awaited<ReturnType<typeof apiLoginChallenge>>,
+		totpCode?: string,
+		backupCode?: string,
+	): Promise<AuthUserResponse> {
 		const srpState: SrpLoginState = initSrpLogin(email, password);
 
 		try {
-			// Step 1: Send email to server to get challenge (salt + server public key B)
-			const challengeResponse = await apiLoginChallenge({ email });
-
-			// Step 2: Compute client proof M1 using the password (client-side only)
 			const clientProof = computeClientProof(srpState, challengeResponse);
-
-			// Step 3: Send client public key A and proof M1 to server
 			const verifyResponse = await apiLoginVerify(
 				{
 					email,
@@ -225,7 +246,6 @@ class AuthSessionManager {
 				challengeResponse.challenge_id,
 			);
 
-			// Step 4: Verify server proof M2
 			const isServerVerified = verifyServerProof(
 				srpState,
 				verifyResponse.server_proof_m2,
@@ -236,21 +256,34 @@ class AuthSessionManager {
 				);
 			}
 
-			// Extract tokens from verify response
-			const tokens: AuthTokens = {
+			return this.finalizeLogin({
 				access_token: verifyResponse.access_token,
 				refresh_token: verifyResponse.refresh_token,
 				token_type: verifyResponse.token_type,
 				expires_in_seconds: verifyResponse.expires_in_seconds,
-			};
-
-			await this.persistTokens(tokens);
-			this.state.currentUser = await apiMe();
-			this.notify();
-			return this.state.currentUser;
+			});
 		} finally {
 			cleanupSrpState(srpState);
 		}
+	}
+
+	private async finalizeLogin(tokens: AuthTokens): Promise<AuthUserResponse> {
+		await this.persistTokens(tokens);
+		this.state.currentUser = await apiMe();
+		this.notify();
+		return this.state.currentUser;
+	}
+
+	private shouldFallbackToLegacyLogin(error: unknown): boolean {
+		if (!(error instanceof HttpApiError)) {
+			return false;
+		}
+
+		return (
+			error.apiError.kind === "unauthorized" ||
+			error.apiError.kind === "forbidden" ||
+			error.apiError.kind === "bad-request"
+		);
 	}
 
 	async logout(): Promise<void> {
