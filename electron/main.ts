@@ -19,6 +19,7 @@ import {
 } from "electron";
 import { initializeSecureLogger, secureLogger } from "./secure-logger";
 import {
+	buildTimeReleaseChannel,
 	getUpdateChannelCandidate,
 	runStartupUpdateFlow,
 	setUpdateChannelCandidate,
@@ -916,6 +917,11 @@ app.whenReady().then(() => {
 	ipcMain.handle("updater-get-candidate", async (event) => {
 		if (!isTrustedSender(event.sender)) return null;
 		return getUpdateChannelCandidate();
+	});
+
+	ipcMain.handle("updater-get-build-channel", async (event) => {
+		if (!isTrustedSender(event.sender)) return null;
+		return buildTimeReleaseChannel;
 	});
 
 	secureLogger.logLifecycle("updater-initialized");

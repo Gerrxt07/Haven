@@ -6,6 +6,7 @@ export interface IElectronAPI {
 	close: () => void;
 	getUpdateCandidate: () => Promise<"release" | "nightly" | null>;
 	setUpdateCandidate: (candidate: "release" | "nightly") => Promise<boolean>;
+	getBuildReleaseChannel: () => Promise<"release" | "nightly" | null>;
 	validateEmailDomain: (domain: string) => Promise<boolean>;
 	getWindowState: () => Promise<{
 		isMaximized: boolean;
@@ -39,4 +40,9 @@ declare global {
 	interface Window {
 		electronAPI: IElectronAPI;
 	}
+	/**
+	 * Build-time constant indicating the release channel this build was created for.
+	 * "nightly" for nightly builds, "release" for stable releases.
+	 */
+	const __HAVEN_RELEASE_CHANNEL__: "release" | "nightly";
 }

@@ -6,6 +6,16 @@ import { autoUpdater } from "electron-updater";
 
 export type UpdateChannelCandidate = "release" | "nightly";
 
+/**
+ * Build-time release channel. This is set during the build process via HAVEN_RELEASE_CHANNEL env var.
+ * - "nightly" for nightly builds (checks for prerelease updates)
+ * - "release" for stable releases (checks for stable updates only)
+ */
+export const buildTimeReleaseChannel: UpdateChannelCandidate =
+	typeof __HAVEN_RELEASE_CHANNEL__ !== "undefined"
+		? __HAVEN_RELEASE_CHANNEL__
+		: "nightly";
+
 const updateSettingsPath = path.join(
 	app.getPath("userData"),
 	"update-settings.json",
@@ -363,10 +373,10 @@ export async function getUpdateChannelCandidate(): Promise<UpdateChannelCandidat
 			return parsed.candidate;
 		}
 	} catch {
-		// Fallback below
+		// Fallback to build-time channel
 	}
 
-	return "nightly";
+	return buildTimeReleaseChannel;
 }
 
 export async function setUpdateChannelCandidate(
@@ -439,7 +449,10 @@ export async function runStartupUpdateFlow({
 	log.initialize();
 	log.transports.file.level = "info";
 	autoUpdater.logger = log;
-	log.info("Updater startup flow initialized", { candidate });
+	log.info("Updater startup flow initialized", {
+		candidate,
+		buildTimeReleaseChannel,
+	});
 
 	autoUpdater.autoDownload = true;
 	autoUpdater.autoInstallOnAppQuit = true;
