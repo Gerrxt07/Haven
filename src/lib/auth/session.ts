@@ -4,6 +4,8 @@ import {
 	apiClient,
 	apiConfirmEmailVerification,
 	apiLogin,
+	apiLoginChallenge,
+	apiLoginVerify,
 	apiMe,
 	apiRefresh,
 	apiRegister,
@@ -16,6 +18,15 @@ import {
 	type RegisterRequest,
 	type StatusResponse,
 } from "../api";
+import {
+	cleanupSrpState,
+	computeClientProof,
+	generateSalt,
+	generateVerifier,
+	initSrpLogin,
+	verifyServerProof,
+	type SrpLoginState,
+} from "./srp";
 import {
 	cacheProfileImageDataUrl,
 	clearCachedProfileImage,
@@ -129,8 +140,27 @@ class AuthSessionManager {
 		this.notify();
 	}
 
-	async register(payload: RegisterRequest): Promise<AuthUserResponse> {
-		return apiRegister(payload);
+	async register(
+		payload: Omit<RegisterRequest, "srp_salt" | "srp_verifier"> & { password: string },
+	): Promise<AuthUserResponse> {
+		// Generate SRP salt and verifier locally
+		const salt = generateSalt();
+		const verifier = generateVerifier(payload.email, payload.password, salt);
+
+		// Clear password from memory (best effort)
+		payload.password = "";
+
+		const srpPayload: RegisterRequest = {
+			username: payload.username,
+			display_name: payload.display_name,
+			email: payload.email,
+			srp_salt: salt,
+			srp_verifier: verifier,
+			date_of_birth: payload.date_of_birth,
+			locale: payload.locale,
+		};
+
+		return apiRegister(srpPayload);
 	}
 
 	async requestEmailVerification(
@@ -145,12 +175,74 @@ class AuthSessionManager {
 		return apiConfirmEmailVerification(payload);
 	}
 
+	/// Legacy login using password (for backward compatibility)
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {
 		const tokens = await apiLogin(payload);
 		await this.persistTokens(tokens);
 		this.state.currentUser = await apiMe();
 		this.notify();
 		return this.state.currentUser;
+	}
+
+	/// SRP login using 2-step challenge-response handshake
+	async loginWithSRP(
+		email: string,
+		password: string,
+		totpCode?: string,
+		backupCode?: string,
+	): Promise<AuthUserResponse> {
+		// Step 0: Initialize SRP client ephemeral keys
+		const srpState: SrpLoginState = initSrpLogin(email, password);
+
+		try {
+			// Step 1: Send email to server to get challenge (salt + server public key B)
+			const challengeResponse = await apiLoginChallenge({ email });
+
+			// Step 2: Compute client proof M1 using the password (client-side only)
+			const challengeWithId = {
+				challengeId: challengeResponse.challenge_id,
+				srp_salt: challengeResponse.srp_salt,
+				server_public_key_b: challengeResponse.server_public_key_b,
+			};
+
+			const clientProof = computeClientProof(srpState, challengeWithId);
+
+			// Clear password from memory immediately after computing proof
+			cleanupSrpState(srpState);
+
+			// Step 3: Send client public key A and proof M1 to server
+			const verifyResponse = await apiLoginVerify(
+				{
+					email,
+					client_public_key_a: clientProof.clientPublicKeyA,
+					client_proof_m1: clientProof.clientProofM1,
+				},
+				challengeResponse.challenge_id,
+			);
+
+			// Step 4: Verify server proof M2
+			const isServerVerified = verifyServerProof(srpState, verifyResponse.server_proof_m2);
+			if (!isServerVerified) {
+				throw new Error("Server authentication failed - possible man-in-the-middle attack");
+			}
+
+			// Extract tokens from verify response
+			const tokens: AuthTokens = {
+				access_token: verifyResponse.access_token,
+				refresh_token: verifyResponse.refresh_token,
+				token_type: verifyResponse.token_type,
+				expires_in_seconds: verifyResponse.expires_in_seconds,
+			};
+
+			await this.persistTokens(tokens);
+			this.state.currentUser = await apiMe();
+			this.notify();
+			return this.state.currentUser;
+		} catch (error) {
+			// Clean up SRP state on error
+			cleanupSrpState(srpState);
+			throw error;
+		}
 	}
 
 	async logout(): Promise<void> {
