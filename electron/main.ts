@@ -866,6 +866,10 @@ app.whenReady().then(() => {
 		return getCurrentWindowState();
 	});
 
+	ipcMain.handle("get-app-version", () => {
+		return app.getVersion();
+	});
+
 	secureLogger.logLifecycle("ipc-handlers-registered");
 
 	ipcMain.handle(

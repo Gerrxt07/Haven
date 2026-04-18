@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// Example IPC method
 	// send: (channel: string, data: any) => ipcRenderer.send(channel, data)
 	// platform: process.platform,
-	appVersion: process.env.npm_package_version ?? "dev",
+	appVersion: () => ipcRenderer.invoke("get-app-version") as Promise<string>,
 	minimize: () => ipcRenderer.send("window-minimize"),
 	maximize: () => ipcRenderer.send("window-maximize"),
 	close: () => ipcRenderer.send("window-close"),

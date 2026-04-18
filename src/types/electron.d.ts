@@ -1,5 +1,5 @@
 export interface IElectronAPI {
-	appVersion: string;
+	appVersion: () => Promise<string>;
 	platform: string;
 	minimize: () => void;
 	maximize: () => void;
