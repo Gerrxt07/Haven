@@ -457,6 +457,26 @@ const trustedDevOrigin = (() => {
 	}
 })();
 
+const isDevelopmentBuild = !app.isPackaged;
+const allowDevNoSandbox =
+	isDevelopmentBuild &&
+	process.argv.some((arg) => arg === "--no-sandbox") &&
+	process.env.HAVEN_ALLOW_DEV_NO_SANDBOX === "1";
+
+if (allowDevNoSandbox) {
+	secureLogger.logSecurity(
+		"dev-no-sandbox-enabled",
+		{
+			reason: "explicit-opt-in",
+			env: "HAVEN_ALLOW_DEV_NO_SANDBOX=1",
+		},
+		"warn",
+	);
+	console.warn(
+		"Running with --no-sandbox in development due to HAVEN_ALLOW_DEV_NO_SANDBOX=1.",
+	);
+}
+
 function isTrustedAppUrl(url: string): boolean {
 	try {
 		const parsedUrl = new URL(url);
@@ -577,7 +597,6 @@ const switchesToRemove = [
 	"inspect-brk",
 	"enable-blink-features",
 	"js-flags",
-	"no-sandbox",
 	"proxy-server",
 	"proxy-bypass-list",
 	"host-resolver-rules",
@@ -595,11 +614,19 @@ const switchesToRemove = [
 	"ignore-urlfetcher-cert-requests",
 ];
 
+if (!allowDevNoSandbox) {
+	switchesToRemove.push("no-sandbox");
+}
+
 for (const switchName of switchesToRemove) {
 	app.commandLine.removeSwitch(switchName);
 }
 
 for (const arg of process.argv) {
+	if (allowDevNoSandbox && arg === "--no-sandbox") {
+		continue;
+	}
+
 	if (dangerousArgs.some((danger) => arg.startsWith(danger))) {
 		secureLogger.logSecurity(
 			"dangerous-arg-detected",
@@ -651,7 +678,7 @@ function createWindow() {
 			preload: path.join(__dirname, "preload.js"),
 			nodeIntegration: false,
 			contextIsolation: true,
-			sandbox: true,
+			sandbox: !allowDevNoSandbox,
 			enableWebSQL: false,
 			disableBlinkFeatures: "Auxclick",
 			v8CacheOptions: "bypassHeatCheck",
