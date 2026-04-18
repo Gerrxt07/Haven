@@ -19,21 +19,21 @@ import {
 	type StatusResponse,
 } from "../api";
 import {
-	cleanupSrpState,
-	computeClientProof,
-	generateSalt,
-	generateVerifier,
-	initSrpLogin,
-	verifyServerProof,
-	type SrpLoginState,
-} from "./srp";
-import {
 	cacheProfileImageDataUrl,
 	clearCachedProfileImage,
 	fileToImageDataUrl,
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
 import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
+import {
+	cleanupSrpState,
+	computeClientProof,
+	generateSalt,
+	generateVerifier,
+	initSrpLogin,
+	type SrpLoginState,
+	verifyServerProof,
+} from "./srp";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
@@ -141,7 +141,9 @@ class AuthSessionManager {
 	}
 
 	async register(
-		payload: Omit<RegisterRequest, "srp_salt" | "srp_verifier"> & { password: string },
+		payload: Omit<RegisterRequest, "srp_salt" | "srp_verifier"> & {
+			password: string;
+		},
 	): Promise<AuthUserResponse> {
 		// Generate SRP salt and verifier locally
 		const salt = generateSalt();
@@ -207,23 +209,27 @@ class AuthSessionManager {
 
 			const clientProof = computeClientProof(srpState, challengeWithId);
 
-			// Clear password from memory immediately after computing proof
-			cleanupSrpState(srpState);
-
 			// Step 3: Send client public key A and proof M1 to server
 			const verifyResponse = await apiLoginVerify(
 				{
 					email,
 					client_public_key_a: clientProof.clientPublicKeyA,
 					client_proof_m1: clientProof.clientProofM1,
+					totp_code: totpCode,
+					backup_code: backupCode,
 				},
 				challengeResponse.challenge_id,
 			);
 
 			// Step 4: Verify server proof M2
-			const isServerVerified = verifyServerProof(srpState, verifyResponse.server_proof_m2);
+			const isServerVerified = verifyServerProof(
+				srpState,
+				verifyResponse.server_proof_m2,
+			);
 			if (!isServerVerified) {
-				throw new Error("Server authentication failed - possible man-in-the-middle attack");
+				throw new Error(
+					"Server authentication failed - possible man-in-the-middle attack",
+				);
 			}
 
 			// Extract tokens from verify response
@@ -238,10 +244,8 @@ class AuthSessionManager {
 			this.state.currentUser = await apiMe();
 			this.notify();
 			return this.state.currentUser;
-		} catch (error) {
-			// Clean up SRP state on error
+		} finally {
 			cleanupSrpState(srpState);
-			throw error;
 		}
 	}
 

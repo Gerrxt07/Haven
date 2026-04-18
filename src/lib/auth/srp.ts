@@ -3,13 +3,12 @@
  * Uses the secure-remote-password library for SRP-6a protocol
  */
 
-import { createSrpClient, SrpClient } from "secure-remote-password/client";
+import type { Session as SrpClientSession } from "secure-remote-password/client";
+import * as srpClient from "secure-remote-password/client";
 
 // Generate a random salt for SRP registration
 export function generateSalt(): string {
-	const array = new Uint8Array(32);
-	crypto.getRandomValues(array);
-	return bufferToBase64(array);
+	return hexToBase64(srpClient.generateSalt());
 }
 
 // Generate SRP verifier for registration
@@ -19,21 +18,12 @@ export function generateVerifier(
 	password: string,
 	salt: string,
 ): string {
-	const client = createSrpClient("4096");
-	const privateKey = client.derivePrivateKey(salt, email, password);
-	const verifier = client.deriveVerifier(privateKey);
-	return verifier;
-}
-
-// Clear sensitive data from memory (best effort in JavaScript)
-export function clearString(str: string): void {
-	// Overwrite the string content (best effort in JS)
-	const arr = new Uint8Array(str.length);
-	for (let i = 0; i < str.length; i++) {
-		str = str.substring(0, i) + String.fromCharCode(0) + str.substring(i + 1);
-	}
-	// Also overwrite our temp array
-	arr.fill(0);
+	const privateKey = srpClient.derivePrivateKey(
+		base64ToHex(salt),
+		email,
+		password,
+	);
+	return hexToBase64(srpClient.deriveVerifier(privateKey));
 }
 
 // Helper to convert ArrayBuffer to base64
@@ -51,32 +41,56 @@ export function base64ToBuffer(base64: string): Uint8Array {
 	return bytes;
 }
 
+function bytesToHex(bytes: Uint8Array): string {
+	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+		"",
+	);
+}
+
+function hexToBase64(hex: string): string {
+	return bufferToBase64(hexToBuffer(hex));
+}
+
+function base64ToHex(base64: string): string {
+	return bytesToHex(base64ToBuffer(base64));
+}
+
+function hexToBuffer(hex: string): Uint8Array {
+	const normalizedHex = hex.length % 2 === 0 ? hex : `0${hex}`;
+	const bytes = new Uint8Array(normalizedHex.length / 2);
+	for (let i = 0; i < normalizedHex.length; i += 2) {
+		bytes[i / 2] = Number.parseInt(normalizedHex.slice(i, i + 2), 16);
+	}
+	return bytes;
+}
+
 // SRP Login State Machine
 export interface SrpLoginState {
-	client: SrpClient;
 	clientPublicKeyA: string;
+	clientPublicKeyAHex: string;
 	clientPrivateKeyA: string;
 	email: string;
 	password: string;
 	challengeId: string | null;
 	salt: string | null;
 	serverPublicKeyB: string | null;
+	clientSession: SrpClientSession | null;
 }
 
 // Initialize SRP login (Step 0: Create client ephemeral keys)
 export function initSrpLogin(email: string, password: string): SrpLoginState {
-	const client = createSrpClient("4096");
-	const { clientPublicKey, clientPrivateKey } = client.generateKeys();
+	const ephemeral = srpClient.generateEphemeral();
 
 	return {
-		client,
-		clientPublicKeyA: clientPublicKey,
-		clientPrivateKeyA: clientPrivateKey,
+		clientPublicKeyA: hexToBase64(ephemeral.public),
+		clientPublicKeyAHex: ephemeral.public,
+		clientPrivateKeyA: ephemeral.secret,
 		email,
 		password,
 		challengeId: null,
 		salt: null,
 		serverPublicKeyB: null,
+		clientSession: null,
 	};
 }
 
@@ -103,33 +117,25 @@ export function computeClientProof(
 	state.serverPublicKeyB = challenge.server_public_key_b;
 
 	// Derive the shared session key and proof
-	const privateKey = state.client.derivePrivateKey(
-		challenge.srp_salt,
+	const privateKey = srpClient.derivePrivateKey(
+		base64ToHex(challenge.srp_salt),
 		state.email,
 		state.password,
 	);
 
-	const sessionKey = state.client.deriveSessionKey(
+	const clientSession = srpClient.deriveSession(
 		state.clientPrivateKeyA,
-		state.clientPublicKeyA,
-		challenge.srp_salt,
+		base64ToHex(challenge.server_public_key_b),
+		base64ToHex(challenge.srp_salt),
 		state.email,
-		challenge.server_public_key_b,
 		privateKey,
 	);
 
-	// Generate client proof M1
-	const clientProof = state.client.generateProof(
-		state.clientPublicKeyA,
-		challenge.server_public_key_b,
-		sessionKey,
-	);
+	state.clientSession = clientSession;
 
-	// The server will verify M1 and return M2
-	// We store sessionKey to verify M2 later
 	return {
 		clientPublicKeyA: state.clientPublicKeyA,
-		clientProofM1: clientProof,
+		clientProofM1: hexToBase64(clientSession.proof),
 		serverProofM2: null,
 	};
 }
@@ -139,37 +145,25 @@ export function verifyServerProof(
 	state: SrpLoginState,
 	serverProofM2: string,
 ): boolean {
-	if (!state.serverPublicKeyB || !state.salt) {
+	if (!state.serverPublicKeyB || !state.salt || !state.clientSession) {
 		return false;
 	}
 
-	const privateKey = state.client.derivePrivateKey(
-		state.salt,
-		state.email,
-		state.password,
-	);
-
-	const sessionKey = state.client.deriveSessionKey(
-		state.clientPrivateKeyA,
-		state.clientPublicKeyA,
-		state.salt,
-		state.email,
-		state.serverPublicKeyB,
-		privateKey,
-	);
-
-	// Verify server's proof M2
-	return state.client.verifyProof(
-		serverProofM2,
-		state.clientPublicKeyA,
-		sessionKey,
-	);
+	try {
+		srpClient.verifySession(
+			state.clientPublicKeyAHex,
+			state.clientSession,
+			base64ToHex(serverProofM2),
+		);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 // Cleanup function to wipe sensitive data
 export function cleanupSrpState(state: SrpLoginState): void {
-	clearString(state.password);
-	clearString(state.clientPrivateKeyA);
 	state.password = "";
 	state.clientPrivateKeyA = "";
+	state.clientSession = null;
 }

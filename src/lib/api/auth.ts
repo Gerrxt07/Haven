@@ -20,6 +20,7 @@ import {
 	assertEmailVerificationConfirmRequest,
 	assertEmailVerificationRequest,
 	assertLoginChallengeRequest,
+	assertLoginChallengeResponse,
 	assertLoginRequest,
 	assertLoginVerifyRequest,
 	assertLoginVerifyResponse,
@@ -106,6 +107,7 @@ export async function apiLoginChallenge(
 	>("/auth/login/challenge", payload, {
 		signal,
 	});
+	assertLoginChallengeResponse(response);
 	return response;
 }
 
@@ -116,16 +118,15 @@ export async function apiLoginVerify(
 	signal?: AbortSignal,
 ): Promise<LoginVerifyResponse> {
 	assertLoginVerifyRequest(payload);
-	const response = await apiClient.post<LoginVerifyRequest, LoginVerifyResponse>(
-		"/auth/login/verify",
-		payload,
-		{
-			signal,
-			headers: {
-				"x-srp-challenge-id": challengeId,
-			},
+	const response = await apiClient.post<
+		LoginVerifyRequest,
+		LoginVerifyResponse
+	>("/auth/login/verify", payload, {
+		signal,
+		headers: {
+			"x-srp-challenge-id": challengeId,
 		},
-	);
+	});
 	assertLoginVerifyResponse(response);
 	return response;
 }

@@ -63,6 +63,21 @@ export function assertLoginVerifyRequest(
 	assert(payload.email.includes("@"), "invalid email");
 	assert(payload.client_public_key_a.length > 0, "invalid client_public_key_a");
 	assert(payload.client_proof_m1.length > 0, "invalid client_proof_m1");
+	if (payload.totp_code !== undefined) {
+		assert(isString(payload.totp_code), "invalid totp_code");
+	}
+	if (payload.backup_code !== undefined) {
+		assert(isString(payload.backup_code), "invalid backup_code");
+	}
+}
+
+export function assertLoginChallengeResponse(
+	value: unknown,
+): asserts value is import("./models").LoginChallengeResponse {
+	assert(isObject(value), "invalid login challenge response");
+	assert(isString(value.challenge_id), "missing challenge_id");
+	assert(isString(value.srp_salt), "missing srp_salt");
+	assert(isString(value.server_public_key_b), "missing server_public_key_b");
 }
 
 export function assertLoginVerifyResponse(

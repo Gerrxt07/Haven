@@ -92,6 +92,8 @@ export type LoginVerifyRequest = {
 	client_public_key_a: string;
 	/// Client proof M1 (base64 encoded)
 	client_proof_m1: string;
+	totp_code?: string;
+	backup_code?: string;
 };
 
 /// SRP Verify Response (Step 2 response)
