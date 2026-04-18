@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
-import { apiLogin } from "../api/auth";
+import { apiLogin, apiLoginChallenge, apiLoginVerify } from "../api/auth";
 import { apiCreateMessage } from "../api/chat";
 import { getPublicBundle } from "../e2ee/api";
 
@@ -57,6 +57,89 @@ describe("API contract validation", () => {
 		await expect(
 			apiLogin({ email: "a@b.com", password: "supersecret" }),
 		).rejects.toThrow();
+	});
+
+	it("accepts valid SRP challenge response shape", async () => {
+		setMockFetch(async () =>
+			jsonResponse({
+				challenge_id: "challenge-1",
+				srp_salt: "salt",
+				server_public_key_b: "server-key",
+			}),
+		);
+
+		const response = await apiLoginChallenge({
+			email: "a@b.com",
+		});
+		expect(response.challenge_id).toBe("challenge-1");
+	});
+
+	it("rejects invalid SRP challenge response shape", async () => {
+		setMockFetch(async () =>
+			jsonResponse({
+				challenge_id: "challenge-1",
+				srp_salt: "salt",
+			}),
+		);
+
+		await expect(apiLoginChallenge({ email: "a@b.com" })).rejects.toThrow();
+	});
+
+	it("sends SRP verify 2FA fields when provided", async () => {
+		let capturedBody: string | null = null;
+		let challengeHeader: string | null = null;
+		setMockFetch(async (_input, init) => {
+			capturedBody = typeof init?.body === "string" ? init.body : null;
+			challengeHeader =
+				init?.headers instanceof Headers
+					? init.headers.get("x-srp-challenge-id")
+					: ((init?.headers as Record<string, string> | undefined)?.[
+							"x-srp-challenge-id"
+						] ?? null);
+			return jsonResponse({
+				server_proof_m2: "proof",
+				access_token: "acc",
+				refresh_token: "ref",
+				token_type: "Bearer",
+				expires_in_seconds: 900,
+			});
+		});
+
+		await apiLoginVerify(
+			{
+				email: "a@b.com",
+				client_public_key_a: "client-a",
+				client_proof_m1: "proof-m1",
+				totp_code: "123456",
+				backup_code: "backup-1",
+			},
+			"challenge-1",
+		);
+
+		expect(capturedBody).not.toBeNull();
+		const requestBody = JSON.parse(capturedBody ?? "");
+		expect(requestBody).toEqual({
+			email: "a@b.com",
+			client_public_key_a: "client-a",
+			client_proof_m1: "proof-m1",
+			totp_code: "123456",
+			backup_code: "backup-1",
+		});
+		expect(challengeHeader).not.toBeNull();
+		expect(String(challengeHeader)).toBe("challenge-1");
+	});
+
+	it("rejects empty SRP challenge id header values", async () => {
+		await expect(
+			apiLoginVerify(
+				{
+					email: "a@b.com",
+					client_public_key_a: "client-a",
+					client_proof_m1: "proof-m1",
+				},
+				"   ",
+			),
+		).rejects.toThrow("invalid x-srp-challenge-id");
 	});
 
 	it("rejects invalid chat message contract", async () => {

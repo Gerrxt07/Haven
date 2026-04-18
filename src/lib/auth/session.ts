@@ -4,6 +4,8 @@ import {
 	apiClient,
 	apiConfirmEmailVerification,
 	apiLogin,
+	apiLoginChallenge,
+	apiLoginVerify,
 	apiMe,
 	apiRefresh,
 	apiRegister,
@@ -23,10 +25,20 @@ import {
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
 import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
+import {
+	cleanupSrpState,
+	computeClientProof,
+	generateSalt,
+	generateVerifier,
+	initSrpLogin,
+	type SrpLoginState,
+	verifyServerProof,
+} from "./srp";
 
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
 const TOKEN_NAMESPACE = "auth";
+const MIN_PASSWORD_LENGTH = 10;
 
 type SessionState = {
 	accessToken: string | null;
@@ -36,6 +48,14 @@ type SessionState = {
 };
 
 type SessionListener = (state: SessionState) => void;
+
+function assertRegistrationPassword(password: string): void {
+	if (password.length < MIN_PASSWORD_LENGTH) {
+		throw new Error(
+			`password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+		);
+	}
+}
 
 class AuthSessionManager {
 	private state: SessionState = {
@@ -129,8 +149,30 @@ class AuthSessionManager {
 		this.notify();
 	}
 
-	async register(payload: RegisterRequest): Promise<AuthUserResponse> {
-		return apiRegister(payload);
+	async register(
+		payload: Omit<RegisterRequest, "srp_salt" | "srp_verifier"> & {
+			password: string;
+		},
+	): Promise<AuthUserResponse> {
+		assertRegistrationPassword(payload.password);
+
+		const { password, ...registrationFields } = payload;
+
+		// Generate SRP salt and verifier locally
+		const salt = generateSalt();
+		const verifier = generateVerifier(registrationFields.email, password, salt);
+
+		const srpPayload: RegisterRequest = {
+			username: registrationFields.username,
+			display_name: registrationFields.display_name,
+			email: registrationFields.email,
+			srp_salt: salt,
+			srp_verifier: verifier,
+			date_of_birth: registrationFields.date_of_birth,
+			locale: registrationFields.locale,
+		};
+
+		return apiRegister(srpPayload);
 	}
 
 	async requestEmailVerification(
@@ -145,12 +187,70 @@ class AuthSessionManager {
 		return apiConfirmEmailVerification(payload);
 	}
 
+	/// Legacy login using password (for backward compatibility)
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {
 		const tokens = await apiLogin(payload);
 		await this.persistTokens(tokens);
 		this.state.currentUser = await apiMe();
 		this.notify();
 		return this.state.currentUser;
+	}
+
+	/// SRP login using 2-step challenge-response handshake
+	async loginWithSRP(
+		email: string,
+		password: string,
+		totpCode?: string,
+		backupCode?: string,
+	): Promise<AuthUserResponse> {
+		// Step 0: Initialize SRP client ephemeral keys
+		const srpState: SrpLoginState = initSrpLogin(email, password);
+
+		try {
+			// Step 1: Send email to server to get challenge (salt + server public key B)
+			const challengeResponse = await apiLoginChallenge({ email });
+
+			// Step 2: Compute client proof M1 using the password (client-side only)
+			const clientProof = computeClientProof(srpState, challengeResponse);
+
+			// Step 3: Send client public key A and proof M1 to server
+			const verifyResponse = await apiLoginVerify(
+				{
+					email,
+					client_public_key_a: clientProof.clientPublicKeyA,
+					client_proof_m1: clientProof.clientProofM1,
+					totp_code: totpCode,
+					backup_code: backupCode,
+				},
+				challengeResponse.challenge_id,
+			);
+
+			// Step 4: Verify server proof M2
+			const isServerVerified = verifyServerProof(
+				srpState,
+				verifyResponse.server_proof_m2,
+			);
+			if (!isServerVerified) {
+				throw new Error(
+					"Server authentication failed - possible man-in-the-middle attack",
+				);
+			}
+
+			// Extract tokens from verify response
+			const tokens: AuthTokens = {
+				access_token: verifyResponse.access_token,
+				refresh_token: verifyResponse.refresh_token,
+				token_type: verifyResponse.token_type,
+				expires_in_seconds: verifyResponse.expires_in_seconds,
+			};
+
+			await this.persistTokens(tokens);
+			this.state.currentUser = await apiMe();
+			this.notify();
+			return this.state.currentUser;
+		} finally {
+			cleanupSrpState(srpState);
+		}
 	}
 
 	async logout(): Promise<void> {

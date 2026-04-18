@@ -40,7 +40,8 @@ export function assertRegisterRequest(payload: RegisterRequest): void {
 	assert(payload.username.trim().length >= 3, "invalid username");
 	assert(payload.display_name.trim().length >= 1, "invalid display_name");
 	assert(payload.email.includes("@"), "invalid email");
-	assert(payload.password.length >= 8, "invalid password");
+	assert(payload.srp_salt.length > 0, "invalid srp_salt");
+	assert(payload.srp_verifier.length > 0, "invalid srp_verifier");
 	assert(payload.date_of_birth.length > 0, "invalid date_of_birth");
 	assert(payload.locale.length > 0, "invalid locale");
 }
@@ -48,6 +49,46 @@ export function assertRegisterRequest(payload: RegisterRequest): void {
 export function assertLoginRequest(payload: LoginRequest): void {
 	assert(payload.email.includes("@"), "invalid email");
 	assert(payload.password.length > 0, "invalid password");
+}
+
+export function assertLoginChallengeRequest(
+	payload: import("./models").LoginChallengeRequest,
+): void {
+	assert(payload.email.includes("@"), "invalid email");
+}
+
+export function assertLoginVerifyRequest(
+	payload: import("./models").LoginVerifyRequest,
+): void {
+	assert(payload.email.includes("@"), "invalid email");
+	assert(payload.client_public_key_a.length > 0, "invalid client_public_key_a");
+	assert(payload.client_proof_m1.length > 0, "invalid client_proof_m1");
+	if (payload.totp_code !== undefined) {
+		assert(isString(payload.totp_code), "invalid totp_code");
+	}
+	if (payload.backup_code !== undefined) {
+		assert(isString(payload.backup_code), "invalid backup_code");
+	}
+}
+
+export function assertLoginChallengeResponse(
+	value: unknown,
+): asserts value is import("./models").LoginChallengeResponse {
+	assert(isObject(value), "invalid login challenge response");
+	assert(isString(value.challenge_id), "missing challenge_id");
+	assert(isString(value.srp_salt), "missing srp_salt");
+	assert(isString(value.server_public_key_b), "missing server_public_key_b");
+}
+
+export function assertLoginVerifyResponse(
+	value: unknown,
+): asserts value is import("./models").LoginVerifyResponse {
+	assert(isObject(value), "invalid login verify response");
+	assert(isString(value.server_proof_m2), "missing server_proof_m2");
+	assert(isString(value.access_token), "missing access_token");
+	assert(isString(value.refresh_token), "missing refresh_token");
+	assert(isString(value.token_type), "missing token_type");
+	assert(isNumber(value.expires_in_seconds), "missing expires_in_seconds");
 }
 
 export function assertRefreshRequest(payload: RefreshRequest): void {

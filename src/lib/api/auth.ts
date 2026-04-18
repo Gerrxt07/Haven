@@ -5,7 +5,11 @@ import type {
 	AuthUserResponse,
 	EmailVerificationConfirmRequest,
 	EmailVerificationRequest,
+	LoginChallengeRequest,
+	LoginChallengeResponse,
 	LoginRequest,
+	LoginVerifyRequest,
+	LoginVerifyResponse,
 	RefreshRequest,
 	RegisterRequest,
 	StatusResponse,
@@ -15,7 +19,11 @@ import {
 	assertAuthUser,
 	assertEmailVerificationConfirmRequest,
 	assertEmailVerificationRequest,
+	assertLoginChallengeRequest,
+	assertLoginChallengeResponse,
 	assertLoginRequest,
+	assertLoginVerifyRequest,
+	assertLoginVerifyResponse,
 	assertRefreshRequest,
 	assertRegisterRequest,
 	assertStatusResponse,
@@ -84,6 +92,45 @@ export async function apiLogin(
 		},
 	);
 	assertAuthTokens(response);
+	return response;
+}
+
+/// Step 1 of SRP login: Request challenge from server
+export async function apiLoginChallenge(
+	payload: LoginChallengeRequest,
+	signal?: AbortSignal,
+): Promise<LoginChallengeResponse> {
+	assertLoginChallengeRequest(payload);
+	const response = await apiClient.post<
+		LoginChallengeRequest,
+		LoginChallengeResponse
+	>("/auth/login/challenge", payload, {
+		signal,
+	});
+	assertLoginChallengeResponse(response);
+	return response;
+}
+
+/// Step 2 of SRP login: Verify client proof and get tokens
+export async function apiLoginVerify(
+	payload: LoginVerifyRequest,
+	challengeId: string,
+	signal?: AbortSignal,
+): Promise<LoginVerifyResponse> {
+	assertLoginVerifyRequest(payload);
+	if (challengeId.trim().length === 0) {
+		throw new Error("invalid x-srp-challenge-id");
+	}
+	const response = await apiClient.post<
+		LoginVerifyRequest,
+		LoginVerifyResponse
+	>("/auth/login/verify", payload, {
+		signal,
+		headers: {
+			"x-srp-challenge-id": challengeId.trim(),
+		},
+	});
+	assertLoginVerifyResponse(response);
 	return response;
 }
 
