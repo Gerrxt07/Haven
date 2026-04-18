@@ -29,6 +29,14 @@ export const en = {
 		commandThemeDarkDesc: "Use the darker, focus-first theme.",
 		commandCloseWindow: "Close Window",
 		commandCloseWindowDesc: "Close the current Haven window.",
+		changelogEyebrow: "What's New",
+		changelogTitle: "Update from v{{from}} to v{{to}}",
+		changelogSummary: "Here is everything that changed since your last launch.",
+		changelogFallback:
+			"Could not resolve exact version diff. Showing latest repository changes instead.",
+		changelogEmpty:
+			"No detailed changelog entries were returned for this update yet.",
+		changelogAcknowledge: "Got it",
 		externalLinkWarning:
 			"Warning: You are leaving Haven to visit an external website:\n\n{{url}}\n\nDo you want to continue?",
 	},

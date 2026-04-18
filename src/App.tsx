@@ -20,6 +20,7 @@ import {
 	Suspense,
 } from "solid-js";
 import { Motion } from "solid-motionone";
+import { ChangelogModal } from "./components/ui/changelog-modal";
 import {
 	CommandPalette,
 	type CommandPaletteAction,
@@ -32,10 +33,12 @@ import {
 } from "./components/ui/tooltip";
 import { t, tf } from "./i18n";
 import { authSession } from "./lib/auth/session";
+import { type ChangelogData, loadChangelog } from "./lib/changelog";
 import { currentTheme, toggleTheme } from "./lib/theme";
 
 const HomeView = lazy(() => import("./views/Home"));
 const AuthView = lazy(() => import("./views/Auth"));
+const LAST_SEEN_VERSION_STORAGE_KEY = "haven.lastSeenVersion";
 
 export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
@@ -48,10 +51,85 @@ export default function App() {
 		"auth" | "home" | null
 	>(null);
 	const [appVersion, setAppVersion] = createSignal("");
+	const [changelogModal, setChangelogModal] = createSignal<{
+		fromVersion: string;
+		toVersion: string;
+		entries: ChangelogData["entries"];
+		source: ChangelogData["source"];
+	} | null>(null);
 	let surfaceTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	const openHelp = () => {
 		globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
+	};
+
+	const readLastSeenVersion = () => {
+		try {
+			const value = globalThis.localStorage.getItem(
+				LAST_SEEN_VERSION_STORAGE_KEY,
+			);
+			if (typeof value !== "string" || value.trim().length === 0) {
+				return null;
+			}
+
+			return value.trim();
+		} catch {
+			return null;
+		}
+	};
+
+	const persistLastSeenVersion = (version: string) => {
+		try {
+			globalThis.localStorage.setItem(LAST_SEEN_VERSION_STORAGE_KEY, version);
+		} catch {
+			// Ignore storage errors (private mode / restricted contexts).
+		}
+	};
+
+	const initializeChangelog = async (currentVersion: string) => {
+		const normalizedCurrentVersion = currentVersion.trim();
+		if (!normalizedCurrentVersion) {
+			return;
+		}
+
+		const lastSeenVersion = readLastSeenVersion();
+		if (!lastSeenVersion) {
+			persistLastSeenVersion(normalizedCurrentVersion);
+			return;
+		}
+
+		if (lastSeenVersion === normalizedCurrentVersion) {
+			return;
+		}
+
+		try {
+			const changelog = await loadChangelog(
+				lastSeenVersion,
+				normalizedCurrentVersion,
+			);
+			setChangelogModal({
+				fromVersion: lastSeenVersion,
+				toVersion: normalizedCurrentVersion,
+				entries: changelog.entries,
+				source: changelog.source,
+			});
+		} catch (error) {
+			console.warn("Could not load changelog commits", error);
+			setChangelogModal({
+				fromVersion: lastSeenVersion,
+				toVersion: normalizedCurrentVersion,
+				entries: [],
+				source: "latest",
+			});
+		}
+	};
+
+	const acknowledgeChangelog = () => {
+		const currentVersion = appVersion().trim();
+		if (currentVersion) {
+			persistLastSeenVersion(currentVersion);
+		}
+		setChangelogModal(null);
 	};
 
 	const commandActions = createMemo<CommandPaletteAction[]>(() => [
@@ -140,6 +218,7 @@ export default function App() {
 	onMount(async () => {
 		const version = await globalThis.electronAPI.appVersion();
 		setAppVersion(version);
+		void initializeChangelog(version);
 
 		const unsub = authSession.onChange(setAuthState);
 		onCleanup(() => unsub());
@@ -443,6 +522,18 @@ export default function App() {
 					onOpenChange={setIsCommandPaletteOpen}
 					actions={commandActions()}
 				/>
+			</Show>
+			<Show when={changelogModal()}>
+				{(modal) => (
+					<ChangelogModal
+						open={true}
+						fromVersion={modal().fromVersion}
+						toVersion={modal().toVersion}
+						entries={modal().entries}
+						source={modal().source}
+						onAcknowledge={acknowledgeChangelog}
+					/>
+				)}
 			</Show>
 		</div>
 	);

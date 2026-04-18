@@ -32,6 +32,15 @@ export const de = {
 		commandThemeDarkDesc: "Aktiviert das dunkle, fokussierte Design.",
 		commandCloseWindow: "Fenster schließen",
 		commandCloseWindowDesc: "Schließt das aktuelle Haven-Fenster.",
+		changelogEyebrow: "Was ist neu",
+		changelogTitle: "Update von v{{from}} auf v{{to}}",
+		changelogSummary:
+			"Hier siehst du alle Änderungen seit deinem letzten Start.",
+		changelogFallback:
+			"Der exakte Versionsvergleich konnte nicht geladen werden. Es werden stattdessen die neuesten Repository-Änderungen angezeigt.",
+		changelogEmpty:
+			"Für dieses Update liegen aktuell noch keine detaillierten Changelog-Einträge vor.",
+		changelogAcknowledge: "Verstanden",
 		externalLinkWarning:
 			"Warnung: Du verlässt Haven, um eine externe Website zu besuchen:\n\n{{url}}\n\nWillst du fortfahren?",
 	},
