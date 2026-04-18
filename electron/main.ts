@@ -33,6 +33,9 @@ const maxStoredSecretLength = 8192;
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isAppQuitting = false;
+
+// In-memory cache for the auth token to avoid disk I/O and decryption overhead on every request
+let cachedAuthToken: string | null = null;
 const WINDOWS_APP_USER_MODEL_ID = "com.haven.app";
 
 if (process.platform === "win32") {
@@ -131,6 +134,8 @@ ipcMain.handle("secure-store-token", async (event, token: string) => {
 	if (safeStorage.isEncryptionAvailable()) {
 		const encryptedToken = safeStorage.encryptString(token);
 		await writeEncryptedFile(authFilePath, encryptedToken);
+		// Update the in-memory cache
+		cachedAuthToken = token;
 		secureLogger.logSecurity("token-stored", { path: authFilePath });
 		return true;
 	}
@@ -154,8 +159,11 @@ ipcMain.handle("secure-load-token", async (event) => {
 
 	try {
 		const encryptedToken = await fs.readFile(authFilePath);
+		const decryptedToken = safeStorage.decryptString(encryptedToken);
+		// Update the in-memory cache
+		cachedAuthToken = decryptedToken;
 		secureLogger.logSecurity("token-loaded");
-		return safeStorage.decryptString(encryptedToken);
+		return decryptedToken;
 	} catch {
 		secureLogger.debug("auth", "token-load-failed", {
 			reason: "file-not-found-or-decryption-failed",
@@ -175,6 +183,8 @@ ipcMain.handle("secure-delete-token", async (event) => {
 
 	try {
 		await fs.unlink(authFilePath);
+		// Clear the in-memory cache
+		cachedAuthToken = null;
 		secureLogger.logSecurity("token-deleted");
 		return true;
 	} catch {
@@ -763,12 +773,19 @@ app.whenReady().then(() => {
 	session.defaultSession.webRequest.onBeforeSendHeaders(
 		{ urls: ["https://havenapi.becloudly.eu/*"] }, // Only attach to your trusted backend API
 		async (details, callback) => {
-			let token = null;
-			try {
-				const encryptedToken = await fs.readFile(authFilePath);
-				token = safeStorage.decryptString(encryptedToken);
-			} catch {
-				/* ignore */
+			// Use the cached token instead of reading from disk on every request
+			let token = cachedAuthToken;
+
+			// Fallback to loading from disk if cache is empty
+			if (!token && safeStorage.isEncryptionAvailable()) {
+				try {
+					const encryptedToken = await fs.readFile(authFilePath);
+					token = safeStorage.decryptString(encryptedToken);
+					// Update the cache for future requests
+					cachedAuthToken = token;
+				} catch {
+					/* ignore */
+				}
 			}
 
 			if (token) {
