@@ -436,6 +436,12 @@ function notifyWindowStateChanged() {
 
 const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 const trustedDevOrigin = (() => {
+	// SECURITY: Use app.isPackaged to reliably detect production builds.
+	// process.env can be manipulated by users when launching the app.
+	if (app.isPackaged) {
+		return null;
+	}
+
 	if (!devServerUrl) {
 		return null;
 	}
@@ -610,7 +616,7 @@ function createWindow() {
 	});
 	secureLogger.logWindowState("window-created", { width, height });
 
-	if (process.env.VITE_DEV_SERVER_URL) {
+	if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
 		secureLogger.logWindowState("loading-dev-url", {
 			url: process.env.VITE_DEV_SERVER_URL,
 		});
@@ -698,7 +704,7 @@ function createWindow() {
 }
 
 function getAppIconPath(): string {
-	const isDev = !!process.env.VITE_DEV_SERVER_URL;
+	const isDev = !app.isPackaged;
 	return isDev
 		? path.join(__dirname, "../public/logo.png")
 		: path.join(__dirname, "../dist/logo.png");
@@ -752,8 +758,9 @@ app.whenReady().then(() => {
 	const contentSecurityPolicy = getContentSecurityPolicy();
 
 	app.on("browser-window-created", (_, window) => {
-		// Prevent DevTools from opening in Production
-		if (!process.env.VITE_DEV_SERVER_URL) {
+		// SECURITY: Prevent DevTools from opening in Production.
+		// Use app.isPackaged instead of process.env to avoid bypass via environment variables.
+		if (app.isPackaged) {
 			window.webContents.on("devtools-opened", () => {
 				window.webContents.closeDevTools();
 			});
