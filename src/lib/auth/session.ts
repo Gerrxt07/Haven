@@ -57,6 +57,10 @@ function assertRegistrationPassword(password: string): void {
 	}
 }
 
+function normalizeEmail(email: string): string {
+	return email.trim().toLowerCase();
+}
+
 class AuthSessionManager {
 	private state: SessionState = {
 		accessToken: null,
@@ -157,15 +161,16 @@ class AuthSessionManager {
 		assertRegistrationPassword(payload.password);
 
 		const { password, ...registrationFields } = payload;
+		const normalizedEmail = normalizeEmail(registrationFields.email);
 
 		// Generate SRP salt and verifier locally
 		const salt = generateSalt();
-		const verifier = generateVerifier(registrationFields.email, password, salt);
+		const verifier = generateVerifier(normalizedEmail, password, salt);
 
 		const srpPayload: RegisterRequest = {
 			username: registrationFields.username,
 			display_name: registrationFields.display_name,
-			email: registrationFields.email,
+			email: normalizedEmail,
 			srp_salt: salt,
 			srp_verifier: verifier,
 			date_of_birth: registrationFields.date_of_birth,
@@ -188,23 +193,30 @@ class AuthSessionManager {
 	}
 
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {
+		const normalizedEmail = normalizeEmail(payload.email);
+		let challengeResponse: Awaited<ReturnType<typeof apiLoginChallenge>>;
+
 		try {
-			const challengeResponse = await apiLoginChallenge({
-				email: payload.email,
+			challengeResponse = await apiLoginChallenge({
+				email: normalizedEmail,
 			});
-			return await this.completeSrpLogin(
-				payload.email,
-				payload.password,
-				challengeResponse,
-			);
 		} catch (error) {
 			if (!this.shouldFallbackToLegacyLogin(error)) {
 				throw error;
 			}
+
+			const tokens = await apiLogin({
+				...payload,
+				email: normalizedEmail,
+			});
+			return this.finalizeLogin(tokens);
 		}
 
-		const tokens = await apiLogin(payload);
-		return this.finalizeLogin(tokens);
+		return this.completeSrpLogin(
+			normalizedEmail,
+			payload.password,
+			challengeResponse,
+		);
 	}
 
 	/// SRP login using 2-step challenge-response handshake
@@ -214,9 +226,12 @@ class AuthSessionManager {
 		totpCode?: string,
 		backupCode?: string,
 	): Promise<AuthUserResponse> {
-		const challengeResponse = await apiLoginChallenge({ email });
+		const normalizedEmail = normalizeEmail(email);
+		const challengeResponse = await apiLoginChallenge({
+			email: normalizedEmail,
+		});
 		return this.completeSrpLogin(
-			email,
+			normalizedEmail,
 			password,
 			challengeResponse,
 			totpCode,
