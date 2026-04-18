@@ -90,6 +90,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		>,
 	setUpdateCandidate: (candidate: "release" | "nightly") =>
 		ipcRenderer.invoke("updater-set-candidate", candidate) as Promise<boolean>,
+	getBuildReleaseChannel: () =>
+		ipcRenderer.invoke("updater-get-build-channel") as Promise<
+			"release" | "nightly" | null
+		>,
 
 	validateEmailDomain: (domain: string) =>
 		ipcRenderer.invoke("validate-email-domain", domain) as Promise<boolean>,

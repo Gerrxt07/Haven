@@ -33,6 +33,7 @@ const RESERVED_NAMES = [
 	// Updater IPC channels
 	"updater-get-candidate",
 	"updater-set-candidate",
+	"updater-get-build-channel",
 	// Logging IPC channels
 	"write-detailed-log",
 	// Email validation IPC channels
@@ -54,6 +55,7 @@ const RESERVED_NAMES = [
 	"confirmOpenUrl",
 	"getUpdateCandidate",
 	"setUpdateCandidate",
+	"getBuildReleaseChannel",
 	"validateEmailDomain",
 	// Global updater window method
 	"__havenUpdater",
@@ -144,6 +146,11 @@ const rendererObfuscationOptions: ObfuscatorOptions = {
 export default defineConfig(({ mode }) => ({
 	experimental: {
 		rolldown: true,
+	},
+	define: {
+		__HAVEN_RELEASE_CHANNEL__: JSON.stringify(
+			process.env.HAVEN_RELEASE_CHANNEL ?? "nightly",
+		),
 	},
 	resolve: {
 		alias: {

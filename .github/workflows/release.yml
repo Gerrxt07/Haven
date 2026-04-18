@@ -1,10 +1,12 @@
-name: Nightly Release
+name: Release
 
 on:
-  schedule:
-    # Runs at 02:00 AM every night
-    - cron: '0 2 * * *'
-  workflow_dispatch: # Allows you to manually trigger the workflow from the GitHub UI for testing
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 2026.4.18). Leave empty to use package.json version.'
+        required: false
+        type: string
 
 jobs:
   check-version:
@@ -20,7 +22,11 @@ jobs:
       - name: Get package.json version
         id: get_version
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       
       - name: Check GitHub Releases
@@ -28,12 +34,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Try to view the release for this nightly version tag
-          if gh release view "v${{ steps.get_version.outputs.version }}-nightly" > /dev/null 2>&1; then
-            echo "Release v${{ steps.get_version.outputs.version }}-nightly already exists. Skipping build."
+          # Try to view the release for this version tag
+          if gh release view "v${{ steps.get_version.outputs.version }}" > /dev/null 2>&1; then
+            echo "Release v${{ steps.get_version.outputs.version }} already exists. Skipping build."
             echo "should_release=false" >> $GITHUB_OUTPUT
           else
-            echo "Release v${{ steps.get_version.outputs.version }}-nightly does not exist. Proceeding with build."
+            echo "Release v${{ steps.get_version.outputs.version }} does not exist. Proceeding with build."
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
@@ -45,12 +51,11 @@ jobs:
       contents: write
     strategy:
       matrix:
-        # Build across all major OS automatically!
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       GH_TOKEN: ${{ github.token }}
-      HAVEN_RELEASE_CHANNEL: nightly
+      HAVEN_RELEASE_CHANNEL: release
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -84,9 +89,8 @@ jobs:
       - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}-nightly
-          name: Nightly Build v${{ needs.check-version.outputs.version }}
-          # Glob patterns point to where electron-builder dumps the installers as configured in package.json
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
           files: |
             release/*.exe
             release/*.dmg
@@ -97,6 +101,6 @@ jobs:
             release/*.yaml
             release/*.blockmap
           draft: false
-          prerelease: true
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
