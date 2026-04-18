@@ -87,8 +87,15 @@ describe("API contract validation", () => {
 
 	it("sends SRP verify 2FA fields when provided", async () => {
 		let capturedBody: string | null = null;
+		let challengeHeader: string | null = null;
 		setMockFetch(async (_input, init) => {
 			capturedBody = typeof init?.body === "string" ? init.body : null;
+			challengeHeader =
+				init?.headers instanceof Headers
+					? init.headers.get("x-srp-challenge-id")
+					: ((init?.headers as Record<string, string> | undefined)?.[
+							"x-srp-challenge-id"
+						] ?? null);
 			return jsonResponse({
 				server_proof_m2: "proof",
 				access_token: "acc",
@@ -118,6 +125,21 @@ describe("API contract validation", () => {
 			totp_code: "123456",
 			backup_code: "backup-1",
 		});
+		expect(challengeHeader).not.toBeNull();
+		expect(String(challengeHeader)).toBe("challenge-1");
+	});
+
+	it("rejects empty SRP challenge id header values", async () => {
+		await expect(
+			apiLoginVerify(
+				{
+					email: "a@b.com",
+					client_public_key_a: "client-a",
+					client_proof_m1: "proof-m1",
+				},
+				"   ",
+			),
+		).rejects.toThrow("invalid x-srp-challenge-id");
 	});
 
 	it("rejects invalid chat message contract", async () => {

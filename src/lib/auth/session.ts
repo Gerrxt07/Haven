@@ -38,6 +38,7 @@ import {
 const ACCESS_TOKEN_KEY = "token.access";
 const REFRESH_TOKEN_KEY = "token.refresh";
 const TOKEN_NAMESPACE = "auth";
+const MIN_PASSWORD_LENGTH = 10;
 
 type SessionState = {
 	accessToken: string | null;
@@ -47,6 +48,14 @@ type SessionState = {
 };
 
 type SessionListener = (state: SessionState) => void;
+
+function assertRegistrationPassword(password: string): void {
+	if (password.length < MIN_PASSWORD_LENGTH) {
+		throw new Error(
+			`password must be at least ${MIN_PASSWORD_LENGTH} characters long`,
+		);
+	}
+}
 
 class AuthSessionManager {
 	private state: SessionState = {
@@ -145,21 +154,22 @@ class AuthSessionManager {
 			password: string;
 		},
 	): Promise<AuthUserResponse> {
+		assertRegistrationPassword(payload.password);
+
+		const { password, ...registrationFields } = payload;
+
 		// Generate SRP salt and verifier locally
 		const salt = generateSalt();
-		const verifier = generateVerifier(payload.email, payload.password, salt);
-
-		// Clear password from memory (best effort)
-		payload.password = "";
+		const verifier = generateVerifier(registrationFields.email, password, salt);
 
 		const srpPayload: RegisterRequest = {
-			username: payload.username,
-			display_name: payload.display_name,
-			email: payload.email,
+			username: registrationFields.username,
+			display_name: registrationFields.display_name,
+			email: registrationFields.email,
 			srp_salt: salt,
 			srp_verifier: verifier,
-			date_of_birth: payload.date_of_birth,
-			locale: payload.locale,
+			date_of_birth: registrationFields.date_of_birth,
+			locale: registrationFields.locale,
 		};
 
 		return apiRegister(srpPayload);
@@ -201,13 +211,7 @@ class AuthSessionManager {
 			const challengeResponse = await apiLoginChallenge({ email });
 
 			// Step 2: Compute client proof M1 using the password (client-side only)
-			const challengeWithId = {
-				challengeId: challengeResponse.challenge_id,
-				srp_salt: challengeResponse.srp_salt,
-				server_public_key_b: challengeResponse.server_public_key_b,
-			};
-
-			const clientProof = computeClientProof(srpState, challengeWithId);
+			const clientProof = computeClientProof(srpState, challengeResponse);
 
 			// Step 3: Send client public key A and proof M1 to server
 			const verifyResponse = await apiLoginVerify(

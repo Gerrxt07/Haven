@@ -5,6 +5,7 @@
 
 import type { Session as SrpClientSession } from "secure-remote-password/client";
 import * as srpClient from "secure-remote-password/client";
+import type { LoginChallengeResponse } from "../api/models";
 
 // Generate a random salt for SRP registration
 export function generateSalt(): string {
@@ -94,13 +95,6 @@ export function initSrpLogin(email: string, password: string): SrpLoginState {
 	};
 }
 
-// After receiving challenge response, compute client proof (Step 1: Calculate M1)
-export interface SrpChallengeResponse {
-	challengeId: string;
-	srp_salt: string;
-	server_public_key_b: string;
-}
-
 export interface SrpClientProof {
 	clientPublicKeyA: string;
 	clientProofM1: string;
@@ -109,10 +103,10 @@ export interface SrpClientProof {
 
 export function computeClientProof(
 	state: SrpLoginState,
-	challenge: SrpChallengeResponse,
+	challenge: LoginChallengeResponse,
 ): SrpClientProof {
 	// Update state with challenge data
-	state.challengeId = challenge.challengeId;
+	state.challengeId = challenge.challenge_id;
 	state.salt = challenge.srp_salt;
 	state.serverPublicKeyB = challenge.server_public_key_b;
 

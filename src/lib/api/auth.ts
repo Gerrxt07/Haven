@@ -118,13 +118,16 @@ export async function apiLoginVerify(
 	signal?: AbortSignal,
 ): Promise<LoginVerifyResponse> {
 	assertLoginVerifyRequest(payload);
+	if (challengeId.trim().length === 0) {
+		throw new Error("invalid x-srp-challenge-id");
+	}
 	const response = await apiClient.post<
 		LoginVerifyRequest,
 		LoginVerifyResponse
 	>("/auth/login/verify", payload, {
 		signal,
 		headers: {
-			"x-srp-challenge-id": challengeId,
+			"x-srp-challenge-id": challengeId.trim(),
 		},
 	});
 	assertLoginVerifyResponse(response);
