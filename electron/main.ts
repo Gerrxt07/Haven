@@ -550,7 +550,54 @@ const dangerousArgs = [
 	"--inspect-brk",
 	"--enable-blink-features",
 	"--js-flags",
+	"--no-sandbox",
+	"--proxy-server",
+	"--proxy-bypass-list",
+	"--host-resolver-rules",
+	"--allow-file-access-from-files",
+	"--disable-web-security",
+	"--disable-features",
+	"--enable-features",
+	"--load-extension",
+	"--disable-extensions-except",
+	"--whitelisted-ips",
+	"--tor-proxy",
+	"--explicitly-allowed-ports",
+	"--ignore-certificate-errors",
+	"--ignore-certificate-errors-spki-list",
+	"--ignore-urlfetcher-cert-requests",
 ];
+
+// SECURITY: Forcefully remove dangerous switches at the Chromium engine level.
+// This is a defense-in-depth measure in addition to the blacklist check.
+const switchesToRemove = [
+	"remote-debugging-port",
+	"remote-debugging-pipe",
+	"inspect",
+	"inspect-brk",
+	"enable-blink-features",
+	"js-flags",
+	"no-sandbox",
+	"proxy-server",
+	"proxy-bypass-list",
+	"host-resolver-rules",
+	"allow-file-access-from-files",
+	"disable-web-security",
+	"disable-features",
+	"enable-features",
+	"load-extension",
+	"disable-extensions-except",
+	"whitelisted-ips",
+	"tor-proxy",
+	"explicitly-allowed-ports",
+	"ignore-certificate-errors",
+	"ignore-certificate-errors-spki-list",
+	"ignore-urlfetcher-cert-requests",
+];
+
+for (const switchName of switchesToRemove) {
+	app.commandLine.removeSwitch(switchName);
+}
 
 for (const arg of process.argv) {
 	if (dangerousArgs.some((danger) => arg.startsWith(danger))) {
