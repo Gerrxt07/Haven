@@ -40,13 +40,42 @@ export function setChannelLoading(channelId: number, loading: boolean): void {
 }
 
 export function mergeMessages(channelId: number, incoming: MessageDto[]): void {
+	if (incoming.length === 0) {
+		return;
+	}
 	ensureChannel(channelId);
 	setChatStore("messagesByChannel", String(channelId), (current) => {
 		const map = { ...current.byId };
-		for (const item of incoming) {
-			map[String(item.id)] = item;
+		const items = [...current.items];
+
+		for (const incomingItem of incoming) {
+			const idKey = String(incomingItem.id);
+			const hadExisting = map[idKey] !== undefined;
+			map[idKey] = incomingItem;
+
+			if (hadExisting) {
+				const existingIndex = items.findIndex(
+					(entry) => entry.id === incomingItem.id,
+				);
+				if (existingIndex >= 0) {
+					items[existingIndex] = incomingItem;
+					continue;
+				}
+			}
+
+			let left = 0;
+			let right = items.length;
+			while (left < right) {
+				const mid = (left + right) >> 1;
+				if (items[mid].id > incomingItem.id) {
+					left = mid + 1;
+				} else {
+					right = mid;
+				}
+			}
+			items.splice(left, 0, incomingItem);
 		}
-		const items = Object.values(map).sort((a, b) => b.id - a.id);
+
 		const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
 		return {
 			...current,

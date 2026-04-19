@@ -9,6 +9,7 @@ const CACHE_NAMESPACE = "friends-cache";
 const INCOMING_CACHE_KEY = "requests.incoming";
 const OUTGOING_CACHE_KEY = "requests.outgoing";
 const FRIENDS_CACHE_KEY = "friends";
+const PERSIST_DEBOUNCE_MS = 300;
 
 export type FriendsStore = {
 	incoming: FriendRequestDto[];
@@ -94,50 +95,70 @@ function getElectronApi(): NonNullable<
 	return globalThis.electronAPI ?? null;
 }
 
-async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
+const pendingPayloadByKey = new Map<string, string>();
+const persistTimers = new Map<
+	string,
+	ReturnType<typeof globalThis.setTimeout>
+>();
+
+async function flushPersistKey(key: string): Promise<void> {
+	const timer = persistTimers.get(key);
+	if (timer) {
+		globalThis.clearTimeout(timer);
+		persistTimers.delete(key);
+	}
+
+	const payload = pendingPayloadByKey.get(key);
+	if (!payload) {
+		return;
+	}
+	pendingPayloadByKey.delete(key);
+
 	const api = getElectronApi();
-	if (!api) return;
+	if (!api) {
+		return;
+	}
+
 	try {
-		// Only persist pending requests — processed ones must not survive in cache
-		const pending = requests.filter((r) => r.status === "pending");
-		await api.secureStoreSet(
-			CACHE_NAMESPACE,
-			INCOMING_CACHE_KEY,
-			JSON.stringify(pending),
-		);
+		await api.secureStoreSet(CACHE_NAMESPACE, key, payload);
 	} catch {
 		// Non-critical – cache write failures should not surface to the user
 	}
 }
 
+function schedulePersist(key: string, payload: string): void {
+	pendingPayloadByKey.set(key, payload);
+	const existingTimer = persistTimers.get(key);
+	if (existingTimer) {
+		globalThis.clearTimeout(existingTimer);
+	}
+
+	const timer = globalThis.setTimeout(() => {
+		void flushPersistKey(key);
+	}, PERSIST_DEBOUNCE_MS);
+	persistTimers.set(key, timer);
+}
+
+async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
+	const api = getElectronApi();
+	if (!api) return;
+	// Only persist pending requests — processed ones must not survive in cache
+	const pending = requests.filter((r) => r.status === "pending");
+	schedulePersist(INCOMING_CACHE_KEY, JSON.stringify(pending));
+}
+
 async function persistOutgoing(requests: FriendRequestDto[]): Promise<void> {
 	const api = getElectronApi();
 	if (!api) return;
-	try {
-		// Only persist pending requests — processed ones must not survive in cache
-		const pending = requests.filter((r) => r.status === "pending");
-		await api.secureStoreSet(
-			CACHE_NAMESPACE,
-			OUTGOING_CACHE_KEY,
-			JSON.stringify(pending),
-		);
-	} catch {
-		// Non-critical
-	}
+	// Only persist pending requests — processed ones must not survive in cache
+	const pending = requests.filter((r) => r.status === "pending");
+	schedulePersist(OUTGOING_CACHE_KEY, JSON.stringify(pending));
 }
 
 async function persistFriends(friends: FriendDto[]): Promise<void> {
 	const api = getElectronApi();
 	if (!api) return;
-	try {
-		await api.secureStoreSet(
-			CACHE_NAMESPACE,
-			FRIENDS_CACHE_KEY,
-			JSON.stringify(friends),
-		);
-	} catch {
-		// Non-critical
-	}
+	schedulePersist(FRIENDS_CACHE_KEY, JSON.stringify(friends));
 }
 
 export async function loadFriendsFromCache(): Promise<void> {

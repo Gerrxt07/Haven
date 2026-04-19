@@ -4,11 +4,15 @@ const PROFILE_CACHE_NAMESPACE = "profile-image-cache";
 const PROFILE_CACHE_PREFIX = "user:";
 const PROFILE_LOCAL_STORAGE_PREFIX = "haven.profile-image.";
 const API_ORIGIN = "https://havenapi.becloudly.eu";
+const MAX_INLINE_CACHE_PAYLOAD_LENGTH = 128_000;
+
+type CacheMode = "inline" | "source-url";
 
 type CachedProfileImage = {
-	dataUrl: string;
+	imageSrc: string;
 	sourceUrl: string | null;
 	cachedAt: number;
+	mode: CacheMode;
 };
 
 type UserWithAvatarFields = AuthUserResponse & {
@@ -25,6 +29,47 @@ type UserWithAvatarFields = AuthUserResponse & {
 
 const memoryCache = new Map<number, CachedProfileImage>();
 const inFlightByUser = new Map<number, Promise<string>>();
+
+function normalizePersistedEntry(raw: unknown): CachedProfileImage | null {
+	if (!raw || typeof raw !== "object") {
+		return null;
+	}
+	const entry = raw as Record<string, unknown>;
+	const sourceUrl =
+		typeof entry.sourceUrl === "string" ? entry.sourceUrl : null;
+	const cachedAt =
+		typeof entry.cachedAt === "number" ? entry.cachedAt : Date.now();
+	const mode = entry.mode === "source-url" ? "source-url" : "inline";
+
+	if (mode === "source-url") {
+		if (!isNonEmptyString(sourceUrl)) {
+			return null;
+		}
+		return {
+			imageSrc: sourceUrl,
+			sourceUrl,
+			cachedAt,
+			mode,
+		};
+	}
+
+	const imageSrc =
+		typeof entry.imageSrc === "string"
+			? entry.imageSrc
+			: typeof entry.dataUrl === "string"
+				? entry.dataUrl
+				: null;
+	if (!isNonEmptyString(imageSrc)) {
+		return null;
+	}
+
+	return {
+		imageSrc,
+		sourceUrl,
+		cachedAt,
+		mode,
+	};
+}
 
 function isNonEmptyString(value: unknown): value is string {
 	return typeof value === "string" && value.trim().length > 0;
@@ -94,26 +139,47 @@ async function readPersisted(
 			if (!raw) {
 				return null;
 			}
-			return JSON.parse(raw) as CachedProfileImage;
+			return normalizePersistedEntry(JSON.parse(raw));
 		}
 
 		const raw = globalThis.localStorage?.getItem(toLocalStorageKey(userId));
 		if (!raw) {
 			return null;
 		}
-		return JSON.parse(raw) as CachedProfileImage;
+		return normalizePersistedEntry(JSON.parse(raw));
 	} catch {
 		return null;
 	}
 }
 
+type PersistOptions = {
+	persistToDisk?: boolean;
+};
+
 async function persist(
 	userId: number,
 	entry: CachedProfileImage,
+	options?: PersistOptions,
 ): Promise<void> {
 	memoryCache.set(userId, entry);
+	if (options?.persistToDisk === false) {
+		return;
+	}
 
-	const payload = JSON.stringify(entry);
+	const payload = JSON.stringify(
+		entry.mode === "source-url"
+			? {
+					sourceUrl: entry.sourceUrl,
+					cachedAt: entry.cachedAt,
+					mode: entry.mode,
+				}
+			: {
+					imageSrc: entry.imageSrc,
+					sourceUrl: entry.sourceUrl,
+					cachedAt: entry.cachedAt,
+					mode: entry.mode,
+				},
+	);
 
 	try {
 		if (secureStoreAvailable()) {
@@ -177,11 +243,18 @@ export async function cacheProfileImageDataUrl(
 		return;
 	}
 
-	await persist(userId, {
-		dataUrl,
-		sourceUrl,
-		cachedAt: Date.now(),
-	});
+	await persist(
+		userId,
+		{
+			imageSrc: dataUrl,
+			sourceUrl,
+			cachedAt: Date.now(),
+			mode: "inline",
+		},
+		{
+			persistToDisk: dataUrl.length <= MAX_INLINE_CACHE_PAYLOAD_LENGTH,
+		},
+	);
 }
 
 export async function resolveProfileImageForUser(
@@ -189,6 +262,8 @@ export async function resolveProfileImageForUser(
 	fallbackImage: string,
 	accessToken?: string | null,
 ): Promise<string> {
+	void accessToken;
+
 	if (!user) {
 		return fallbackImage;
 	}
@@ -198,7 +273,7 @@ export async function resolveProfileImageForUser(
 	const avatarUrl = rawAvatarUrl ? normalizeAvatarUrl(rawAvatarUrl) : null;
 	const memory = memoryCache.get(userId);
 	if (memory && (!avatarUrl || memory.sourceUrl === avatarUrl)) {
-		return memory.dataUrl;
+		return memory.imageSrc;
 	}
 
 	const pending = inFlightByUser.get(userId);
@@ -210,7 +285,7 @@ export async function resolveProfileImageForUser(
 		const persisted = await readPersisted(userId);
 		if (persisted && (!avatarUrl || persisted.sourceUrl === avatarUrl)) {
 			memoryCache.set(userId, persisted);
-			return persisted.dataUrl;
+			return persisted.imageSrc;
 		}
 
 		if (!avatarUrl) {
@@ -222,31 +297,13 @@ export async function resolveProfileImageForUser(
 			return avatarUrl;
 		}
 
-		try {
-			const response = await fetch(avatarUrl, {
-				cache: "force-cache",
-				headers: accessToken
-					? {
-							authorization: `Bearer ${accessToken}`,
-						}
-					: undefined,
-			});
-			if (!response.ok) {
-				throw new Error(`Failed to fetch avatar (${response.status})`);
-			}
-
-			const blob = await response.blob();
-			const dataUrl = await blobToDataUrl(blob);
-			await cacheProfileImageDataUrl(userId, dataUrl, avatarUrl);
-			return dataUrl;
-		} catch {
-			const lastKnownImage = persisted?.dataUrl ?? memory?.dataUrl;
-			if (lastKnownImage) {
-				return lastKnownImage;
-			}
-
-			return fallbackImage;
-		}
+		await persist(userId, {
+			imageSrc: avatarUrl,
+			sourceUrl: avatarUrl,
+			cachedAt: Date.now(),
+			mode: "source-url",
+		});
+		return avatarUrl;
 	})();
 
 	inFlightByUser.set(userId, task);
@@ -283,16 +340,10 @@ export async function primeRelatedUserAvatar(
 		return;
 	}
 
-	try {
-		const response = await fetch(resolvedAvatarUrl, { cache: "force-cache" });
-		if (!response.ok) {
-			return;
-		}
-
-		const blob = await response.blob();
-		const dataUrl = await blobToDataUrl(blob);
-		await cacheProfileImageDataUrl(userId, dataUrl, resolvedAvatarUrl);
-	} catch {
-		// Ignore warmup failures.
-	}
+	await persist(userId, {
+		imageSrc: resolvedAvatarUrl,
+		sourceUrl: resolvedAvatarUrl,
+		cachedAt: Date.now(),
+		mode: "source-url",
+	});
 }

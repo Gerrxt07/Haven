@@ -1,5 +1,11 @@
 import { Compass, Home as HomeIcon, MessageCircle, Users } from "lucide-solid";
-import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+	createEffect,
+	createMemo,
+	createSignal,
+	onCleanup,
+	onMount,
+} from "solid-js";
 import {
 	Tooltip,
 	TooltipContent,
@@ -34,6 +40,25 @@ export default function Home() {
 	const user = () => authState().currentUser;
 	const isAreaActive = (area: SidebarArea) => activeArea() === area;
 	let imageResolveToken = 0;
+	const currentUserMemo = createMemo(() => authState().currentUser);
+	const accessTokenMemo = createMemo(() => authState().accessToken);
+
+	const currentAvatarRef = createMemo(() => {
+		const currentUser = currentUserMemo();
+		return (
+			currentUser?.avatar_url ??
+			currentUser?.profile_image_url ??
+			currentUser?.profile_picture_url ??
+			currentUser?.avatar ??
+			null
+		);
+	});
+	const avatarResolveKey = createMemo(
+		() =>
+			`${currentUserMemo()?.id ?? "none"}|${currentAvatarRef() ?? ""}|${
+				accessTokenMemo() ?? ""
+			}`,
+	);
 
 	onMount(() => {
 		const unsub = authSession.onChange(setAuthState);
@@ -43,8 +68,10 @@ export default function Home() {
 	});
 
 	createEffect(() => {
-		const currentUser = user();
-		const accessToken = authState().accessToken;
+		avatarResolveKey();
+
+		const currentUser = currentUserMemo();
+		const accessToken = accessTokenMemo();
 		const token = ++imageResolveToken;
 
 		void resolveProfileImageForUser(

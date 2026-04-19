@@ -14,6 +14,9 @@ export class HttpApiError extends Error {
 
 type TokenProvider = () => string | null;
 type RefreshHandler = () => Promise<boolean>;
+const RETRY_BASE_DELAY_MS = 250;
+const RETRY_MAX_DELAY_MS = 5_000;
+const RETRY_JITTER_MAX_MS = 250;
 
 export type ApiClientConfig = {
 	baseUrl: string;
@@ -31,6 +34,15 @@ export type RequestOptions = {
 
 function resolveBaseUrl(): string {
 	return "https://havenapi.becloudly.eu/api/v1";
+}
+
+function computeRetryDelayMs(attempt: number): number {
+	const exponential = Math.min(
+		RETRY_MAX_DELAY_MS,
+		RETRY_BASE_DELAY_MS * 2 ** Math.max(0, attempt - 1),
+	);
+	const jitter = Math.floor(Math.random() * RETRY_JITTER_MAX_MS);
+	return exponential + jitter;
 }
 
 export class ApiClient {
@@ -112,14 +124,16 @@ export class ApiClient {
 				}
 
 				attempt += 1;
+				const delayMs = computeRetryDelayMs(attempt);
 				safeWarn("API retry scheduled", {
 					method,
 					path,
 					attempt,
 					idempotent: Boolean(options?.idempotencyKey),
+					delayMs,
 				});
 				await new Promise((resolve) => {
-					setTimeout(resolve, 250 * attempt);
+					setTimeout(resolve, delayMs);
 				});
 			}
 		}

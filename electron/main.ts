@@ -30,6 +30,7 @@ import {
 const authFilePath = path.join(app.getPath("userData"), "auth.enc");
 const secureStoreBasePath = path.join(app.getPath("userData"), "secure-store");
 const maxStoredSecretLength = 8192;
+const SECURE_STORE_FLUSH_DEBOUNCE_MS = 120;
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -37,6 +38,11 @@ let isAppQuitting = false;
 
 // In-memory cache for the auth token to avoid disk I/O and decryption overhead on every request
 let cachedAuthToken: string | null = null;
+const secureNamespaceCache = new Map<string, Record<string, string>>();
+const secureNamespaceFlushTimers = new Map<
+	string,
+	ReturnType<typeof globalThis.setTimeout>
+>();
 const WINDOWS_APP_USER_MODEL_ID = "com.haven.app";
 
 if (process.platform === "win32") {
@@ -217,6 +223,11 @@ function getSecureStorePath(namespace: string): string {
 async function readSecureNamespace(
 	namespace: string,
 ): Promise<Record<string, string>> {
+	const cached = secureNamespaceCache.get(namespace);
+	if (cached) {
+		return { ...cached };
+	}
+
 	const filePath = getSecureStorePath(namespace);
 
 	try {
@@ -234,28 +245,63 @@ async function readSecureNamespace(
 					out[k] = v;
 				}
 			}
+			secureNamespaceCache.set(namespace, out);
 			return out;
 		}
 
+		secureNamespaceCache.set(namespace, {});
 		return {};
 	} catch {
+		secureNamespaceCache.set(namespace, {});
 		return {};
 	}
 }
 
-async function writeSecureNamespace(
-	namespace: string,
-	value: Record<string, string>,
-): Promise<boolean> {
+async function flushSecureNamespace(namespace: string): Promise<boolean> {
 	if (!safeStorage.isEncryptionAvailable()) {
 		return false;
 	}
 
+	const value = secureNamespaceCache.get(namespace) ?? {};
 	const filePath = getSecureStorePath(namespace);
 	await fs.mkdir(secureStoreBasePath, { recursive: true });
 	const plaintext = JSON.stringify(value);
 	const encrypted = safeStorage.encryptString(plaintext);
 	await writeEncryptedFile(filePath, encrypted);
+	return true;
+}
+
+function scheduleSecureNamespaceFlush(namespace: string): void {
+	const existingTimer = secureNamespaceFlushTimers.get(namespace);
+	if (existingTimer) {
+		globalThis.clearTimeout(existingTimer);
+	}
+
+	const timer = globalThis.setTimeout(() => {
+		secureNamespaceFlushTimers.delete(namespace);
+		void flushSecureNamespace(namespace).catch((error) => {
+			secureLogger.logError("secure-store", "flush-failed", error, {
+				namespace,
+			});
+		});
+	}, SECURE_STORE_FLUSH_DEBOUNCE_MS);
+	secureNamespaceFlushTimers.set(namespace, timer);
+}
+
+type SecureNamespaceWriteOptions = {
+	deferred?: boolean;
+};
+
+async function writeSecureNamespace(
+	namespace: string,
+	value: Record<string, string>,
+	options?: SecureNamespaceWriteOptions,
+): Promise<boolean> {
+	secureNamespaceCache.set(namespace, { ...value });
+	if (options?.deferred === false) {
+		return flushSecureNamespace(namespace);
+	}
+	scheduleSecureNamespaceFlush(namespace);
 	return true;
 }
 

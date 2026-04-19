@@ -22,7 +22,12 @@ function getElectronApi(): NonNullable<(typeof globalThis)["electronAPI"]> {
 }
 
 function encode(bytes: Uint8Array): string {
-	return btoa(String.fromCharCode(...bytes));
+	const chunkSize = 0x8000;
+	let binary = "";
+	for (let index = 0; index < bytes.length; index += chunkSize) {
+		binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+	}
+	return btoa(binary);
 }
 
 function decode(value: string): Uint8Array {
