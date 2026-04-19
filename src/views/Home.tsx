@@ -14,12 +14,15 @@ import {
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { resolveProfileImageForUser } from "../lib/cache/profile-images";
+import { dmService } from "../lib/dm";
 import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
 import {
 	writeDetailedErrorLog,
 	writeDetailedLog,
 } from "../lib/logging/detailed";
+import { realtimeManager } from "../lib/realtime";
+import DirectMessagesPanel from "./DirectMessagesPanel";
 import FriendsPanel from "./FriendsPanel";
 
 export default function Home() {
@@ -64,7 +67,23 @@ export default function Home() {
 		const unsub = authSession.onChange(setAuthState);
 		// Eagerly initialize friends service to load cache immediately at startup
 		void friendsService.init();
+		void dmService.init();
+
+		const unsubDirectMessage = realtimeManager.on("direct_message", (event) => {
+			const authorUserId = Number(event.payload.author_user_id);
+			if (
+				Number.isFinite(authorUserId) &&
+				authorUserId === authState().currentUser?.id
+			) {
+				return;
+			}
+			if (!isAreaActive("messages")) {
+				setHasNewMessages(true);
+			}
+		});
+
 		onCleanup(() => unsub());
+		onCleanup(() => unsubDirectMessage());
 	});
 
 	createEffect(() => {
@@ -99,12 +118,6 @@ export default function Home() {
 		setActiveArea(area);
 		if (area === "messages") {
 			setHasNewMessages(false);
-		}
-	};
-
-	const simulateIncomingMessage = (): void => {
-		if (!isAreaActive("messages")) {
-			setHasNewMessages(true);
 		}
 	};
 
@@ -308,28 +321,24 @@ export default function Home() {
 			<div class="flex-1 bg-(--surface-primary) rounded-tl-lg overflow-hidden flex flex-col">
 				<div class="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
 					{isAreaActive("friends") ? (
-						<FriendsPanel />
+						<FriendsPanel
+							onOpenDirectMessage={(peerUserId) => {
+								openArea("messages");
+								void dmService.startThreadWithPeer(peerUserId);
+							}}
+						/>
+					) : isAreaActive("messages") ? (
+						<DirectMessagesPanel />
 					) : (
 						<>
 							<h2 class="text-xl font-semibold">
-								{isAreaActive("messages")
-									? t("home", "messages_title")
-									: isAreaActive("explorer")
-										? t("home", "explorer_title")
-										: t("home", "title")}
+								{isAreaActive("explorer")
+									? t("home", "explorer_title")
+									: t("home", "title")}
 							</h2>
 							<p class="text-sm text-(--text-secondary) max-w-2xl">
 								{t("home", "messages_preview_hint")}
 							</p>
-							<div class="pt-1">
-								<button
-									type="button"
-									onClick={simulateIncomingMessage}
-									class="px-3 py-2 rounded-lg bg-(--surface-secondary) hover:bg-(--surface-tertiary) text-sm transition-colors duration-200"
-								>
-									{t("home", "simulate_message_btn")}
-								</button>
-							</div>
 						</>
 					)}
 				</div>

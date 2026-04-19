@@ -54,6 +54,22 @@ export const de = {
 		sidebar_profile_uploading: "Wird hochgeladen",
 		messages_title: "Private Nachrichten",
 		explorer_title: "Entdecken",
+		messages_hint: "Starte einen direkten Chat mit deinen Freunden.",
+		messages_friends: "Freunde",
+		messages_no_friends:
+			"Füge Freunde hinzu und akzeptiere Anfragen, um zu chatten.",
+		messages_conversations: "Unterhaltungen",
+		messages_empty: "Noch keine Direktnachrichten.",
+		messages_no_history: "Noch keine Nachrichten. Sag Hallo.",
+		messages_select_thread: "Wähle eine Unterhaltung",
+		messages_select_thread_hint:
+			"Wähle links einen Thread oder starte einen neuen Chat aus der Freundesliste.",
+		messages_empty_state: "Wähle einen Freund, um zu chatten.",
+		messages_load_older: "Ältere Nachrichten laden",
+		messages_encrypted_placeholder: "Verschlüsselte Nachricht",
+		messages_input_placeholder: "Direktnachricht schreiben...",
+		messages_load_failed: "Nachrichten konnten nicht geladen werden.",
+		messages_send_failed: "Nachricht konnte nicht gesendet werden.",
 		messages_preview_hint:
 			"UI/UX-Muster: Das Nachrichten-Icon leuchtet dynamisch bei neuen Nachrichten und der aktive Bereich bekommt links einen farbigen Marker.",
 		simulate_message_btn: "Neue private Nachricht simulieren",

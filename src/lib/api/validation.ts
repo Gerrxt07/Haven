@@ -3,8 +3,12 @@ import type {
 	AuthUserResponse,
 	ChannelDto,
 	CreateChannelRequestDto,
+	CreateDmMessageRequestDto,
+	CreateDmThreadRequestDto,
 	CreateMessageRequestDto,
 	CreateServerRequestDto,
+	DmMessageDto,
+	DmThreadDto,
 	EmailVerificationConfirmRequest,
 	EmailVerificationRequest,
 	FriendDto,
@@ -214,6 +218,28 @@ export function assertCreateMessageRequest(
 	);
 }
 
+export function assertCreateDmThreadRequest(
+	payload: CreateDmThreadRequestDto,
+): void {
+	assert(isNumber(payload.peer_user_id), "invalid peer_user_id");
+	assert(payload.peer_user_id > 0, "invalid peer_user_id");
+}
+
+export function assertCreateDmMessageRequest(
+	payload: CreateDmMessageRequestDto,
+): void {
+	const hasPlainContent =
+		typeof payload.content === "string" && payload.content.trim().length > 0;
+	const hasCipherContent =
+		typeof payload.ciphertext === "string" &&
+		typeof payload.nonce === "string" &&
+		typeof payload.algorithm === "string";
+	assert(
+		hasPlainContent || hasCipherContent,
+		"dm message requires plaintext or ciphertext payload",
+	);
+}
+
 export function assertServerDto(value: unknown): asserts value is ServerDto {
 	assert(isObject(value), "invalid server response");
 	assert(isNumber(value.id), "missing server.id");
@@ -248,6 +274,55 @@ export function assertMessageDto(value: unknown): asserts value is MessageDto {
 	);
 	assert(isString(value.created_at), "missing message.created_at");
 	assert(isString(value.updated_at), "missing message.updated_at");
+}
+
+export function assertDmThreadDto(
+	value: unknown,
+): asserts value is DmThreadDto {
+	assert(isObject(value), "invalid dm thread response");
+	assert(isNumber(value.id), "missing dm_thread.id");
+	assert(isNumber(value.peer_user_id), "missing dm_thread.peer_user_id");
+	assert(isString(value.peer_username), "missing dm_thread.peer_username");
+	assert(
+		isString(value.peer_display_name),
+		"missing dm_thread.peer_display_name",
+	);
+	assert(isString(value.created_at), "missing dm_thread.created_at");
+	assert(isString(value.updated_at), "missing dm_thread.updated_at");
+}
+
+export function assertDmThreadDtoList(
+	value: unknown,
+): asserts value is DmThreadDto[] {
+	assert(Array.isArray(value), "invalid dm threads response");
+	for (const entry of value) {
+		assertDmThreadDto(entry);
+	}
+}
+
+export function assertDmMessageDto(
+	value: unknown,
+): asserts value is DmMessageDto {
+	assert(isObject(value), "invalid dm message response");
+	assert(isNumber(value.id), "missing dm_message.id");
+	assert(isNumber(value.thread_id), "missing dm_message.thread_id");
+	assert(isNumber(value.author_user_id), "missing dm_message.author_user_id");
+	assert(isString(value.content), "missing dm_message.content");
+	assert(
+		typeof value.is_encrypted === "boolean",
+		"missing dm_message.is_encrypted",
+	);
+	assert(isString(value.created_at), "missing dm_message.created_at");
+	assert(isString(value.updated_at), "missing dm_message.updated_at");
+}
+
+export function assertDmMessageDtoList(
+	value: unknown,
+): asserts value is DmMessageDto[] {
+	assert(Array.isArray(value), "invalid dm messages response");
+	for (const entry of value) {
+		assertDmMessageDto(entry);
+	}
 }
 
 export function assertMessageDtoList(

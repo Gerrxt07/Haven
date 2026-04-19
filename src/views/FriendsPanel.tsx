@@ -2,6 +2,7 @@ import {
 	CheckCheck,
 	Clock3,
 	Inbox,
+	MessageCircle,
 	RefreshCw,
 	SendHorizontal,
 	UserPlus,
@@ -76,7 +77,9 @@ function getInitial(value: string): string {
 	return normalized.slice(0, 1).toUpperCase();
 }
 
-export default function FriendsPanel() {
+export default function FriendsPanel(props: {
+	onOpenDirectMessage?: (peerUserId: number) => void;
+}) {
 	const [addUsername, setAddUsername] = createSignal("");
 	const [addStatus, setAddStatus] = createSignal<
 		"idle" | "sending" | "success" | "error"
@@ -406,6 +409,16 @@ export default function FriendsPanel() {
 												@{friend.friend_username}
 											</span>
 										</div>
+										<button
+											type="button"
+											onClick={() =>
+												props.onOpenDirectMessage?.(friend.friend_user_id)
+											}
+											class="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-md text-(--text-secondary) transition-colors duration-150 hover:bg-(--surface-tertiary) hover:text-(--text-primary)"
+											title={t("home", "messages_title")}
+										>
+											<MessageCircle size={15} />
+										</button>
 									</div>
 								)}
 							</For>

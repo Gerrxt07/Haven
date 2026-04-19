@@ -156,6 +156,35 @@ export type MessageDto = {
 	updated_at: string;
 };
 
+export type DmThreadDto = {
+	id: number;
+	peer_user_id: number;
+	peer_username: string;
+	peer_display_name: string;
+	peer_avatar_url?: string | null;
+	last_message_preview?: string | null;
+	last_message_at?: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
+export type DmMessageDto = {
+	id: number;
+	thread_id: number;
+	author_user_id: number;
+	author_avatar_url?: string | null;
+	content: string;
+	is_encrypted: boolean;
+	ciphertext?: string | null;
+	nonce?: string | null;
+	aad?: string | null;
+	algorithm?: string | null;
+	edited_at?: string | null;
+	deleted_at?: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
 export type PresenceEvent = {
 	event_type: string;
 	user_id?: number;
@@ -204,6 +233,18 @@ export type CreateMessageRequestDto = {
 		encrypted_message_key: string;
 		one_time_prekey_id?: number;
 	}>;
+};
+
+export type CreateDmThreadRequestDto = {
+	peer_user_id: number;
+};
+
+export type CreateDmMessageRequestDto = {
+	content?: string;
+	ciphertext?: string;
+	nonce?: string;
+	aad?: string;
+	algorithm?: string;
 };
 
 export type FriendRequestStatus = "pending" | "accepted" | "declined";

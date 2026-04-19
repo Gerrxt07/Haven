@@ -1,4 +1,5 @@
 import type { PresenceEvent } from "../api";
+import { authSession } from "../auth/session";
 import { safeWarn } from "../security/redaction";
 import {
 	applyPresence,
@@ -26,7 +27,13 @@ function isPresenceEvent(value: unknown): value is PresenceEvent {
 function resolveWsUrl(): string {
 	const httpBase = "https://havenapi.becloudly.eu/api/v1";
 	const wsBase = httpBase.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
-	return `${wsBase}/ws`;
+	const token = authSession.accessToken;
+	if (!token) {
+		return `${wsBase}/ws`;
+	}
+
+	const encodedToken = encodeURIComponent(token);
+	return `${wsBase}/ws?access_token=${encodedToken}`;
 }
 
 export class RealtimeManager {
