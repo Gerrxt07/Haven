@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Haven</h1>
-  <p><b>A security-first, high-performance desktop communication platform.</b></p>
+  <p><b>A security-first desktop chat platform with a hardened Electron client and Rust backend.</b></p>
 
   <p>
     <a href="https://bun.sh"><img src="https://img.shields.io/badge/Bun-black?logo=bun&style=flat-square" alt="Bun"></a>
@@ -13,129 +13,143 @@
 
 ---
 
-## 📖 Overview
+## Overview
 
-**Haven** is a desktop communication app currently in active development. Engineered as a highly hardened alternative to standard Electron apps, Haven prioritizes user privacy, robust process isolation, and blazing-fast performance.
+**Haven** is the desktop client for the Haven communication stack. It is built around a defense-in-depth model: the Electron shell is locked down aggressively, the renderer talks to the OS only through a minimal preload bridge, and the backend uses modern authentication, encrypted data handling, and strict realtime controls.
 
-> **⚠️ Current Status: Pre-Release**
-> Haven is currently in active development. Features, APIs, and underlying structures are subject to change. It is not yet recommended for production deployment.
+> **Status: Pre-release**
+> APIs, UI flows, and deployment details are still evolving. Expect breaking changes while the platform matures.
 
-## 🛡️ Security Highlights
+## Security Architecture
 
-Haven does not treat security as an afterthought. The application architecture leverages a strict defense-in-depth model, specifically engineered to mitigate common desktop application vulnerabilities:
+Haven is designed as a full platform, not just a UI shell. The client and backend both carry security responsibilities.
 
-* **Strict Process Isolation:** `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false`.
-* **Zero-Trust Navigation:** Strict trusted-origin checks for all navigation and permission requests.
-* **Hardened IPC:** Security-sensitive operations (window controls, URL opening, token storage) are exclusively mediated through secure, sender-validated IPC channels.
-* **Encrypted Storage:** Secure local token encryption utilizing Electron's native `safeStorage`.
-* **Runtime Protection:** Electron fuses are flipped to block dangerous CLI flags (e.g., `--inspect`, `--remote-debugging-port`).
-* **Build Integrity:** Automated generation of SHA-256 integrity manifests (`dist-electron/integrity.json`) during the build pipeline.
+### Desktop client protections
 
-> **Are you a security researcher or reverse engineer?**
-> Check out the [**"Hack-The-App" Challenge**](./HACK_THE_APP.md) and review my [**Security Policy**](./SECURITY.md) for responsible disclosure rules!
+- **Strict process isolation:** `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false`.
+- **Minimal preload bridge:** Renderer access to native capabilities is exposed only through explicit `contextBridge` APIs.
+- **Sender-validated IPC:** Sensitive IPC routes for tokens, secure storage, external links, and window controls validate the calling sender.
+- **Encrypted local secrets:** Access and refresh tokens are protected with Electron `safeStorage` and the app's secure-store layer.
+- **Zero-trust navigation:** The main process restricts navigation, window creation, permission requests, and external URL handling to trusted paths.
+- **Hardened runtime flags:** Dangerous debug and sandbox-bypass flags such as `--inspect`, `--remote-debugging-port`, and `--no-sandbox` are actively blocked.
+- **Build integrity pipeline:** Integrity manifests are generated for packaged runtime assets during the build flow.
+- **Secure updater posture:** The updater window uses the same hardened browser settings as the main window.
 
-## ⚡ Technology Stack
+### Backend protections exposed through the client
 
-Haven is built on a modern, deeply optimized stack to ensure a lightweight footprint and maximum speed:
+- **SRP login handshake:** Passwords are not sent in plaintext during the primary login flow; the client performs SRP challenge-response authentication.
+- **PASETO session tokens:** Auth uses access and refresh tokens built on `PASETO v4 local`.
+- **Optional 2FA:** The backend supports TOTP and backup-code verification flows.
+- **Encrypted PII handling:** Sensitive backend data uses authenticated encryption and blind indexes for lookup-sensitive fields such as email.
+- **Per-route and per-identity throttling:** Login and verification flows are rate-limited both globally and per account identity.
+- **Strict request validation:** The backend enforces cursor validation, payload validation, request body limits, and account-status checks.
+- **Secure WebSocket auth:** The client now authenticates the socket with an explicit first `authenticate` message instead of putting bearer tokens in query parameters.
+- **Server-enforced realtime identity:** Clients no longer send `user_id` in websocket commands; the backend derives identity from the verified token.
+- **Realtime abuse protection:** Per-connection websocket message throttling and E2EE payload size caps reduce message flooding and oversized ciphertext attacks.
+- **Redis-backed fanout:** Realtime events are distributed through Redis Pub/Sub to support multi-node fanout without trusting local-only event delivery.
+- **Privacy cleanup:** Soft-deleted backend accounts are later anonymized automatically to support privacy retention goals without breaking chat history structure.
 
-* **Runtime & Package Manager:** [Bun](https://bun.sh/)
-* **Desktop Shell:** [Electron](https://www.electronjs.org/)
-* **Frontend UI:** [SolidJS](https://www.solidjs.com/) (Reactive, Virtual-DOM-less rendering)
-* **Build Tooling:** [Vite](https://vitejs.dev/) & [electron-builder](https://www.electron.build/)
-* **Language:** TypeScript
-* **Code Quality:** Biome, Knip, Husky
+> If you are reviewing Haven from a security angle, also see [SECURITY.md](./SECURITY.md) and [HACK_THE_APP.md](./HACK_THE_APP.md).
 
-## 🚀 Getting Started
+## Product Capabilities
+
+- Account registration and authenticated sessions
+- SRP login with refresh-token rotation
+- Email verification and optional two-factor authentication
+- Friends, direct messages, channels, and servers
+- End-to-end encryption key-bundle workflows
+- Presence and realtime websocket updates
+- Local avatar caching and secure token persistence
+- Electron packaging, update, and integrity tooling
+
+## Technology Stack
+
+- **Runtime and package manager:** [Bun](https://bun.sh)
+- **Desktop shell:** [Electron](https://www.electronjs.org/)
+- **Frontend UI:** [SolidJS](https://www.solidjs.com/)
+- **Language:** TypeScript
+- **Build tooling:** Vite, electron-builder
+- **Quality tooling:** Biome, Husky, Knip
+
+## Getting Started
 
 ### Prerequisites
 
-Ensure you have the following installed on your system (Windows, macOS, or Linux):
-- **[Bun](https://bun.sh/)** (Latest stable version)
-- **Node.js** (Required for specific Electron/build toolchain compatibility)
+- [Bun](https://bun.sh)
+- Node.js
+- A reachable Haven backend instance
 
-### Installation
+### Install
 
-1. Clone the repository:
-   ```bash
-   git clone [https://github.com/yourusername/haven.git](https://github.com/yourusername/haven.git)
-   cd haven
-   ```
+```bash
+git clone https://github.com/Gerrxt07/Haven.git
+cd Haven
+bun install
+```
 
-2.  Install dependencies:
+### Run in development
 
-    ```bash
-    bun install
-    ```
+```bash
+bun run dev
+```
 
-3.  Start the development environment:
+### Quality gate
 
-    ```bash
-    bun run dev
-    ```
+```bash
+bun run check
+```
 
-    *Note: The `dev` command automatically runs a full quality gate (`check`) before launching Vite to ensure code integrity. It may take a few seconds longer to boot.*
+## Scripts
 
-## 🛠️ Development Workflow & Scripts
-
-The project utilizes `bun` for all script execution. Below are the primary commands available in the `package.json`.
-
-### Quality Assurance
+### Quality
 
 | Command | Description |
 | :--- | :--- |
-| `bun run typecheck` | Validates TypeScript typings (`tsc --noEmit`). |
-| `bun run format` | Applies Biome code formatting and auto-fixes. |
-| `bun run lint` | Runs Biome static analysis checks. |
-| `bun run knip` | Analyzes the workspace for unused files or dependencies. |
-| `bun run test` | Executes the Vitest test suite. |
-| `bun run check` | **Full CI Gate:** Runs format, typecheck, knip, husky, and tests. |
+| `bun run format` | Apply Biome formatting and safe auto-fixes. |
+| `bun run lint` | Run Biome checks across the repo. |
+| `bun run typecheck` | Run `tsc --noEmit`. |
+| `bun run test` | Run the Bun test suite. |
+| `bun run knip` | Detect unused files and dependencies. |
+| `bun run check` | Run formatting, tests, typecheck, and repo prep tasks. |
 
-### Build & Packaging
+### Build and package
 
 | Command | Description |
 | :--- | :--- |
-| `bun run build` | Runs quality checks, then creates the production UI and Electron build. |
-| `bun run build:integrity`| Generates the SHA-256 integrity manifest for runtime assets. |
-| `bun run protect` | Standalone command to execute the post-build hardening pipeline. |
+| `bun run build` | Build the renderer and Electron bundles after checks. |
+| `bun run build:integrity` | Generate integrity metadata for packaged assets. |
+| `bun run package:win` | Build and package for Windows. |
+| `bun run package:mac` | Build and package for macOS. |
+| `bun run package:linux` | Build and package for Linux. |
 
-**Platform Specific Packaging:**
-Outputs are generated in the `release/` directory.
+## Project Structure
 
-  * `bun run package:win`
-  * `bun run package:mac`
-  * `bun run package:linux`
-
-*Troubleshooting Packaging:* If packaging fails, ensure both `dist/` (renderer) and `dist-electron/` (main process) directories exist, then run `bun run protect` before retrying.
-
-## 🏗️ Architecture & Project Structure
-
-The codebase is strictly separated into Node.js (Main) and Browser (Renderer) environments:
-
-```
-haven/
-├── electron/              # Electron backend
-│   ├── main.ts            # Window lifecycle, permissions, CSP, secure IPC handlers
-│   └── preload.ts         # Minimal contextBridge API exposed to the renderer
-├── src/                   # SolidJS frontend
-│   ├── views/             # Route and view components
-│   └── types/             # Shared TypeScript interfaces
-├── public/                # Static assets (icons, fonts)
-├── scripts/               # Build and security hardening scripts
-├── dist/                  # Output: Compiled renderer UI
-├── dist-electron/         # Output: Compiled Electron main/preload
-└── release/               # Output: Final packaged OS executables
+```text
+Haven/
+|-- electron/              Electron main process, preload bridge, updater, secure logging
+|-- src/                   SolidJS renderer application
+|   |-- lib/               API clients, auth, realtime, E2EE, cache, stores
+|   |-- views/             Main application views
+|   `-- components/        Shared UI components
+|-- public/                Static application assets
+|-- scripts/               Build and hardening scripts
+|-- dist/                  Built renderer output
+|-- dist-electron/         Built Electron output
+`-- release/               Packaged release artifacts
 ```
 
-## 🤝 Contributing
+## Related Repositories
 
-Contributions are welcome\! Since Haven relies heavily on strict process isolation, please adhere to the following workflow:
+- Client: this repository
+- Backend: [Haven_Backend](../Haven_Backend)
 
-1.  Fork the repository and create a feature branch.
-2.  Keep your changes modular. Respect the boundary between `main`, `preload`, and `renderer`.
-3.  Validate your changes locally by running `bun run check`.
-4.  Open a Pull Request. If your changes affect IPC, dependencies, or permissions, please include a brief security rationale.
+## Contributing
 
-## ⚖️ License
+1. Create a feature branch.
+2. Keep Electron main-process, preload, and renderer responsibilities separated.
+3. Run `bun run check` before opening a PR.
+4. If your change affects IPC, auth, storage, or transport behavior, include the security impact in the PR description.
 
-Haven is distributed under the **Haven Source Available License (Haven-SAL) v1.0**.  
-Please review the [LICENSE](https://www.google.com/search?q=./LICENSE) file for full terms, conditions, and usage restrictions.
+## License
+
+Haven is distributed under the **Haven Source Available License (Haven-SAL) v1.0**. See [LICENSE](./LICENSE).
