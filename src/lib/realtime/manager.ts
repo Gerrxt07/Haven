@@ -27,13 +27,7 @@ function isPresenceEvent(value: unknown): value is PresenceEvent {
 function resolveWsUrl(): string {
 	const httpBase = "https://havenapi.becloudly.eu/api/v1";
 	const wsBase = httpBase.replace(/^https:/, "wss:").replace(/^http:/, "ws:");
-	const token = authSession.accessToken;
-	if (!token) {
-		return `${wsBase}/ws`;
-	}
-
-	const encodedToken = encodeURIComponent(token);
-	return `${wsBase}/ws?access_token=${encodedToken}`;
+	return `${wsBase}/ws`;
 }
 
 export class RealtimeManager {
@@ -74,6 +68,7 @@ export class RealtimeManager {
 		socket.addEventListener("open", () => {
 			this.reconnectAttempts = 0;
 			setConnectionState("connected", { attempt: 0, lastError: null });
+			this.sendAuthenticate();
 			this.startHeartbeatLoop();
 			this.flushSubscriptions();
 		});
@@ -138,7 +133,8 @@ export class RealtimeManager {
 		const channel = String(channelId);
 		this.subscribedChannels.add(channel);
 		setSubscribedChannels(Array.from(this.subscribedChannels));
-		this.send({ type: "join", channel, user_id: userId });
+		void userId;
+		this.send({ type: "join", channel });
 	}
 
 	unsubscribeChannel(channelId: number | string): void {
@@ -152,7 +148,8 @@ export class RealtimeManager {
 		userId: number,
 		status: "online" | "away" | "busy" | "offline",
 	): void {
-		this.send({ type: "presence", user_id: userId, status });
+		void userId;
+		this.send({ type: "presence", status });
 	}
 
 	sendBroadcast(
@@ -160,10 +157,10 @@ export class RealtimeManager {
 		payload: Record<string, unknown>,
 		userId?: number,
 	): void {
+		void userId;
 		this.send({
 			type: "broadcast",
 			channel: String(channelId),
-			user_id: userId,
 			payload,
 		});
 	}
@@ -172,6 +169,15 @@ export class RealtimeManager {
 		for (const channel of this.subscribedChannels) {
 			this.send({ type: "join", channel });
 		}
+	}
+
+	private sendAuthenticate(): void {
+		const token = authSession.accessToken?.trim();
+		if (!token) {
+			return;
+		}
+
+		this.send({ type: "authenticate", token });
 	}
 
 	private scheduleReconnect(): void {
