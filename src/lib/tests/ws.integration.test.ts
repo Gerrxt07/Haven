@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import type { MessageDto } from "../api";
+import { authSession } from "../auth/session";
 import { chatStore, mergeMessages } from "../chat/store";
 import { realtimeManager } from "../realtime/manager";
 import { realtimeStore } from "../realtime/store";
@@ -46,12 +47,18 @@ const OriginalWebSocket = globalThis.WebSocket;
 
 afterEach(() => {
 	realtimeManager.disconnect();
+	authSession.clear();
 	globalThis.WebSocket = OriginalWebSocket;
 });
 
 describe("Realtime integration", () => {
 	it("routes websocket events in order and marks reconnecting on close", async () => {
 		globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+		authSession.restore({
+			accessToken: "access-token-123",
+			refreshToken: "refresh-token-123",
+			expiresAt: Date.now() + 60_000,
+		});
 		const received: string[] = [];
 		realtimeManager.on("new_message", (event) => {
 			received.push(String(event.payload.content));
@@ -65,6 +72,10 @@ describe("Realtime integration", () => {
 		}
 		ws.readyState = FakeWebSocket.OPEN;
 		ws.emit("open");
+
+		expect(ws.sent[0]).toBe(
+			JSON.stringify({ type: "authenticate", token: "access-token-123" }),
+		);
 
 		ws.emit("message", {
 			data: JSON.stringify({
@@ -85,6 +96,42 @@ describe("Realtime integration", () => {
 
 		ws.emit("close");
 		expect(realtimeStore.connectionState).toBe("reconnecting");
+	});
+
+	it("sends join, presence, and broadcast messages without client user_id", () => {
+		globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+		authSession.restore({
+			accessToken: "access-token-456",
+			refreshToken: "refresh-token-456",
+			expiresAt: Date.now() + 60_000,
+		});
+
+		realtimeManager.connect();
+		const ws = FakeWebSocket.instances.at(-1);
+		expect(ws).toBeDefined();
+		if (!ws) {
+			throw new Error("missing websocket instance");
+		}
+
+		ws.readyState = FakeWebSocket.OPEN;
+		ws.emit("open");
+
+		realtimeManager.subscribeChannel(42, 99);
+		realtimeManager.sendPresence(99, "online");
+		realtimeManager.sendBroadcast(42, { hello: "world" }, 99);
+
+		expect(ws.sent).toContain(JSON.stringify({ type: "join", channel: "42" }));
+		expect(ws.sent).toContain(
+			JSON.stringify({ type: "presence", status: "online" }),
+		);
+		expect(ws.sent).toContain(
+			JSON.stringify({
+				type: "broadcast",
+				channel: "42",
+				payload: { hello: "world" },
+			}),
+		);
+		expect(ws.sent.some((payload) => payload.includes("user_id"))).toBe(false);
 	});
 
 	it("dedupes messages from REST + WS race by id", () => {

@@ -89,6 +89,30 @@ class AuthSessionManager {
 		return this.state.currentUser;
 	}
 
+	restore(payload: {
+		accessToken: string | null;
+		refreshToken: string | null;
+		currentUser?: AuthUserResponse | null;
+		expiresAt?: number;
+	}): void {
+		void payload.expiresAt;
+		this.state.accessToken = payload.accessToken;
+		this.state.refreshToken = payload.refreshToken;
+		this.state.currentUser = payload.currentUser ?? null;
+		this.state.isReady = true;
+		this.notify();
+	}
+
+	clear(): void {
+		this.state = {
+			accessToken: null,
+			refreshToken: null,
+			currentUser: null,
+			isReady: true,
+		};
+		this.notify();
+	}
+
 	snapshot(): SessionState {
 		return { ...this.state };
 	}
