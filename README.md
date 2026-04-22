@@ -7,6 +7,7 @@
     <a href="https://www.electronjs.org/"><img src="https://img.shields.io/badge/Electron-191970?logo=electron&logoColor=white&style=flat-square" alt="Electron"></a>
     <a href="https://www.solidjs.com/"><img src="https://img.shields.io/badge/SolidJS-2c4f7c?logo=solid&logoColor=white&style=flat-square" alt="SolidJS"></a>
     <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white&style=flat-square" alt="TypeScript"></a>
+    <a href="https://www.codefactor.io/repository/github/gerrxt07/haven"><img src="https://www.codefactor.io/repository/github/gerrxt07/haven/badge" alt="CodeFactor" /></a>
     <a href="./LICENSE"><img src="https://img.shields.io/badge/License-Haven--SAL%20v1.0-blue?style=flat-square" alt="License"></a>
   </p>
 </div>
