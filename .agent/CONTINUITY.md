@@ -15,4 +15,7 @@
 2026-04-22T20:58:00+02:00 [TOOL] `bun install` succeeded after sandbox escalation for tempdir access; `bun run typecheck` passed.
 2026-04-22T21:15:00+02:00 [CODE] Applied Biome formatting fixes to `src/lib/auth/session.ts`, `src/lib/realtime/manager.ts`, and `src/lib/tests/ws.integration.test.ts` to restore repo lint cleanliness.
 2026-04-22T21:15:00+02:00 [TOOL] Verified green with `bun run lint`, `bun run typecheck`, and `bun test`; Bun tests needed sandbox escalation because in-sandbox module resolution for `solid-js/store` and `libsodium-sumo` was unreliable.
+2026-04-22T19:05:11.5422930+02:00 [USER] Investigate issue #27 where the post-update popup opens but shows no changelog information, then fix and commit it.
+2026-04-22T19:05:11.5422930+02:00 [CODE] Moved changelog GitHub fetching from renderer to Electron main-process IPC, kept updater obfuscation names reserved, and added an empty-state GitHub fallback button for the update modal.
+2026-04-22T19:05:11.5422930+02:00 [TOOL] Root cause was renderer CSP blocking `https://api.github.com`; verified fix with `bun run typecheck`, `bun run lint`, and `bun test`.
 

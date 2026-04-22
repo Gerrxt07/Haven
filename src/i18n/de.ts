@@ -40,6 +40,7 @@ export const de = {
 			"Der exakte Versionsvergleich konnte nicht geladen werden. Es werden stattdessen die neuesten Repository-Änderungen angezeigt.",
 		changelogEmpty:
 			"Für dieses Update liegen aktuell noch keine detaillierten Changelog-Einträge vor.",
+		changelogViewOnGitHub: "Auf GitHub ansehen",
 		changelogAcknowledge: "Verstanden",
 		externalLinkWarning:
 			"Warnung: Du verlässt Haven, um eine externe Website zu besuchen:\n\n{{url}}\n\nWillst du fortfahren?",

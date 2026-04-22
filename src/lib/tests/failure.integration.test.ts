@@ -22,6 +22,11 @@ function createMockElectronApi(
 ): typeof globalThis.electronAPI {
 	return {
 		appVersion: async () => "test",
+		loadChangelog: async () => ({
+			entries: [],
+			source: "latest",
+			fallbackUrl: "https://github.com/Gerrxt07/Haven/commits/master",
+		}),
 		platform: "linux",
 		minimize: () => {},
 		maximize: () => {},

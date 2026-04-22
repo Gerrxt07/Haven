@@ -33,7 +33,7 @@ import {
 } from "./components/ui/tooltip";
 import { t, tf } from "./i18n";
 import { authSession } from "./lib/auth/session";
-import { type ChangelogData, loadChangelog } from "./lib/changelog";
+import type { ChangelogData } from "./lib/changelog";
 import { currentTheme, toggleTheme } from "./lib/theme";
 
 const HomeView = lazy(() => import("./views/Home"));
@@ -56,6 +56,7 @@ export default function App() {
 		toVersion: string;
 		entries: ChangelogData["entries"];
 		source: ChangelogData["source"];
+		fallbackUrl: string;
 	} | null>(null);
 	let surfaceTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -103,7 +104,7 @@ export default function App() {
 		}
 
 		try {
-			const changelog = await loadChangelog(
+			const changelog = await globalThis.electronAPI.loadChangelog(
 				lastSeenVersion,
 				normalizedCurrentVersion,
 			);
@@ -112,6 +113,7 @@ export default function App() {
 				toVersion: normalizedCurrentVersion,
 				entries: changelog.entries,
 				source: changelog.source,
+				fallbackUrl: changelog.fallbackUrl,
 			});
 		} catch (error) {
 			console.warn("Could not load changelog commits", error);
@@ -120,6 +122,7 @@ export default function App() {
 				toVersion: normalizedCurrentVersion,
 				entries: [],
 				source: "latest",
+				fallbackUrl: "https://github.com/Gerrxt07/Haven/commits/master",
 			});
 		}
 	};
@@ -531,6 +534,7 @@ export default function App() {
 						toVersion={modal().toVersion}
 						entries={modal().entries}
 						source={modal().source}
+						fallbackUrl={modal().fallbackUrl}
 						onAcknowledge={acknowledgeChangelog}
 					/>
 				)}

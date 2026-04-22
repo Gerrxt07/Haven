@@ -20,6 +20,7 @@ const RESERVED_NAMES = [
 	"window-close",
 	"get-window-state",
 	"window-state-changed",
+	"load-changelog",
 	// Secure storage IPC channels
 	"secure-store-token",
 	"secure-load-token",
@@ -42,6 +43,7 @@ const RESERVED_NAMES = [
 	"minimize",
 	"maximize",
 	"close",
+	"loadChangelog",
 	"getWindowState",
 	"onWindowStateChanged",
 	"writeDetailedLog",

@@ -36,6 +36,7 @@ export const en = {
 			"Could not resolve exact version diff. Showing latest repository changes instead.",
 		changelogEmpty:
 			"No detailed changelog entries were returned for this update yet.",
+		changelogViewOnGitHub: "View on GitHub",
 		changelogAcknowledge: "Got it",
 		externalLinkWarning:
 			"Warning: You are leaving Haven to visit an external website:\n\n{{url}}\n\nDo you want to continue?",

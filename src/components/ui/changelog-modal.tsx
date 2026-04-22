@@ -9,6 +9,7 @@ interface ChangelogModalProps {
 	toVersion: string;
 	entries: ChangelogEntry[];
 	source: "compare" | "latest";
+	fallbackUrl: string;
 	onAcknowledge: () => void;
 }
 
@@ -68,9 +69,27 @@ export function ChangelogModal(props: ChangelogModalProps) {
 							<Show
 								when={props.entries.length > 0}
 								fallback={
-									<p class="rounded-xl border border-(--border-subtle) bg-(--surface-secondary) px-3 py-3 text-sm text-(--text-secondary)">
-										{t("app", "changelogEmpty")}
-									</p>
+									<div class="rounded-xl border border-(--border-subtle) bg-(--surface-secondary) px-3 py-3 text-sm text-(--text-secondary)">
+										<p>{t("app", "changelogEmpty")}</p>
+										<Show when={props.fallbackUrl.length > 0}>
+											<button
+												type="button"
+												class="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-(--border-strong) bg-(--surface-primary) px-3 py-2 text-xs font-semibold text-(--text-primary) transition-colors duration-150 hover:bg-(--surface-raised)"
+												onClick={() =>
+													globalThis.electronAPI.confirmOpenUrl(
+														props.fallbackUrl,
+													)
+												}
+											>
+												{t("app", "changelogViewOnGitHub")}
+												<ArrowUpRight
+													size={14}
+													stroke-width={2}
+													aria-hidden="true"
+												/>
+											</button>
+										</Show>
+									</div>
 								}
 							>
 								<div class="flex flex-col gap-2">

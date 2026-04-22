@@ -9,6 +9,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	// send: (channel: string, data: any) => ipcRenderer.send(channel, data)
 	// platform: process.platform,
 	appVersion: () => ipcRenderer.invoke("get-app-version") as Promise<string>,
+	loadChangelog: (fromVersion: string, toVersion: string) =>
+		ipcRenderer.invoke("load-changelog", fromVersion, toVersion) as Promise<{
+			entries: Array<{
+				sha: string;
+				summary: string;
+				details: string;
+				url: string;
+			}>;
+			source: "compare" | "latest";
+			fallbackUrl: string;
+		}>,
 	minimize: () => ipcRenderer.send("window-minimize"),
 	maximize: () => ipcRenderer.send("window-maximize"),
 	close: () => ipcRenderer.send("window-close"),

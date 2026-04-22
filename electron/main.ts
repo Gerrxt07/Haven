@@ -17,6 +17,8 @@ import {
 	shell,
 	Tray,
 } from "electron";
+import log from "electron-log/main";
+import { getChangelogFallbackUrl, loadChangelog } from "./changelog";
 import { initializeSecureLogger, secureLogger } from "./secure-logger";
 import {
 	buildTimeReleaseChannel,
@@ -987,6 +989,40 @@ app.whenReady().then(() => {
 	ipcMain.handle("get-app-version", () => {
 		return app.getVersion();
 	});
+
+	ipcMain.handle(
+		"load-changelog",
+		async (event, fromVersion: string, toVersion: string) => {
+			if (!isTrustedSender(event.sender)) return null;
+			if (
+				typeof fromVersion !== "string" ||
+				typeof toVersion !== "string" ||
+				fromVersion.trim().length === 0 ||
+				toVersion.trim().length === 0
+			) {
+				return {
+					entries: [],
+					source: "latest" as const,
+					fallbackUrl: "https://github.com/Gerrxt07/Haven/commits/master",
+				};
+			}
+
+			try {
+				return await loadChangelog(fromVersion, toVersion);
+			} catch (error) {
+				log.warn("Failed to load changelog metadata", {
+					fromVersion,
+					toVersion,
+					error,
+				});
+				return {
+					entries: [],
+					source: "latest" as const,
+					fallbackUrl: getChangelogFallbackUrl(fromVersion, toVersion),
+				};
+			}
+		},
+	);
 
 	secureLogger.logLifecycle("ipc-handlers-registered");
 

@@ -1,5 +1,18 @@
 export interface IElectronAPI {
 	appVersion: () => Promise<string>;
+	loadChangelog: (
+		fromVersion: string,
+		toVersion: string,
+	) => Promise<{
+		entries: Array<{
+			sha: string;
+			summary: string;
+			details: string;
+			url: string;
+		}>;
+		source: "compare" | "latest";
+		fallbackUrl: string;
+	}>;
 	platform: string;
 	minimize: () => void;
 	maximize: () => void;
