@@ -77,7 +77,9 @@ export async function establishSessionAsInitiator(params: {
 		initiatorIdentityPrivate: identity.privateKey,
 		initiatorEphemeralPrivate: b64Encode(ephemeral.privateKey),
 		responderIdentityPublic: recipient.identityPublic,
+		responderIdentitySigningPublic: recipient.identitySigningPublic,
 		responderSignedPrekeyPublic: recipient.signedPrekeyPublic,
+		responderSignedPrekeySignature: recipient.signedPrekeySignature,
 		responderOneTimePrekeyPublic: recipient.oneTimePrekeyPublic,
 	});
 
