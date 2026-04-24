@@ -18,4 +18,7 @@
 2026-04-22T19:05:11.5422930+02:00 [USER] Investigate issue #27 where the post-update popup opens but shows no changelog information, then fix and commit it.
 2026-04-22T19:05:11.5422930+02:00 [CODE] Moved changelog GitHub fetching from renderer to Electron main-process IPC, kept updater obfuscation names reserved, and added an empty-state GitHub fallback button for the update modal.
 2026-04-22T19:05:11.5422930+02:00 [TOOL] Root cause was renderer CSP blocking `https://api.github.com`; verified fix with `bun run typecheck`, `bun run lint`, and `bun test`.
+2026-04-24T11:29:14.5244425+02:00 [USER] Set the package version to today, push it, and run a new nightly release.
+2026-04-24T11:31:05.0254890+02:00 [CODE] Bumped `package.json` version to `2026.4.24` so release and nightly workflows target today's build number.
+2026-04-24T11:31:05.0254890+02:00 [TOOL] Verified the version-only change with `bun run typecheck`.
 
