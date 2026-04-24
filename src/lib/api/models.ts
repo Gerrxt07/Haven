@@ -280,6 +280,7 @@ export type SendFriendRequestDto = {
 export type E2eePublicBundle = {
 	user_id: number;
 	identity_key: string;
+	identity_signing_key: string;
 	signed_prekey_id: number;
 	signed_prekey: string;
 	signed_prekey_signature: string;
