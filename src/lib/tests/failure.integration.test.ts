@@ -88,9 +88,35 @@ describe("Failure handling", () => {
 				initiatorIdentityPrivate: "not-base64",
 				initiatorEphemeralPrivate: "not-base64",
 				responderIdentityPublic: "not-base64",
+				responderIdentitySigningPublic: "not-base64",
 				responderSignedPrekeyPublic: "not-base64",
+				responderSignedPrekeySignature: "not-base64",
 			}),
 		).rejects.toThrow();
+	});
+
+	it("fails closed when the SRP challenge request is rejected", async () => {
+		const seenPaths: string[] = [];
+		globalThis.electronAPI = createMockElectronApi({});
+
+		setMockFetch(async (input) => {
+			seenPaths.push(String(input));
+			return new Response(JSON.stringify({ error: "nope" }), {
+				status: 401,
+				headers: { "content-type": "application/json" },
+			});
+		});
+
+		await expect(
+			authSession.login({
+				email: "a@b.com",
+				password: "supersecret",
+			}),
+		).rejects.toThrow();
+		expect(seenPaths.some((path) => path.endsWith("/auth/login"))).toBeFalse();
+		expect(
+			seenPaths.some((path) => path.endsWith("/auth/login/challenge")),
+		).toBeTrue();
 	});
 
 	it("fails decrypt when ratchet state is missing", async () => {
