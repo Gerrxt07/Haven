@@ -24,4 +24,7 @@
 2026-04-24T11:54:02.2711367+02:00 [USER] Reported that installer launch on `v2026.4.22-nightly` hid the startup update flow, then a manual reopen created the old main window while `v2026.4.24` downloaded in the background.
 2026-04-24T11:54:02.2711367+02:00 [CODE] Fixed single-instance startup updater handling so second launches refocus the updater window instead of creating `mainWindow`, and made the updater window show in the taskbar and take focus.
 2026-04-24T11:54:02.2711367+02:00 [TOOL] Verified with `bun run typecheck` and `bunx biome check electron/main.ts electron/updater.ts`.
+2026-04-24T11:57:39.7145919+02:00 [USER] Requested a new nightly using a SemVer-safe patch suffix, so bump version to `2026.4.24-1` and run the workflow again.
+2026-04-24T11:58:06.2997467+02:00 [CODE] Bumped `package.json` version to `2026.4.24-1` so workflows can publish a fresh nightly tag without breaking SemVer-based packaging.
+2026-04-24T11:58:06.2997467+02:00 [TOOL] Verified the release-version bump with `bun run typecheck`.
 
