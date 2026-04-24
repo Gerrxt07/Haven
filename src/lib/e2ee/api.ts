@@ -17,6 +17,10 @@ function assertPublicBundle(value: unknown): asserts value is PublicBundle {
 	const v = value as Record<string, unknown>;
 	assert(typeof v.user_id === "number", "invalid public bundle user_id");
 	assert(typeof v.identity_key === "string", "invalid identity_key");
+	assert(
+		typeof v.identity_signing_key === "string",
+		"invalid identity_signing_key",
+	);
 	assert(typeof v.signed_prekey_id === "number", "invalid signed_prekey_id");
 	assert(typeof v.signed_prekey === "string", "invalid signed_prekey");
 	assert(
