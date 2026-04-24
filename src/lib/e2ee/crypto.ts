@@ -4,6 +4,19 @@ type SodiumModule = {
 	ready: Promise<void>;
 	randombytes_buf: (length: number) => Uint8Array;
 	crypto_kx_keypair: () => { publicKey: Uint8Array; privateKey: Uint8Array };
+	crypto_sign_keypair: () => {
+		publicKey: Uint8Array;
+		privateKey: Uint8Array;
+	};
+	crypto_sign_detached: (
+		message: Uint8Array,
+		privateKey: Uint8Array,
+	) => Uint8Array;
+	crypto_sign_verify_detached: (
+		signature: Uint8Array,
+		message: Uint8Array,
+		publicKey: Uint8Array,
+	) => boolean;
 	crypto_scalarmult: (
 		privateKey: Uint8Array,
 		publicKey: Uint8Array,
@@ -54,7 +67,7 @@ function getSodium(): SodiumModule {
 	return sodium;
 }
 
-async function loadSodium(): Promise<SodiumModule> {
+async function loadSodium(): Promise<unknown> {
 	const importMetaWithRequire = import.meta as ImportMeta & {
 		require?: (id: string) => unknown;
 	};
@@ -98,7 +111,7 @@ async function loadSodium(): Promise<SodiumModule> {
 
 export async function initE2eeCrypto(): Promise<void> {
 	if (initialized) return;
-	sodium = await loadSodium();
+	sodium = (await loadSodium()) as SodiumModule;
 	await sodium.ready;
 	initialized = true;
 }
@@ -130,11 +143,33 @@ export function generateX25519KeyPair(): {
 	return getSodium().crypto_kx_keypair();
 }
 
+export function generateEd25519KeyPair(): {
+	publicKey: Uint8Array;
+	privateKey: Uint8Array;
+} {
+	return getSodium().crypto_sign_keypair();
+}
+
 export function scalarMult(
 	privateKey: Uint8Array,
 	publicKey: Uint8Array,
 ): Uint8Array {
 	return getSodium().crypto_scalarmult(privateKey, publicKey);
+}
+
+export function signDetached(
+	message: Uint8Array,
+	privateKey: Uint8Array,
+): Uint8Array {
+	return getSodium().crypto_sign_detached(message, privateKey);
+}
+
+export function verifyDetached(
+	signature: Uint8Array,
+	message: Uint8Array,
+	publicKey: Uint8Array,
+): boolean {
+	return getSodium().crypto_sign_verify_detached(signature, message, publicKey);
 }
 
 export function hash32(input: Uint8Array): Uint8Array {
