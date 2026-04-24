@@ -27,6 +27,8 @@ const devUpdaterPreviewDurationMs = 2_500;
 const packagedMinimumUiDurationMs = 2_500;
 const updaterLoaderSizePx = 160;
 const updaterLogoSizePx = 116;
+let activeStartupUpdateWindow: BrowserWindow | null = null;
+let startupUpdateFlowActive = false;
 
 type UpdaterUiState = {
 	phase: "checking" | "downloading" | "installing";
@@ -99,7 +101,7 @@ function createUpdateWindow(
 		frame: false,
 		autoHideMenuBar: true,
 		alwaysOnTop: true,
-		skipTaskbar: true,
+		skipTaskbar: false,
 		title: "Haven Updater",
 		backgroundColor: "#272727",
 		icon: iconPath,
@@ -301,9 +303,38 @@ function createUpdateWindow(
 
 	updateWindow.once("ready-to-show", () => {
 		updateWindow.show();
+		updateWindow.focus();
+	});
+
+	updateWindow.on("closed", () => {
+		if (activeStartupUpdateWindow === updateWindow) {
+			activeStartupUpdateWindow = null;
+		}
 	});
 
 	return updateWindow;
+}
+
+export function isStartupUpdateFlowActive(): boolean {
+	return startupUpdateFlowActive;
+}
+
+export function focusStartupUpdateWindow(): boolean {
+	const updateWindow = activeStartupUpdateWindow;
+	if (!startupUpdateFlowActive || !updateWindow || updateWindow.isDestroyed()) {
+		return false;
+	}
+
+	if (!updateWindow.isVisible()) {
+		updateWindow.show();
+	}
+
+	if (updateWindow.isMinimized()) {
+		updateWindow.restore();
+	}
+
+	updateWindow.focus();
+	return true;
 }
 
 function updateUpdaterWindowState(
@@ -428,6 +459,8 @@ export async function runStartupUpdateFlow({
 	logoDataUrl = resizeLogoDataUrl(logoDataUrl);
 
 	const updateWindow = createUpdateWindow(iconPath, logoDataUrl);
+	activeStartupUpdateWindow = updateWindow;
+	startupUpdateFlowActive = true;
 
 	if (isDevUpdaterPreviewEnabled()) {
 		log.initialize();
@@ -439,6 +472,7 @@ export async function runStartupUpdateFlow({
 			if (!updateWindow.isDestroyed()) {
 				updateWindow.destroy();
 			}
+			startupUpdateFlowActive = false;
 		}, devUpdaterPreviewDurationMs);
 
 		return;
@@ -495,6 +529,7 @@ export async function runStartupUpdateFlow({
 			if (!updateWindow.isDestroyed()) {
 				updateWindow.destroy();
 			}
+			startupUpdateFlowActive = false;
 			log.info("Launching main app window", {
 				elapsedMs,
 				minimumUiDurationMs,

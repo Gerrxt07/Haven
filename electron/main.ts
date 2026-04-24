@@ -22,7 +22,9 @@ import { getChangelogFallbackUrl, loadChangelog } from "./changelog";
 import { initializeSecureLogger, secureLogger } from "./secure-logger";
 import {
 	buildTimeReleaseChannel,
+	focusStartupUpdateWindow,
 	getUpdateChannelCandidate,
+	isStartupUpdateFlowActive,
 	runStartupUpdateFlow,
 	setUpdateChannelCandidate,
 	type UpdateChannelCandidate,
@@ -669,6 +671,10 @@ if (!hasSingleInstanceLock) {
 	secureLogger.logLifecycle("single-instance-lock-acquired");
 	app.on("second-instance", () => {
 		secureLogger.logLifecycle("second-instance-detected");
+		if (isStartupUpdateFlowActive() && focusStartupUpdateWindow()) {
+			secureLogger.logLifecycle("startup-updater-refocused");
+			return;
+		}
 		restoreMainWindow();
 	});
 }
