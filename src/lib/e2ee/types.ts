@@ -30,11 +30,14 @@ export type SessionEnvelope = {
 export type IdentityKeyPair = {
 	publicKey: Base64;
 	privateKey: Base64;
+	signingPublicKey: Base64;
+	signingPrivateKey: Base64;
 };
 
 export type KeyBundleUploadPayload = {
 	user_id: number;
 	identity_key: Base64;
+	identity_signing_key: Base64;
 	signed_prekey_id: number;
 	signed_prekey: Base64;
 	signed_prekey_signature: Base64;
@@ -44,6 +47,7 @@ export type KeyBundleUploadPayload = {
 export type PublicBundle = {
 	user_id: number;
 	identity_key: Base64;
+	identity_signing_key: Base64;
 	signed_prekey_id: number;
 	signed_prekey: Base64;
 	signed_prekey_signature: Base64;
