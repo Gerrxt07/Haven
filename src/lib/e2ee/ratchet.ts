@@ -18,6 +18,9 @@ import type {
 	SessionEnvelope,
 } from "./types";
 
+const MAX_SKIP_MESSAGES = 1_000;
+const MAX_STORED_SKIPPED_MESSAGE_KEYS = 2_000;
+
 function toU32(value: number): Uint8Array {
 	const out = new Uint8Array(4);
 	new DataView(out.buffer).setUint32(0, value, false);
@@ -30,6 +33,20 @@ function skippedKeyMapKey(dhPub: string, n: number): string {
 
 function aadForEnvelope(header: E2eeHeader): Uint8Array {
 	return new TextEncoder().encode(JSON.stringify(header));
+}
+
+function pruneSkippedMessageKeys(
+	skippedMessageKeys: Record<string, Base64>,
+): void {
+	while (
+		Object.keys(skippedMessageKeys).length > MAX_STORED_SKIPPED_MESSAGE_KEYS
+	) {
+		const oldestKey = Object.keys(skippedMessageKeys)[0];
+		if (!oldestKey) {
+			return;
+		}
+		delete skippedMessageKeys[oldestKey];
+	}
 }
 
 function ensureChainKey(
@@ -99,6 +116,10 @@ function performDhRatchet(
 }
 
 function skipMessageKeys(state: RatchetState, until: number): RatchetState {
+	if (until - state.recvCount > MAX_SKIP_MESSAGES) {
+		throw new Error("ratchet skip window exceeded safety limit");
+	}
+
 	const current = {
 		...state,
 		skippedMessageKeys: { ...state.skippedMessageKeys },
@@ -110,6 +131,7 @@ function skipMessageKeys(state: RatchetState, until: number): RatchetState {
 		current.receivingChainKey = b64Encode(nextChainKey);
 		const key = skippedKeyMapKey(current.dhRemotePublic, current.recvCount);
 		current.skippedMessageKeys[key] = b64Encode(messageKey);
+		pruneSkippedMessageKeys(current.skippedMessageKeys);
 		current.recvCount += 1;
 	}
 
