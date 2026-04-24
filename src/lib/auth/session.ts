@@ -3,7 +3,6 @@ import {
 	type AuthUserResponse,
 	apiClient,
 	apiConfirmEmailVerification,
-	apiLogin,
 	apiLoginChallenge,
 	apiLoginVerify,
 	apiMe,
@@ -218,23 +217,9 @@ class AuthSessionManager {
 
 	async login(payload: LoginRequest): Promise<AuthUserResponse> {
 		const normalizedEmail = normalizeEmail(payload.email);
-		let challengeResponse: Awaited<ReturnType<typeof apiLoginChallenge>>;
-
-		try {
-			challengeResponse = await apiLoginChallenge({
-				email: normalizedEmail,
-			});
-		} catch (error) {
-			if (!this.shouldFallbackToLegacyLogin(error)) {
-				throw error;
-			}
-
-			const tokens = await apiLogin({
-				...payload,
-				email: normalizedEmail,
-			});
-			return this.finalizeLogin(tokens);
-		}
+		const challengeResponse = await apiLoginChallenge({
+			email: normalizedEmail,
+		});
 
 		return this.completeSrpLogin(
 			normalizedEmail,
@@ -311,18 +296,6 @@ class AuthSessionManager {
 		this.state.currentUser = await apiMe();
 		this.notify();
 		return this.state.currentUser;
-	}
-
-	private shouldFallbackToLegacyLogin(error: unknown): boolean {
-		if (!(error instanceof HttpApiError)) {
-			return false;
-		}
-
-		return (
-			error.apiError.kind === "unauthorized" ||
-			error.apiError.kind === "forbidden" ||
-			error.apiError.kind === "bad-request"
-		);
 	}
 
 	async logout(): Promise<void> {
