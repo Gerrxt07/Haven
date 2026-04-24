@@ -27,4 +27,10 @@
 2026-04-24T11:57:39.7145919+02:00 [USER] Requested a new nightly using a SemVer-safe patch suffix, so bump version to `2026.4.24-1` and run the workflow again.
 2026-04-24T11:58:06.2997467+02:00 [CODE] Bumped `package.json` version to `2026.4.24-1` so workflows can publish a fresh nightly tag without breaking SemVer-based packaging.
 2026-04-24T11:58:06.2997467+02:00 [TOOL] Verified the release-version bump with `bun run typecheck`.
+2026-04-24T12:06:40.6776724+02:00 [USER] Asked to close issue `#27`, fix the remaining open security issues with emphasis on `#40` and `#41`, then publish a `-2` nightly.
+2026-04-24T12:06:40.6776724+02:00 [CODE] Removed silent SRP-to-password fallback, added Ed25519 signed-prekey generation and verification plus secure random prekey IDs, and bounded ratchet skipped-key growth to mitigate issues `#40`-`#43`.
+2026-04-24T12:06:40.6776724+02:00 [TOOL] Verified with `bun run typecheck`, `bun test src/lib/tests/e2ee.integration.test.ts src/lib/tests/failure.integration.test.ts src/lib/tests/contract.api.test.ts`, and `bunx biome check` on touched auth/E2EE files.
+2026-04-24T18:41:53.5412357+02:00 [USER] Requested to process all open repo issues, keep already-fixed local work, bump version to `25.04`, push to `master`, close issues, and run a nightly.
+2026-04-24T18:41:53.5412357+02:00 [CODE] Kept the local security hardening for issues `#40`-`#43` and bumped `package.json` version to SemVer-safe `25.4.0` for the requested `25.04` release line.
+2026-04-24T18:41:53.5412357+02:00 [TOOL] Verified `bun run typecheck` and `bun run lint`; `bun test` in this sandbox still showed known module-resolution errors (`libsodium-sumo`/`solid-js/store`) despite packages present in `node_modules`.
 
