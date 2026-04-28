@@ -5,6 +5,26 @@ import { defineConfig } from "vite";
 import electron from "vite-plugin-electron";
 import solidPlugin from "vite-plugin-solid";
 
+type ElectronDevStartupOptions = {
+	startup: (argv?: string[]) => void;
+	reload: () => void;
+};
+
+const electronDevArgs = ["."];
+
+function startElectronDev(options: Pick<ElectronDevStartupOptions, "startup">) {
+	options.startup(electronDevArgs);
+}
+
+function reloadElectronDev(options: ElectronDevStartupOptions) {
+	if (process.electronApp) {
+		options.reload();
+		return;
+	}
+
+	startElectronDev(options);
+}
+
 /**
  * Reserved names that must NOT be obfuscated to prevent breaking functionality:
  * - Context bridge API name: electronAPI
@@ -165,6 +185,9 @@ export default defineConfig(({ mode }) => ({
 		electron([
 			{
 				entry: "electron/main.ts",
+				onstart(options) {
+					startElectronDev(options);
+				},
 				vite: {
 					build: {
 						outDir: "dist-electron",
@@ -192,7 +215,7 @@ export default defineConfig(({ mode }) => ({
 			{
 				entry: "electron/preload.ts",
 				onstart(options) {
-					options.reload();
+					reloadElectronDev(options);
 				},
 				vite: {
 					build: {

@@ -33,4 +33,7 @@
 2026-04-24T18:41:53.5412357+02:00 [USER] Requested to process all open repo issues, keep already-fixed local work, bump version to `25.04`, push to `master`, close issues, and run a nightly.
 2026-04-24T18:41:53.5412357+02:00 [CODE] Kept the local security hardening for issues `#40`-`#43` and bumped `package.json` version to SemVer-safe `25.4.0` for the requested `25.04` release line.
 2026-04-24T18:41:53.5412357+02:00 [TOOL] Verified `bun run typecheck` and `bun run lint`; `bun test` in this sandbox still showed known module-resolution errors (`libsodium-sumo`/`solid-js/store`) despite packages present in `node_modules`.
+2026-04-28T17:10:36+02:00 [USER] Reported `bun run dev` failed because Electron dev startup passed `--no-sandbox` and Haven blocked it as dangerous.
+2026-04-28T17:10:36+02:00 [CODE] Updated Vite Electron startup hooks to launch dev Electron with `["."]` instead of the plugin default `[".", "--no-sandbox"]`, keeping the app security block intact.
+2026-04-28T17:10:36+02:00 [TOOL] Verified with `bunx biome check vite.config.ts electron/main.ts`, `bun run typecheck`, and escalated `bun run dev`; dev server started at `http://localhost:5173/` and Electron reached `app-ready`.
 
