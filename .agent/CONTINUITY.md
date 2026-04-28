@@ -55,3 +55,5 @@
 2026-04-28T19:18:07+02:00 [CODE] Reworked `Home.tsx` into a private-chat shell with Chats/Contacts tabs, removed server/explorer sidebar surfaces, kept DM and friend-management flows accessible, and updated EN/DE labels.
 2026-04-28T19:18:07+02:00 [TOOL] Verified local-only UI change with targeted Biome check, `bun run typecheck`, `bun run lint`, `bun test`, and `bun run dev`; dev showed existing Solid cleanup warning but no new build/type errors.
 2026-04-28T19:29:35+02:00 [USER] Requested pushing the local secure chat UI redesign changes.
+2026-04-28T19:45:59+02:00 [USER] Requested static security analysis against researchers, forensics, malware, and hackers, written as Haven CVE-style issues.
+2026-04-28T19:45:59+02:00 [CODE] Added `HCVE_SECURITY_REVIEW.md` with fourteen HCVE findings covering plaintext DMs, broad secure-store IPC, local forensic exposure, detailed logs, updater signing, beta Electron, TLS pinning, WebSocket validation, token migration, and cache privacy.
