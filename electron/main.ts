@@ -97,17 +97,100 @@ type DetailedLogPayload = {
 	data?: Record<string, unknown>;
 };
 
+const detailedLogSensitiveKeys = new Set([
+	"token",
+	"accessToken",
+	"refreshToken",
+	"password",
+	"secret",
+	"privateKey",
+	"private_key",
+	"authorization",
+	"ciphertext",
+	"nonce",
+	"aad",
+	"key",
+	"stack",
+]);
+const maxDetailedLogStringLength = 512;
+const maxDetailedLogBytes = 16_384;
+
 function getDetailedLogPath(): string {
 	return path.join(app.getPath("logs"), "detailed.log");
 }
 
+function isDetailedLogLevel(
+	value: unknown,
+): value is "debug" | "info" | "warn" | "error" {
+	return (
+		value === "debug" ||
+		value === "info" ||
+		value === "warn" ||
+		value === "error"
+	);
+}
+
+function sanitizeDetailedLogValue(value: unknown, depth = 0): unknown {
+	if (depth > 4) {
+		return "[MAX_DEPTH]";
+	}
+	if (value === null || value === undefined) {
+		return value;
+	}
+	if (typeof value === "string") {
+		return value.length > maxDetailedLogStringLength
+			? `${value.slice(0, maxDetailedLogStringLength)}...[TRUNCATED]`
+			: value;
+	}
+	if (typeof value === "number" || typeof value === "boolean") {
+		return value;
+	}
+	if (Array.isArray(value)) {
+		return value
+			.slice(0, 50)
+			.map((entry) => sanitizeDetailedLogValue(entry, depth + 1));
+	}
+	if (typeof value === "object") {
+		const out: Record<string, unknown> = {};
+		for (const [key, entry] of Object.entries(value)) {
+			const normalized = key.toLowerCase();
+			if (
+				detailedLogSensitiveKeys.has(key) ||
+				detailedLogSensitiveKeys.has(normalized) ||
+				normalized.includes("token") ||
+				normalized.includes("password") ||
+				normalized.includes("secret") ||
+				normalized.includes("private")
+			) {
+				out[key] = "[REDACTED]";
+				continue;
+			}
+			out[key] = sanitizeDetailedLogValue(entry, depth + 1);
+		}
+		return out;
+	}
+	return "[UNSUPPORTED]";
+}
+
 function serializeDetailedLogLine(payload: DetailedLogPayload): string {
+	const sanitized = JSON.stringify({
+		timestamp: new Date().toISOString(),
+		scope: payload.scope,
+		event: payload.event,
+		level: payload.level ?? "info",
+		data: sanitizeDetailedLogValue(payload.data ?? {}),
+	});
+
+	if (Buffer.byteLength(sanitized, "utf8") <= maxDetailedLogBytes) {
+		return sanitized;
+	}
+
 	return JSON.stringify({
 		timestamp: new Date().toISOString(),
 		scope: payload.scope,
 		event: payload.event,
 		level: payload.level ?? "info",
-		data: payload.data ?? {},
+		data: { truncated: true },
 	});
 }
 
@@ -226,6 +309,14 @@ function sanitizeKey(value: string): string | null {
 
 function getSecureStorePath(namespace: string): string {
 	return path.join(secureStoreBasePath, `${namespace}.enc`);
+}
+
+function isAllowedRendererCacheNamespace(namespace: string): boolean {
+	return (
+		namespace === "friends-cache" ||
+		namespace === "profile-image-cache" ||
+		namespace === "offline-cache"
+	);
 }
 
 async function readSecureNamespace(
@@ -397,6 +488,121 @@ ipcMain.handle(
 			});
 			return false;
 		}
+	},
+);
+
+ipcMain.handle(
+	"auth-store-tokens",
+	async (event, accessToken: string, refreshToken: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+		if (
+			typeof accessToken !== "string" ||
+			typeof refreshToken !== "string" ||
+			accessToken.length < 1 ||
+			refreshToken.length < 1 ||
+			accessToken.length > maxStoredSecretLength ||
+			refreshToken.length > maxStoredSecretLength
+		) {
+			return false;
+		}
+		const current = await readSecureNamespace("auth");
+		current["token.access"] = accessToken;
+		current["token.refresh"] = refreshToken;
+		cachedAuthToken = accessToken;
+		return writeSecureNamespace("auth", current, { deferred: false });
+	},
+);
+
+ipcMain.handle("auth-load-tokens", async (event) => {
+	if (!isTrustedSender(event.sender)) return null;
+	const current = await readSecureNamespace("auth");
+	const accessToken = current["token.access"] ?? null;
+	const refreshToken = current["token.refresh"] ?? null;
+	if (accessToken) {
+		cachedAuthToken = accessToken;
+	}
+	return { accessToken, refreshToken };
+});
+
+ipcMain.handle("auth-delete-tokens", async (event) => {
+	if (!isTrustedSender(event.sender)) return false;
+	const current = await readSecureNamespace("auth");
+	delete current["token.access"];
+	delete current["token.refresh"];
+	cachedAuthToken = null;
+	try {
+		await fs.rm(authFilePath, { force: true });
+	} catch {
+		/* ignore */
+	}
+	return writeSecureNamespace("auth", current, { deferred: false });
+});
+
+ipcMain.handle("e2ee-store-set", async (event, key: string, value: string) => {
+	if (!isTrustedSender(event.sender)) return false;
+	const safeKey = sanitizeKey(key);
+	if (!safeKey || typeof value !== "string") return false;
+	if (value.length > maxStoredSecretLength) return false;
+	const current = await readSecureNamespace("e2ee");
+	current[safeKey] = value;
+	return writeSecureNamespace("e2ee", current);
+});
+
+ipcMain.handle("e2ee-store-get", async (event, key: string) => {
+	if (!isTrustedSender(event.sender)) return null;
+	const safeKey = sanitizeKey(key);
+	if (!safeKey) return null;
+	const current = await readSecureNamespace("e2ee");
+	return current[safeKey] ?? null;
+});
+
+ipcMain.handle("e2ee-store-delete", async (event, key: string) => {
+	if (!isTrustedSender(event.sender)) return false;
+	const safeKey = sanitizeKey(key);
+	if (!safeKey) return false;
+	const current = await readSecureNamespace("e2ee");
+	delete current[safeKey];
+	return writeSecureNamespace("e2ee", current);
+});
+
+ipcMain.handle(
+	"cache-store-set",
+	async (event, namespace: string, key: string, value: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !isAllowedRendererCacheNamespace(ns) || !safeKey) return false;
+		if (typeof value !== "string" || value.length > maxStoredSecretLength) {
+			return false;
+		}
+		const current = await readSecureNamespace(ns);
+		current[safeKey] = value;
+		return writeSecureNamespace(ns, current);
+	},
+);
+
+ipcMain.handle(
+	"cache-store-get",
+	async (event, namespace: string, key: string) => {
+		if (!isTrustedSender(event.sender)) return null;
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !isAllowedRendererCacheNamespace(ns) || !safeKey) return null;
+		const current = await readSecureNamespace(ns);
+		return current[safeKey] ?? null;
+	},
+);
+
+ipcMain.handle(
+	"cache-store-delete",
+	async (event, namespace: string, key: string) => {
+		if (!isTrustedSender(event.sender)) return false;
+		const ns = sanitizeNamespace(namespace);
+		const safeKey = sanitizeKey(key);
+		if (!ns || !isAllowedRendererCacheNamespace(ns) || !safeKey) return false;
+		const current = await readSecureNamespace(ns);
+		delete current[safeKey];
+		return writeSecureNamespace(ns, current);
 	},
 );
 
@@ -1052,7 +1258,10 @@ app.whenReady().then(() => {
 				typeof payload !== "object" ||
 				payload === null ||
 				typeof payload.scope !== "string" ||
-				typeof payload.event !== "string"
+				typeof payload.event !== "string" ||
+				payload.scope.length > 64 ||
+				payload.event.length > 96 ||
+				(payload.level !== undefined && !isDetailedLogLevel(payload.level))
 			) {
 				return false;
 			}

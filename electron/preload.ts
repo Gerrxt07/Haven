@@ -64,20 +64,39 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.invoke("secure-load-token") as Promise<string | null>,
 	deleteToken: () =>
 		ipcRenderer.invoke("secure-delete-token") as Promise<boolean>,
-	secureStoreSet: (namespace: string, key: string, value: string) =>
+	storeAuthTokens: (accessToken: string, refreshToken: string) =>
 		ipcRenderer.invoke(
-			"secure-store-set",
+			"auth-store-tokens",
+			accessToken,
+			refreshToken,
+		) as Promise<boolean>,
+	loadAuthTokens: () =>
+		ipcRenderer.invoke("auth-load-tokens") as Promise<{
+			accessToken: string | null;
+			refreshToken: string | null;
+		} | null>,
+	deleteAuthTokens: () =>
+		ipcRenderer.invoke("auth-delete-tokens") as Promise<boolean>,
+	e2eeStoreSet: (key: string, value: string) =>
+		ipcRenderer.invoke("e2ee-store-set", key, value) as Promise<boolean>,
+	e2eeStoreGet: (key: string) =>
+		ipcRenderer.invoke("e2ee-store-get", key) as Promise<string | null>,
+	e2eeStoreDelete: (key: string) =>
+		ipcRenderer.invoke("e2ee-store-delete", key) as Promise<boolean>,
+	cacheStoreSet: (namespace: string, key: string, value: string) =>
+		ipcRenderer.invoke(
+			"cache-store-set",
 			namespace,
 			key,
 			value,
 		) as Promise<boolean>,
-	secureStoreGet: (namespace: string, key: string) =>
-		ipcRenderer.invoke("secure-store-get", namespace, key) as Promise<
+	cacheStoreGet: (namespace: string, key: string) =>
+		ipcRenderer.invoke("cache-store-get", namespace, key) as Promise<
 			string | null
 		>,
-	secureStoreDelete: (namespace: string, key: string) =>
+	cacheStoreDelete: (namespace: string, key: string) =>
 		ipcRenderer.invoke(
-			"secure-store-delete",
+			"cache-store-delete",
 			namespace,
 			key,
 		) as Promise<boolean>,

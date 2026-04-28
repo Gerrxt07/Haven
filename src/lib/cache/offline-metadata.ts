@@ -44,7 +44,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 
 async function getOrCreateCacheKey(): Promise<CryptoKey> {
 	const electronApi = getElectronApi();
-	const existing = await electronApi.secureStoreGet(CACHE_NAMESPACE, CACHE_KEY);
+	const existing = await electronApi.cacheStoreGet(CACHE_NAMESPACE, CACHE_KEY);
 
 	if (existing) {
 		const keyBytes = decode(existing);
@@ -58,7 +58,7 @@ async function getOrCreateCacheKey(): Promise<CryptoKey> {
 	}
 
 	const key = crypto.getRandomValues(new Uint8Array(32));
-	await electronApi.secureStoreSet(CACHE_NAMESPACE, CACHE_KEY, encode(key));
+	await electronApi.cacheStoreSet(CACHE_NAMESPACE, CACHE_KEY, encode(key));
 	return crypto.subtle.importKey("raw", toArrayBuffer(key), "AES-GCM", false, [
 		"encrypt",
 		"decrypt",
@@ -91,7 +91,7 @@ export async function persistChannelMetadata(
 
 	const payload = JSON.stringify({ iv: encode(iv), data: encode(ciphertext) });
 	const electronApi = getElectronApi();
-	await electronApi.secureStoreSet(
+	await electronApi.cacheStoreSet(
 		CACHE_NAMESPACE,
 		`channel:${channelId}`,
 		payload,
@@ -106,7 +106,7 @@ export async function loadChannelMetadata(
 	}
 
 	const electronApi = getElectronApi();
-	const raw = await electronApi.secureStoreGet(
+	const raw = await electronApi.cacheStoreGet(
 		CACHE_NAMESPACE,
 		`channel:${channelId}`,
 	);

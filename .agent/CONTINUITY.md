@@ -57,3 +57,6 @@
 2026-04-28T19:29:35+02:00 [USER] Requested pushing the local secure chat UI redesign changes.
 2026-04-28T19:45:59+02:00 [USER] Requested static security analysis against researchers, forensics, malware, and hackers, written as Haven CVE-style issues.
 2026-04-28T19:45:59+02:00 [CODE] Added `HCVE_SECURITY_REVIEW.md` with fourteen HCVE findings covering plaintext DMs, broad secure-store IPC, local forensic exposure, detailed logs, updater signing, beta Electron, TLS pinning, WebSocket validation, token migration, and cache privacy.
+2026-04-28T20:15:35+02:00 [USER] Narrowed remediation request to HCVE-2026-0001 through HCVE-2026-0004 only.
+2026-04-28T20:15:35+02:00 [CODE] Wired DM sending through X3DH + Double Ratchet ciphertext payloads, bootstrapped E2EE bundles on session restore/login, decrypted incoming encrypted DMs when possible, removed generic secure-store preload access in favor of scoped auth/E2EE/cache IPC, and sanitized detailed logs before disk write.
+2026-04-28T20:15:35+02:00 [TOOL] Verified client changes with `bun run typecheck`, `bun test`, and `bun run lint`; lint passed with only the existing Biome schema-version info.

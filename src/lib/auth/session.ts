@@ -23,6 +23,7 @@ import {
 	fileToImageDataUrl,
 	primeRelatedUserAvatar,
 } from "../cache/profile-images";
+import { ensureOwnBundle } from "../e2ee/client";
 import { writeDetailedErrorLog, writeDetailedLog } from "../logging/detailed";
 import {
 	cleanupSrpState,
@@ -34,9 +35,6 @@ import {
 	verifyServerProof,
 } from "./srp";
 
-const ACCESS_TOKEN_KEY = "token.access";
-const REFRESH_TOKEN_KEY = "token.refresh";
-const TOKEN_NAMESPACE = "auth";
 const MIN_PASSWORD_LENGTH = 10;
 
 type SessionState = {
@@ -138,11 +136,12 @@ class AuthSessionManager {
 			return;
 		}
 
-		const [legacyToken, accessToken, refreshToken] = await Promise.all([
+		const [legacyToken, storedTokens] = await Promise.all([
 			globalThis.electronAPI.loadToken(),
-			globalThis.electronAPI.secureStoreGet(TOKEN_NAMESPACE, ACCESS_TOKEN_KEY),
-			globalThis.electronAPI.secureStoreGet(TOKEN_NAMESPACE, REFRESH_TOKEN_KEY),
+			globalThis.electronAPI.loadAuthTokens(),
 		]);
+		const accessToken = storedTokens?.accessToken ?? null;
+		const refreshToken = storedTokens?.refreshToken ?? null;
 
 		this.state.accessToken = accessToken ?? legacyToken;
 		this.state.refreshToken = refreshToken;
@@ -166,6 +165,7 @@ class AuthSessionManager {
 		if (this.state.accessToken) {
 			try {
 				this.state.currentUser = await apiMe();
+				await ensureOwnBundle(this.state.currentUser.id);
 			} catch {
 				// Keep persisted credentials and retry later instead of force-logging out
 				// on transient startup failures (network/timeout/backend unavailable).
@@ -294,6 +294,7 @@ class AuthSessionManager {
 	private async finalizeLogin(tokens: AuthTokens): Promise<AuthUserResponse> {
 		await this.persistTokens(tokens);
 		this.state.currentUser = await apiMe();
+		await ensureOwnBundle(this.state.currentUser.id);
 		this.notify();
 		return this.state.currentUser;
 	}
@@ -313,14 +314,7 @@ class AuthSessionManager {
 
 		await Promise.all([
 			globalThis.electronAPI.deleteToken(),
-			globalThis.electronAPI.secureStoreDelete(
-				TOKEN_NAMESPACE,
-				ACCESS_TOKEN_KEY,
-			),
-			globalThis.electronAPI.secureStoreDelete(
-				TOKEN_NAMESPACE,
-				REFRESH_TOKEN_KEY,
-			),
+			globalThis.electronAPI.deleteAuthTokens(),
 		]);
 	}
 
@@ -485,15 +479,8 @@ class AuthSessionManager {
 		}
 
 		await Promise.all([
-			globalThis.electronAPI.storeToken(tokens.access_token),
-			globalThis.electronAPI.secureStoreSet(
-				TOKEN_NAMESPACE,
-				ACCESS_TOKEN_KEY,
+			globalThis.electronAPI.storeAuthTokens(
 				tokens.access_token,
-			),
-			globalThis.electronAPI.secureStoreSet(
-				TOKEN_NAMESPACE,
-				REFRESH_TOKEN_KEY,
 				tokens.refresh_token,
 			),
 		]);

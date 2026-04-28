@@ -9,6 +9,8 @@ import {
 	type DmThreadDto,
 	HttpApiError,
 } from "../api";
+import { authSession } from "../auth/session";
+import { decryptDmMessage, encryptDmMessage } from "../e2ee/client";
 import { realtimeManager } from "../realtime";
 import {
 	dmStore,
@@ -86,11 +88,53 @@ class DmService {
 			if (!message) {
 				return;
 			}
-			upsertDmMessage(message.thread_id, message);
-			patchDmThreadFromMessage(message.thread_id, message);
+			void this.decryptMessageIfPossible(message).then((displayMessage) => {
+				upsertDmMessage(displayMessage.thread_id, displayMessage);
+				patchDmThreadFromMessage(displayMessage.thread_id, displayMessage);
+			});
 		});
 
 		this.wsUnsubscribers.push(unsub);
+	}
+
+	private peerUserIdForThread(threadId: number): number | null {
+		return (
+			dmStore.threads.find((thread) => thread.id === threadId)?.peer_user_id ??
+			null
+		);
+	}
+
+	private async decryptMessageIfPossible(
+		message: DmMessageDto,
+	): Promise<DmMessageDto> {
+		if (!message.is_encrypted) {
+			return message;
+		}
+		if (!message.ciphertext || !message.nonce || !message.aad) {
+			return message;
+		}
+		const selfUserId = authSession.currentUser?.id;
+		const peerUserId = this.peerUserIdForThread(message.thread_id);
+		if (!selfUserId || !peerUserId || message.author_user_id === selfUserId) {
+			return message;
+		}
+
+		try {
+			const plaintext = await decryptDmMessage({
+				selfUserId,
+				peerUserId,
+				ciphertext: message.ciphertext,
+				nonce: message.nonce,
+				aad: message.aad,
+				algorithm: message.algorithm,
+			});
+			return {
+				...message,
+				decrypted_content: plaintext,
+			};
+		} catch {
+			return message;
+		}
 	}
 
 	async refreshThreads(): Promise<void> {
@@ -158,8 +202,11 @@ class DmService {
 				limit,
 				signal,
 			});
-			mergeDmMessages(threadId, rows);
-			return rows;
+			const displayRows = await Promise.all(
+				rows.map((row) => this.decryptMessageIfPossible(row)),
+			);
+			mergeDmMessages(threadId, displayRows);
+			return displayRows;
 		} finally {
 			setDmThreadLoading(threadId, false);
 			clearAbortRequest(requestKey);
@@ -175,6 +222,15 @@ class DmService {
 		if (!trimmed) {
 			throw new Error("message cannot be empty");
 		}
+		const thread = dmStore.threads.find((entry) => entry.id === threadId);
+		if (!thread) {
+			throw new Error("missing direct message thread");
+		}
+		const encrypted = await encryptDmMessage({
+			selfUserId: authorUserId,
+			peerUserId: thread.peer_user_id,
+			plaintext: trimmed,
+		});
 
 		const optimisticId = Date.now();
 		const now = new Date().toISOString();
@@ -183,12 +239,13 @@ class DmService {
 			thread_id: threadId,
 			author_user_id: authorUserId,
 			author_avatar_url: null,
-			content: trimmed,
-			is_encrypted: false,
-			ciphertext: null,
-			nonce: null,
-			aad: null,
-			algorithm: null,
+			content: "[e2ee]",
+			decrypted_content: trimmed,
+			is_encrypted: true,
+			ciphertext: encrypted.ciphertext,
+			nonce: encrypted.nonce,
+			aad: encrypted.aad,
+			algorithm: encrypted.algorithm,
 			edited_at: null,
 			deleted_at: null,
 			created_at: now,
@@ -198,10 +255,14 @@ class DmService {
 		upsertDmMessage(threadId, optimistic);
 		patchDmThreadFromMessage(threadId, optimistic);
 
-		const created = await apiCreateDmMessage(threadId, { content: trimmed });
-		upsertDmMessage(threadId, created);
-		patchDmThreadFromMessage(threadId, created);
-		return created;
+		const created = await apiCreateDmMessage(threadId, encrypted);
+		const displayCreated: DmMessageDto = {
+			...created,
+			decrypted_content: trimmed,
+		};
+		upsertDmMessage(threadId, displayCreated);
+		patchDmThreadFromMessage(threadId, displayCreated);
+		return displayCreated;
 	}
 
 	destroy(): void {

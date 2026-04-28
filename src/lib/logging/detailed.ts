@@ -7,7 +7,6 @@ function serializeError(error: unknown): DetailedLogData {
 		return {
 			name: error.name,
 			message: error.message,
-			stack: error.stack ?? null,
 		};
 	}
 

@@ -39,13 +39,25 @@ export interface IElectronAPI {
 	storeToken: (token: string) => Promise<boolean>;
 	loadToken: () => Promise<string | null>;
 	deleteToken: () => Promise<boolean>;
-	secureStoreSet: (
+	storeAuthTokens: (
+		accessToken: string,
+		refreshToken: string,
+	) => Promise<boolean>;
+	loadAuthTokens: () => Promise<{
+		accessToken: string | null;
+		refreshToken: string | null;
+	} | null>;
+	deleteAuthTokens: () => Promise<boolean>;
+	e2eeStoreSet: (key: string, value: string) => Promise<boolean>;
+	e2eeStoreGet: (key: string) => Promise<string | null>;
+	e2eeStoreDelete: (key: string) => Promise<boolean>;
+	cacheStoreSet: (
 		namespace: string,
 		key: string,
 		value: string,
 	) => Promise<boolean>;
-	secureStoreGet: (namespace: string, key: string) => Promise<string | null>;
-	secureStoreDelete: (namespace: string, key: string) => Promise<boolean>;
+	cacheStoreGet: (namespace: string, key: string) => Promise<string | null>;
+	cacheStoreDelete: (namespace: string, key: string) => Promise<boolean>;
 }
 
 declare global {

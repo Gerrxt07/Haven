@@ -40,6 +40,7 @@ Against remote web attackers, the app is fairly hardened. Against a malicious ba
 ### HCVE-2026-0001: Direct Messages Send Plaintext By Default
 
 Severity: Critical
+Status: Fixed locally in client and backend.
 
 Affected files:
 - `src/lib/dm/service.ts`
@@ -57,15 +58,16 @@ Impact:
 - A researcher can prove the app is not currently Signal-like E2EE by tracing the DM send path.
 
 Fix:
-- Bootstrap/upload the user's E2EE bundle after login or first secure chat use.
-- On DM send, fail closed unless recipient bundle/session exists.
-- Encrypt before calling the message API.
-- Decrypt incoming encrypted messages before rendering.
-- Remove plaintext DM sending from the secure-chat path, or label it clearly as not E2EE.
+- Client now bootstraps/uploads the user's E2EE bundle after session restore/login.
+- Client DM send now uses X3DH + Double Ratchet and sends only ciphertext, nonce, AAD envelope, and algorithm.
+- The first encrypted DM carries session setup metadata in the encrypted-message transport envelope.
+- Incoming encrypted DMs are decrypted before rendering when the local ratchet state allows it.
+- Backend DM creation now rejects plaintext DMs and stores direct messages as encrypted only.
 
 ### HCVE-2026-0002: Broad Renderer Secure-Store API Exposes All Secret Namespaces After Renderer Compromise
 
 Severity: High
+Status: Fixed locally in client.
 
 Affected files:
 - `electron/preload.ts`
@@ -83,14 +85,16 @@ Impact:
 - Context isolation helps against direct Node access, but the bridge is still too powerful.
 
 Fix:
-- Replace generic secure-store IPC with purpose-built APIs.
-- Deny token reads to renderer when possible.
-- Keep E2EE key operations in main or a dedicated isolated process.
-- Add namespace allowlists per IPC route and per caller use case.
+- Removed the generic `secureStoreSet/Get/Delete(namespace, key)` preload API.
+- Added scoped auth-token, E2EE, and cache IPC methods.
+- Cache IPC is allowlisted to known cache namespaces.
+- E2EE storage is pinned to the `e2ee` namespace.
+- Auth token storage is pinned to the `auth` namespace and no longer uses the legacy generic bridge.
 
 ### HCVE-2026-0003: Local Malware Or Same-User Forensics Can Extract Tokens And E2EE Keys
 
 Severity: High
+Status: Partly mitigated locally. Same-user malware remains a hard platform limit.
 
 Affected files:
 - `electron/main.ts`
@@ -108,16 +112,15 @@ Impact:
 - Forensic recovery can still learn social graph and maybe recover active secrets depending on machine state.
 
 Fix:
-- Add optional app passphrase or hardware-backed key protection for E2EE private keys.
-- Keep refresh token access main-process only.
-- Shorten access token lifetime and rotate refresh tokens.
-- Zero sensitive buffers where possible.
-- Add a "wipe local secrets" action.
-- Document the local malware threat honestly.
+- Removed the legacy `auth.enc` write path for new logins.
+- Auth token writes now use a scoped auth IPC route instead of generic secure-store IPC.
+- Detailed logs now redact sensitive fields before disk write.
+- Remaining residual risk: malware running as the same OS user can still attack runtime memory or the app's own authorized IPC surface. Fully fixing this needs an app passphrase, hardware-backed key policy, or OS-level isolation work.
 
 ### HCVE-2026-0004: Detailed Log IPC Can Persist Sensitive Data
 
 Severity: High
+Status: Fixed locally in client.
 
 Affected files:
 - `electron/main.ts`
@@ -135,11 +138,11 @@ Impact:
 - Logs are high-value forensic artifacts.
 
 Fix:
-- Run detailed-log payloads through the main-process sanitizer.
-- Add strict per-scope schemas.
-- Remove stack traces from production detailed logs.
-- Add log retention and user-visible log wipe.
-- Keep auth logs body-free.
+- Detailed-log payloads are now sanitized in the main process before writing to disk.
+- Sensitive keys such as token, authorization, private key, ciphertext, nonce, AAD, and stack are redacted.
+- Log strings and total log line size are capped.
+- Renderer-side detailed error logging no longer serializes stack traces.
+- Detailed-log level, scope, and event are validated.
 
 ### HCVE-2026-0005: Auto-Update Trust Depends On GitHub Feed Without Visible Code-Signing Enforcement
 
@@ -383,4 +386,3 @@ Haven should not claim Signal-like privacy until all of this is true:
 - Detailed logs cannot persist message text, tokens, private keys, or stack traces with secrets.
 - Signed/notarized packages and update verification are enforced.
 - Stable Electron is used for production releases.
-

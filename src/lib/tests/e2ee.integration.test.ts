@@ -1,5 +1,10 @@
-import { describe, expect, it } from "bun:test";
-
+import { afterEach, describe, expect, it } from "bun:test";
+import type { IElectronAPI } from "../../types/electron";
+import {
+	decryptDmMessage,
+	encryptDmMessage,
+	ensureOwnBundle,
+} from "../e2ee/client";
 import {
 	b64Encode,
 	generateEd25519KeyPair,
@@ -18,6 +23,14 @@ import {
 	x3dhInitiatorSharedSecret,
 	x3dhResponderSharedSecret,
 } from "../e2ee/x3dh";
+
+const originalElectronApi = globalThis.electronAPI;
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+	globalThis.electronAPI = originalElectronApi;
+	globalThis.fetch = originalFetch;
+});
 
 describe("E2EE integration", () => {
 	it("produces matching X3DH shared secrets", async () => {
@@ -148,5 +161,92 @@ describe("E2EE integration", () => {
 				algorithm: "xchacha20poly1305",
 			}),
 		).toThrow("ratchet skip window exceeded safety limit");
+	});
+
+	it("encrypts and decrypts first direct message through transport payload", async () => {
+		const secureValues: Record<string, string> = {};
+		const bundles = new Map<number, Record<string, unknown>>();
+
+		globalThis.electronAPI = {
+			e2eeStoreSet: async (key: string, value: string) => {
+				secureValues[key] = value;
+				return true;
+			},
+			e2eeStoreGet: async (key: string) => secureValues[key] ?? null,
+			e2eeStoreDelete: async (key: string) => {
+				delete secureValues[key];
+				return true;
+			},
+		} as IElectronAPI;
+
+		globalThis.fetch = (async (input, init) => {
+			const url = String(input);
+			const body =
+				typeof init?.body === "string"
+					? (JSON.parse(init.body) as Record<string, unknown>)
+					: {};
+
+			if (url.endsWith("/e2ee/keys/bundle") && init?.method === "POST") {
+				bundles.set(Number(body.user_id), body);
+				return Response.json({ ok: true });
+			}
+
+			if (url.endsWith("/e2ee/keys/claim") && init?.method === "POST") {
+				const targetUserId = Number(body.target_user_id);
+				const bundle = bundles.get(targetUserId);
+				const oneTimePrekeys = bundle?.one_time_prekeys as
+					| Array<{ id: number; prekey: string }>
+					| undefined;
+				const prekey = oneTimePrekeys?.[0];
+				return Response.json({
+					user_id: targetUserId,
+					identity_key: bundle?.identity_key,
+					identity_signing_key: bundle?.identity_signing_key,
+					signed_prekey_id: bundle?.signed_prekey_id,
+					signed_prekey: bundle?.signed_prekey,
+					signed_prekey_signature: bundle?.signed_prekey_signature,
+					one_time_prekey_id: prekey?.id,
+					one_time_prekey: prekey?.prekey,
+				});
+			}
+
+			const bundleMatch = url.match(/\/e2ee\/keys\/bundle\/(\d+)$/);
+			if (bundleMatch && (!init?.method || init.method === "GET")) {
+				const userId = Number(bundleMatch[1]);
+				const bundle = bundles.get(userId);
+				return Response.json({
+					user_id: userId,
+					identity_key: bundle?.identity_key,
+					identity_signing_key: bundle?.identity_signing_key,
+					signed_prekey_id: bundle?.signed_prekey_id,
+					signed_prekey: bundle?.signed_prekey,
+					signed_prekey_signature: bundle?.signed_prekey_signature,
+				});
+			}
+
+			return new Response("not found", { status: 404 });
+		}) as typeof fetch;
+
+		await ensureOwnBundle(1);
+		await ensureOwnBundle(2);
+
+		const encrypted = await encryptDmMessage({
+			selfUserId: 1,
+			peerUserId: 2,
+			plaintext: "hello secure dm",
+		});
+		delete secureValues["ratchet:1:2"];
+		delete secureValues["conv-secret:1:2"];
+
+		const decrypted = await decryptDmMessage({
+			selfUserId: 2,
+			peerUserId: 1,
+			ciphertext: encrypted.ciphertext,
+			nonce: encrypted.nonce,
+			aad: encrypted.aad,
+			algorithm: encrypted.algorithm,
+		});
+
+		expect(decrypted).toBe("hello secure dm");
 	});
 });

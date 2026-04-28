@@ -132,7 +132,7 @@ async function readPersisted(
 ): Promise<CachedProfileImage | null> {
 	try {
 		if (secureStoreAvailable()) {
-			const raw = await globalThis.electronAPI.secureStoreGet(
+			const raw = await globalThis.electronAPI.cacheStoreGet(
 				PROFILE_CACHE_NAMESPACE,
 				toStorageKey(userId),
 			);
@@ -183,7 +183,7 @@ async function persist(
 
 	try {
 		if (secureStoreAvailable()) {
-			await globalThis.electronAPI.secureStoreSet(
+			await globalThis.electronAPI.cacheStoreSet(
 				PROFILE_CACHE_NAMESPACE,
 				toStorageKey(userId),
 				payload,
@@ -202,7 +202,7 @@ export async function clearCachedProfileImage(userId: number): Promise<void> {
 
 	try {
 		if (secureStoreAvailable()) {
-			await globalThis.electronAPI.secureStoreDelete(
+			await globalThis.electronAPI.cacheStoreDelete(
 				PROFILE_CACHE_NAMESPACE,
 				toStorageKey(userId),
 			);

@@ -228,16 +228,11 @@ export function assertCreateDmThreadRequest(
 export function assertCreateDmMessageRequest(
 	payload: CreateDmMessageRequestDto,
 ): void {
-	const hasPlainContent =
-		typeof payload.content === "string" && payload.content.trim().length > 0;
 	const hasCipherContent =
 		typeof payload.ciphertext === "string" &&
 		typeof payload.nonce === "string" &&
 		typeof payload.algorithm === "string";
-	assert(
-		hasPlainContent || hasCipherContent,
-		"dm message requires plaintext or ciphertext payload",
-	);
+	assert(hasCipherContent, "dm message requires ciphertext payload");
 }
 
 export function assertServerDto(value: unknown): asserts value is ServerDto {

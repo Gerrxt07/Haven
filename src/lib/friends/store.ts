@@ -120,7 +120,7 @@ async function flushPersistKey(key: string): Promise<void> {
 	}
 
 	try {
-		await api.secureStoreSet(CACHE_NAMESPACE, key, payload);
+		await api.cacheStoreSet(CACHE_NAMESPACE, key, payload);
 	} catch {
 		// Non-critical – cache write failures should not surface to the user
 	}
@@ -167,9 +167,9 @@ export async function loadFriendsFromCache(): Promise<void> {
 
 	try {
 		const [rawIncoming, rawOutgoing, rawFriends] = await Promise.all([
-			api.secureStoreGet(CACHE_NAMESPACE, INCOMING_CACHE_KEY),
-			api.secureStoreGet(CACHE_NAMESPACE, OUTGOING_CACHE_KEY),
-			api.secureStoreGet(CACHE_NAMESPACE, FRIENDS_CACHE_KEY),
+			api.cacheStoreGet(CACHE_NAMESPACE, INCOMING_CACHE_KEY),
+			api.cacheStoreGet(CACHE_NAMESPACE, OUTGOING_CACHE_KEY),
+			api.cacheStoreGet(CACHE_NAMESPACE, FRIENDS_CACHE_KEY),
 		]);
 
 		if (rawIncoming) {

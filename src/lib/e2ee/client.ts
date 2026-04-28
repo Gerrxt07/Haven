@@ -7,6 +7,8 @@ import {
 import {
 	b64Decode,
 	b64Encode,
+	b64Decode as decodeBase64,
+	b64Encode as encodeBase64,
 	generateX25519KeyPair,
 	initE2eeCrypto,
 	xchachaEncrypt,
@@ -30,7 +32,7 @@ import {
 	saveRatchetState,
 	saveSignedPrekeyPrivate,
 } from "./storage";
-import type { RatchetState, SessionEnvelope } from "./types";
+import type { E2eeHeader, RatchetState, SessionEnvelope } from "./types";
 import {
 	claimedBundleToRecipient,
 	generateBundleUploadPayload,
@@ -58,10 +60,80 @@ function conversationKey(userA: number, userB: number): string {
 	return userA < userB ? `${userA}:${userB}` : `${userB}:${userA}`;
 }
 
+type DmX3dhInit = {
+	initiatorIdentityPublic: string;
+	initiatorEphemeralPublic: string;
+	oneTimePrekeyId?: number;
+};
+
+type DmTransportEnvelope = {
+	v: 1;
+	header: E2eeHeader;
+	x3dh?: DmX3dhInit;
+};
+
+export type EncryptedDmPayload = {
+	ciphertext: string;
+	nonce: string;
+	aad: string;
+	algorithm: "xchacha20poly1305+double-ratchet-v1";
+};
+
+function encodeJsonBase64(value: unknown): string {
+	const json = JSON.stringify(value);
+	return encodeBase64(new TextEncoder().encode(json));
+}
+
+function decodeJsonBase64<T>(value: string): T {
+	const bytes = decodeBase64(value);
+	return JSON.parse(new TextDecoder().decode(bytes)) as T;
+}
+
+function assertDmTransportEnvelope(
+	value: unknown,
+): asserts value is DmTransportEnvelope {
+	if (!value || typeof value !== "object") {
+		throw new Error("invalid encrypted DM envelope");
+	}
+	const candidate = value as Record<string, unknown>;
+	if (
+		candidate.v !== 1 ||
+		!candidate.header ||
+		typeof candidate.header !== "object"
+	) {
+		throw new Error("unsupported encrypted DM envelope");
+	}
+	const header = candidate.header as Record<string, unknown>;
+	if (
+		typeof header.dhPub !== "string" ||
+		typeof header.pn !== "number" ||
+		typeof header.n !== "number"
+	) {
+		throw new Error("invalid encrypted DM header");
+	}
+}
+
+export async function ensureOwnBundle(userId: number): Promise<void> {
+	await initE2eeCrypto();
+	const existing = await loadIdentity(userId);
+	if (existing) {
+		return;
+	}
+	await bootstrapOwnBundle(userId);
+}
+
 export async function establishSessionAsInitiator(params: {
 	selfUserId: number;
 	targetUserId: number;
 }): Promise<RatchetState> {
+	const established = await establishSessionAsInitiatorWithMetadata(params);
+	return established.state;
+}
+
+async function establishSessionAsInitiatorWithMetadata(params: {
+	selfUserId: number;
+	targetUserId: number;
+}): Promise<{ state: RatchetState; x3dh: DmX3dhInit }> {
 	await initE2eeCrypto();
 
 	const identity = await loadIdentity(params.selfUserId);
@@ -99,7 +171,14 @@ export async function establishSessionAsInitiator(params: {
 		conversationKey(params.selfUserId, params.targetUserId),
 		b64Encode(sharedSecret),
 	);
-	return state;
+	return {
+		state,
+		x3dh: {
+			initiatorIdentityPublic: identity.publicKey,
+			initiatorEphemeralPublic: b64Encode(ephemeral.publicKey),
+			oneTimePrekeyId: recipient.oneTimePrekeyId,
+		},
+	};
 }
 
 export async function establishSessionAsResponder(params: {
@@ -205,6 +284,42 @@ export async function encryptAndSendMessage(params: {
 	return encrypted.envelope;
 }
 
+export async function encryptDmMessage(params: {
+	selfUserId: number;
+	peerUserId: number;
+	plaintext: string;
+}): Promise<EncryptedDmPayload> {
+	await ensureOwnBundle(params.selfUserId);
+
+	const key = conversationKey(params.selfUserId, params.peerUserId);
+	let state = await loadRatchetState(key);
+	let x3dh: DmX3dhInit | undefined;
+	if (!state) {
+		const established = await establishSessionAsInitiatorWithMetadata({
+			selfUserId: params.selfUserId,
+			targetUserId: params.peerUserId,
+		});
+		state = established.state;
+		x3dh = established.x3dh;
+	}
+
+	const encrypted = ratchetEncrypt(state, params.plaintext);
+	await saveRatchetState(key, encrypted.state);
+
+	const transport: DmTransportEnvelope = {
+		v: 1,
+		header: encrypted.envelope.header,
+		x3dh,
+	};
+
+	return {
+		ciphertext: encrypted.envelope.ciphertext,
+		nonce: encrypted.envelope.nonce,
+		aad: encodeJsonBase64(transport),
+		algorithm: "xchacha20poly1305+double-ratchet-v1",
+	};
+}
+
 export async function decryptIncomingMessage(params: {
 	selfUserId: number;
 	peerUserId: number;
@@ -219,6 +334,54 @@ export async function decryptIncomingMessage(params: {
 	}
 
 	const decrypted = ratchetDecrypt(state, params.envelope);
+	await saveRatchetState(key, decrypted.state);
+	return decrypted.plaintext;
+}
+
+export async function decryptDmMessage(params: {
+	selfUserId: number;
+	peerUserId: number;
+	ciphertext: string;
+	nonce: string;
+	aad: string;
+	algorithm?: string | null;
+}): Promise<string> {
+	await ensureOwnBundle(params.selfUserId);
+	if (
+		params.algorithm &&
+		params.algorithm !== "xchacha20poly1305" &&
+		params.algorithm !== "xchacha20poly1305+double-ratchet-v1"
+	) {
+		throw new Error("unsupported encrypted DM algorithm");
+	}
+
+	const transport = decodeJsonBase64<unknown>(params.aad);
+	assertDmTransportEnvelope(transport);
+
+	const key = conversationKey(params.selfUserId, params.peerUserId);
+	let state = await loadRatchetState(key);
+	if (!state) {
+		const x3dh = transport.x3dh;
+		if (!x3dh) {
+			throw new Error("missing encrypted DM session setup");
+		}
+		state = await establishSessionAsResponder({
+			selfUserId: params.selfUserId,
+			initiatorUserId: params.peerUserId,
+			initiatorIdentityPublic: x3dh.initiatorIdentityPublic,
+			initiatorEphemeralPublic: x3dh.initiatorEphemeralPublic,
+			oneTimePrekeyId: x3dh.oneTimePrekeyId,
+		});
+	}
+
+	const envelope: SessionEnvelope = {
+		header: transport.header,
+		nonce: params.nonce,
+		ciphertext: params.ciphertext,
+		aad: params.aad,
+		algorithm: "xchacha20poly1305",
+	};
+	const decrypted = ratchetDecrypt(state, envelope);
 	await saveRatchetState(key, decrypted.state);
 	return decrypted.plaintext;
 }

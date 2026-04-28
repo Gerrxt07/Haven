@@ -174,6 +174,7 @@ export type DmMessageDto = {
 	author_user_id: number;
 	author_avatar_url?: string | null;
 	content: string;
+	decrypted_content?: string | null;
 	is_encrypted: boolean;
 	ciphertext?: string | null;
 	nonce?: string | null;
@@ -240,7 +241,7 @@ export type CreateDmThreadRequestDto = {
 };
 
 export type CreateDmMessageRequestDto = {
-	content?: string;
+	content?: never;
 	ciphertext?: string;
 	nonce?: string;
 	aad?: string;

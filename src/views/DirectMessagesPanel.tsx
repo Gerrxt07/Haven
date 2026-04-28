@@ -371,7 +371,8 @@ export default function DirectMessagesPanel() {
 												>
 													<p class="whitespace-pre-wrap break-words text-sm">
 														{message.is_encrypted
-															? t("home", "messages_encrypted_placeholder")
+															? (message.decrypted_content ??
+																t("home", "messages_encrypted_placeholder"))
 															: message.content}
 													</p>
 													<p

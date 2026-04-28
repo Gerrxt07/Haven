@@ -43,12 +43,35 @@ function createMockElectronApi(
 		storeToken: async () => true,
 		loadToken: async () => values.legacyToken ?? null,
 		deleteToken: async () => true,
-		secureStoreSet: async (_namespace, key, value) => {
+		storeAuthTokens: async (accessToken, refreshToken) => {
+			values["token.access"] = accessToken;
+			values["token.refresh"] = refreshToken;
+			return true;
+		},
+		loadAuthTokens: async () => ({
+			accessToken: values["token.access"] ?? null,
+			refreshToken: values["token.refresh"] ?? null,
+		}),
+		deleteAuthTokens: async () => {
+			delete values["token.access"];
+			delete values["token.refresh"];
+			return true;
+		},
+		e2eeStoreSet: async (key, value) => {
 			values[key] = value;
 			return true;
 		},
-		secureStoreGet: async (_namespace, key) => values[key] ?? null,
-		secureStoreDelete: async (_namespace, key) => {
+		e2eeStoreGet: async (key) => values[key] ?? null,
+		e2eeStoreDelete: async (key) => {
+			delete values[key];
+			return true;
+		},
+		cacheStoreSet: async (_namespace, key, value) => {
+			values[key] = value;
+			return true;
+		},
+		cacheStoreGet: async (_namespace, key) => values[key] ?? null,
+		cacheStoreDelete: async (_namespace, key) => {
 			delete values[key];
 			return true;
 		},
