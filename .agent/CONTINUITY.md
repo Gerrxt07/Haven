@@ -51,3 +51,7 @@
 2026-04-28T19:11:34+02:00 [USER] Requested auditing `TODO.md` and `TODO2.md` against current client code, deleting old todo files, replacing them with one current TODO, then committing and pushing.
 2026-04-28T19:11:34+02:00 [CODE] Replaced `TODO.md` with only verified unfinished client work and deleted `TODO2.md`; retained gaps for server/channel UI, E2EE product wiring, LiveKit, query usage, virtualization, offline storage/UX, and focused tests.
 2026-04-28T19:11:34+02:00 [TOOL] Checked TODO evidence with `rg` plus targeted source reads; `bunx biome check TODO.md` processed no files because TODO docs are ignored by Biome config.
+2026-04-28T19:18:07+02:00 [USER] Requested local-only frontend redesign into a normal 1:1 secure chat app, removing server/explorer frontend surfaces for now and not pushing.
+2026-04-28T19:18:07+02:00 [CODE] Reworked `Home.tsx` into a private-chat shell with Chats/Contacts tabs, removed server/explorer sidebar surfaces, kept DM and friend-management flows accessible, and updated EN/DE labels.
+2026-04-28T19:18:07+02:00 [TOOL] Verified local-only UI change with targeted Biome check, `bun run typecheck`, `bun run lint`, `bun test`, and `bun run dev`; dev showed existing Solid cleanup warning but no new build/type errors.
+2026-04-28T19:29:35+02:00 [USER] Requested pushing the local secure chat UI redesign changes.
