@@ -1,76 +1,85 @@
-# 🚀 Haven - Project Roadmap & Implementation Notes
+# TODO
 
-Diese Datei dient als zentrales TODO- und Notiz-Dokument für die Entwicklung. Die Reihenfolge richtet sich nach einer **realistischen Implementierungs-Priorität**. 
+Verified against the current client code on 2026-04-28. Old `TODO.md` and
+`TODO2.md` were audited and collapsed into this file. Completed items were
+removed. Items below are not fully completed in the app code yet.
 
----
+## Product Flow
 
-## 💡 Architektur- und Stack-Optimierungen (WICHTIG!)
-Da als Basis **SolidJS** statt React genutzt werden soll (was für die Performance eine exzellente Wahl ist!), gibt es ein paar Framework-spezifische Anpassungen:
+- [ ] Build the public server explorer.
+  - `Home.tsx` has an Explorer sidebar entry, but the main Explorer screen is a
+    placeholder.
+  - No bento-grid open-server listing is wired to real server data.
 
-*   **Framer Motion ➡️ `solid-motionone` / `@joshcena/solid-motion`:** Framer Motion ist stark an React gebunden. Motion One liefert unter SolidJS eine native, extrem performante Alternative (hardware-beschleunigt via WAAPI).
-*   **Virtualisierung ➡️ `@tanstack/solid-virtual`:** `@tanstack/react-virtual` läuft nur unter React, TanStack bietet aber zum Glück offizielle Solid-Adapter an. Alternativ: `solid-virtual-scroll`.
-*   **State Management ➡️ Solid Stores (Built-in) statt Zustand:** Zustand ist eher für React gedacht. SolidJS hat mit `createStore` ein extrem mächtiges und reaktives State-Management mitgeliefert (perfekt für globale Daten wie Server-Listen & User-Status). Für server-state (z.B. Chat-Verläufe cachen) bleibt **TanStack Query** (`@tanstack/solid-query`) die beste Wahl!
-*   **UI Components ➡️ `shadcn-solid` & `kobalte`:** Die klassischen shadcn/ui Komponenten sind React-basiert, es gibt aber einen exzellenten Community-Port für Solid (`shadcn-solid`). Als "Unstyled UI" (für maximale Tailwind-Kontrolle ohne Ballast) sollte **Kobalte** (vergleichbar mit Radix für React) die Basis bilden.
-*   **Backend Architektur ➡️ Event-Bus statt REST:** Die App ist ein Echtzeit-System (Discord-Klon). Nutze WebSockets über Axum, um Events (neue Nachrichten, Online-Status/"Presence") an Clients zu pushen. **DragonflyDB** dient als rasanter State-Speicher dafür.
-*   **Datenbank & IDs ➡️ Snowflake-IDs & Cursor-Pagination:** Nutze **niemals** simples Auto-Increment und **niemals** `OFFSET`-Pagination, da beides bei Skalierung kollabiert. Nutze **Snowflake-IDs** (wie Discord/Twitter) für sortierbare IDs über verteilte Systeme hinweg und setze konsequent auf **Cursor-based Pagination** für den Chat-Verlauf.
-*   **Auto-Updater (Discord-Style):** Um Updates schneller zu machen und den "Pre-Start Update UI" Effekt zu erzielen, nutze `electron-updater`, präsentiere aber beim Start ein leichtgewichtiges Browser-Fenster (~400x400px, frameless). Nutze **NSIS Delta-Updates** (nur die geänderten Bytes herunterladen, nicht die ganze .exe), das beschleunigt Upgrades enorm.
+- [ ] Wire server/channel chat into the visible app flow.
+  - `src/lib/api/chat.ts` and `src/lib/chat/service.ts` exist.
+  - `Home.tsx` still has a server-list placeholder and no channel list,
+    channel message panel, or channel composer.
 
----
+- [ ] Finish E2EE product integration.
+  - X3DH, Double Ratchet, secure storage, API helpers, and tests exist.
+  - Direct messages still send plaintext through `dmService.sendMessage`.
+  - Encrypted incoming messages render as a placeholder instead of decrypting in
+    the UI.
+  - No login/startup flow calls `bootstrapOwnBundle` or repairs missing local
+    key material.
 
-## 📋 Implementierungs-Priorität (Roadmap)
+- [ ] Add voice/video calling.
+  - No LiveKit dependency or LiveKit client integration exists.
+  - Electron has media permission plumbing only.
+  - Add connection-loss fallback behavior once voice/video exists.
 
-### 📌 Priorität 1: Basis-Infrastruktur & Umgebung (The "Boring" Stuff)
-*Das Fundament muss felsenfest und performant sein, bevor schöne UI gebaut wird.*
+## Frontend Data And Performance
 
-- [x] **Backend-Setup (Rust + Axum)**
-  - [x] Grundlegendes Boilerplate-Setup, Routen-Architektur.
-  - [x] Integration von **PostgreSQL** für relationale Daten (User, Channels).
-  - [x] Integration von **DragonflyDB** (In-Memory Datastore als weitaus schnellere Alternative zu Redis - exzellent für Session-Management).
-- [x] **Desktop-Client & Auto-Updater Layer (Electron + Bun)**
-  - [x] Implementierung eines separaten, kleinen Splash/Updater-Windows (Framerless).
-  - [x] Integration von `electron-updater` inkl. **NSIS Delta-Updates** für blitzschnelle Patches.
-  - [x] Github Release Hook Konfiguration konfigurieren.
-- [x] **Kryptografie-Grundbausteine implementieren**
-  - [x] Setup von **XChaCha20-Poly1305** (performantestes AEAD für generelle Datenbank/Datei-Verschlüsselung).
-  - [x] Sicheres Hashing mit **Argon2** und Nutzung von **PASETO statt JWT** (sicherer gegen Implementierungsfehler). Inkl. Pepper/Salt Verwaltung.
+- [ ] Use `@tanstack/solid-query` for real server-state flows.
+  - `QueryClientProvider` is configured.
+  - Current data loading is still mostly direct service/store calls.
 
-### 📌 Priorität 2: Core Data-Layer & Kommunikation (The "Engine")
-*Die APIs und Pipelines, die Frontend und Backend performant verbinden.*
+- [ ] Add list virtualization for large message/friend/server lists.
+  - `@tanstack/solid-virtual` is installed.
+  - No `createVirtualizer` usage exists in the code.
+  - Chat and DM lists still render with plain `For` loops.
 
-- [x] **gRPC / WebSockets Architektur**
-  - [x] Etablierung bidirektionaler Streams zwischen Client (Electron Main Process/Renderer) und Rust-Backend.
-  - [x] Wahl getroffen: **native WebSockets** (Axum `/ws` + `/realtime/ws`, Event-Fanout über Dragonfly Pub/Sub).
-- [x] **End-to-End Encryption (E2EE) für Messages**
-  - [x] Implementierung (oder Fork einer Lib) des **Double Ratchet Protokolls** (Forward & Backward Secrecy).
-  - [x] Aufbau des Key-Exchange (X3DH) für asynchrone sichere Kommunikation.
-- [ ] **Video / Voice (SFU Infrastruktur)**
-  - Setup von **LiveKit** (deutlich bessere Developer-Expirience, Skalierung und Out-Of-The-Box-Features im Vergleich zum rohen Aufbau eines WebRTC-rs Servers).
-  - Client-seitige LiveKit-SDK Integration in die SolidJS App.
+- [ ] Add message-height premeasurement for virtualized chat.
+  - `@chenglou/pretext` is installed.
+  - It is not used to precompute chat row heights.
 
-### 📌 Priorität 3: Frontend Foundation & State (The "Skeleton")
-*Auffrischen des Vite/Solid-Setups.*
+- [ ] Track access-token expiry proactively.
+  - Refresh-on-401 exists.
+  - Token `expires_in_seconds` is not persisted as an expiry timestamp or used
+    to refresh before requests fail.
 
-- [ ] **Migrations-/Setup-Phase: SolidJS**
-  - Tailwind CSS & `shadcn-solid` konfigurieren.
-  - Setup von `@tanstack/solid-query` für robustes Data-Fetching/Caching.
-  - Setup der globalen Stores für lokale Client-States (`createStore` von Solid).
-  - Typisierung (TypeScript) konsequent für alle IPC (Inter-Process-Communication) Brücken zwischen Electron (Main) und SolidJS (Renderer) anlegen.
+## Offline And Cache
 
-### 📌 Priorität 4: UX & UI Design (The "Flesh")
-*Die Optik und Interaktion der Applikation.*
+- [ ] Expand offline-first storage beyond metadata.
+  - Current channel cache stores encrypted message metadata only.
+  - Message content, full thread state, send queues, and conflict handling are
+    not persisted for offline use.
+  - No local SQLite/Bun.sqlite store exists.
 
-- [ ] **Bento-Grid Layout für open-server "Entdecker" liste**
-  - Erstellen des Dashboards in modernen Bento-Grid Kacheln (nutze CSS Grid / Flexbox + Tailwind für responsive Anpassung).
-- [ ] **Glassmorphism-Styling**
-  - Einbau von `backdrop-blur-*`, semi-transparenten Hintergrundfarben (`bg-white/10`) und feinen Borders (`border-white/20`).
-  - *Notiz zur Performance:* Übermäßiger Gebrauch von `backdrop-filter` kann auf schwächeren Systemen ruckeln. Performance hier regelmäßig in Electron checken!
-- [ ] **Animationen**
-  - Einbau von `solid-motionone` für weiche Kachel-Übergänge (Page Transitions) und Hover-Effekte.
-- [ ] **Listen-Virtualisierung (Performance für große Chats)**
-  - Implementierung von `@tanstack/solid-virtual` für Chat-Historien und User-Listen (DOM entlasten).
-  - Nutze **`@chenglou/pretext`** (bereits via Bun installiert) für performante, exakte Vorausberechnungen der Chat-Nachrichtenhöhen. Das garantiert ruckelfreies Scrollen ohne teure DOM-Reflows!
+- [ ] Add offline recovery UX.
+  - Existing services can hydrate some cached metadata.
+  - The UI does not clearly expose offline state, retry queues, or stale data.
 
-### 📌 Priorität 5: Polish & Edge-Cases
-- [ ] Offline-First Funktionalität via lokalem Caching im Electron-Main Process (ggf. Bun.sqlite als lokalen Store + XChaCha20 Verschlüsselung der lokalen SQLite DB).
-- [ ] Security-Härtung (Electron ContextBridge absichern, CSP anpassen).
-- [ ] Fallbacks für Verbindungsabbrüche in LiveKit / gRPC.
+## UX Polish
+
+- [ ] Complete app-wide motion polish.
+  - `solid-motionone` is used in auth and command palette areas.
+  - Main chat, server explorer, and list transitions are not fully animated.
+
+- [ ] Complete app-wide glassmorphism/performance pass.
+  - Some `backdrop-blur` styling exists.
+  - The main app surfaces are not consistently reviewed for the intended style
+    or for Electron performance impact.
+
+## Security And Robustness
+
+- [ ] Add focused tests for auth diagnostics logging.
+  - Auth API/UI diagnostics were added.
+  - No dedicated tests assert safe auth-log shape or that secrets stay out of
+    auth diagnostic logs.
+
+- [ ] Add product-flow tests for encrypted messaging.
+  - Crypto integration tests exist.
+  - No UI/service-level test proves a DM or channel message is encrypted,
+    decrypted, and displayed in the actual app flow.

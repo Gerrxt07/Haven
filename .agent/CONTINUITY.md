@@ -48,3 +48,6 @@
 2026-04-28T18:06:18+02:00 [TOOL] Verified auth error/logging changes with `bunx biome check src/lib/api/client.ts src/views/Auth.tsx src/i18n/en.ts src/i18n/de.ts`, `bun run typecheck`, `bun test`, and `bun run lint`.
 2026-04-28T18:54:11+02:00 [USER] Requested committing and pushing local Haven app changes, with app version set for `2026.04.28`.
 2026-04-28T18:54:11+02:00 [ASSUMPTION] Used SemVer-safe package version `2026.4.28` instead of invalid `2026.04.28` because package versions cannot contain leading-zero numeric identifiers.
+2026-04-28T19:11:34+02:00 [USER] Requested auditing `TODO.md` and `TODO2.md` against current client code, deleting old todo files, replacing them with one current TODO, then committing and pushing.
+2026-04-28T19:11:34+02:00 [CODE] Replaced `TODO.md` with only verified unfinished client work and deleted `TODO2.md`; retained gaps for server/channel UI, E2EE product wiring, LiveKit, query usage, virtualization, offline storage/UX, and focused tests.
+2026-04-28T19:11:34+02:00 [TOOL] Checked TODO evidence with `rg` plus targeted source reads; `bunx biome check TODO.md` processed no files because TODO docs are ignored by Biome config.
