@@ -110,6 +110,33 @@ const SENSITIVE_FIELDS = new Set([
 
 // Session ID for correlating logs
 const sessionId = randomUUID().slice(0, 8);
+let consoleStreamErrorHandlersInstalled = false;
+
+function isRecoverableConsoleWriteError(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error.code === "EIO" || error.code === "EPIPE")
+	);
+}
+
+function installConsoleStreamErrorHandlers(): void {
+	if (consoleStreamErrorHandlersInstalled) {
+		return;
+	}
+
+	consoleStreamErrorHandlersInstalled = true;
+
+	const ignoreClosedConsoleStream = (error: Error & { code?: string }) => {
+		if (!isRecoverableConsoleWriteError(error)) {
+			throw error;
+		}
+	};
+
+	process.stdout.on("error", ignoreClosedConsoleStream);
+	process.stderr.on("error", ignoreClosedConsoleStream);
+}
 
 /**
  * Sanitize a string by applying all sensitive patterns
@@ -199,6 +226,7 @@ interface SecureLogEntry {
  */
 export function initializeSecureLogger(): void {
 	log.initialize();
+	installConsoleStreamErrorHandlers();
 
 	// Set log file location to app data logs folder
 	const logPath = app.getPath("logs");
@@ -208,6 +236,18 @@ export function initializeSecureLogger(): void {
 	log.transports.console.level = process.env.VITE_DEV_SERVER_URL
 		? "debug"
 		: false;
+	const defaultConsoleWriteFn = log.transports.console.writeFn.bind(
+		log.transports.console,
+	);
+	log.transports.console.writeFn = (options) => {
+		try {
+			defaultConsoleWriteFn(options);
+		} catch (error) {
+			if (!isRecoverableConsoleWriteError(error)) {
+				throw error;
+			}
+		}
+	};
 
 	// File transport always enabled
 	log.transports.file.level = "info";

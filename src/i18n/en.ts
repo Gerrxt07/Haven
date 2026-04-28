@@ -145,6 +145,22 @@ export const en = {
 			"The verification code has expired. Request a new one.",
 		errTooManyRequests: "Too many attempts. Please wait and try again.",
 		errInvalidCredentials: "Invalid email or password.",
+		errNetwork:
+			"Cannot reach the Haven API. Check your internet connection or API/CORS setup.",
+		errTimeout: "The Haven API did not respond in time. Please try again.",
+		errAborted: "The authentication request was cancelled. Please try again.",
+		errServer:
+			"The Haven API returned a server error. Please try again shortly.",
+		errUnexpectedResponse:
+			"The Haven API returned an unexpected response. Please update the app or backend.",
+		errServerProof:
+			"Server authentication could not be verified. Login was stopped for safety.",
+		errEmailAlreadyUsed: "This email address is already registered.",
+		errUsernameTaken: "This username is already taken.",
+		errAccountAlreadyExists:
+			"An account with these details already exists. Try logging in.",
+		errInvalidRequest:
+			"The backend rejected this request. Please check the highlighted fields.",
 		nextBtn: "Next",
 		backBtn: "Back",
 		finishBtn: "Verify & Login",

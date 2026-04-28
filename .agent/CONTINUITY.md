@@ -36,4 +36,15 @@
 2026-04-28T17:10:36+02:00 [USER] Reported `bun run dev` failed because Electron dev startup passed `--no-sandbox` and Haven blocked it as dangerous.
 2026-04-28T17:10:36+02:00 [CODE] Updated Vite Electron startup hooks to launch dev Electron with `["."]` instead of the plugin default `[".", "--no-sandbox"]`, keeping the app security block intact.
 2026-04-28T17:10:36+02:00 [TOOL] Verified with `bunx biome check vite.config.ts electron/main.ts`, `bun run typecheck`, and escalated `bun run dev`; dev server started at `http://localhost:5173/` and Electron reached `app-ready`.
-
+2026-04-28T17:40:01+02:00 [USER] Reported `write EIO` uncaught exception when closing Haven after opening with `bun run dev`.
+2026-04-28T17:40:01+02:00 [CODE] Hardened Electron secure logger console transport so closed dev stdout/stderr streams with `EIO` or `EPIPE` cannot crash the main process; file logging remains unchanged.
+2026-04-28T17:40:01+02:00 [TOOL] Verified with `bunx biome check electron/secure-logger.ts`, `bun run typecheck`, `bun run lint`, `bun test`, and a limited `bun run dev` smoke test that reached Electron main but quit on existing single-instance lock.
+2026-04-28T17:59:58+02:00 [USER] Clarified that on macOS, closing Haven after `bun run dev` hides the window and leaves the Electron process alive.
+2026-04-28T17:59:58+02:00 [CODE] Made dev runtime skip tray creation, allow window close, set quit state on `before-quit`, and quit on `window-all-closed` even on macOS while preserving packaged macOS close-to-tray behavior.
+2026-04-28T17:59:58+02:00 [TOOL] Stopped stale old dev Electron PID `15823`, verified patched `bun run dev` exited after app quit with `dev-window-closing`, and reran `bunx biome check electron/main.ts electron/secure-logger.ts`, `bun run typecheck`, `bun run lint`, and `bun test`.
+2026-04-28T18:06:18+02:00 [USER] Reported login/register always shows generic auth failure and backend logs show nothing; requested specific in-app errors and log review.
+2026-04-28T18:06:18+02:00 [CODE] Added auth API request start/success/failure detailed logs without request bodies, added auth UI failure logs, and mapped network/timeout/server/conflict/validation/unexpected-response failures to specific EN/DE messages.
+2026-04-28T18:06:18+02:00 [TOOL] Local app logs showed no auth API attempts, only startup/token-load events; unauthenticated curl and CORS preflight probes to `https://havenapi.becloudly.eu/api/v1/...` returned Cloudflare `403 Forbidden` with `Request forbidden by administrative rules`, explaining empty backend logs.
+2026-04-28T18:06:18+02:00 [TOOL] Verified auth error/logging changes with `bunx biome check src/lib/api/client.ts src/views/Auth.tsx src/i18n/en.ts src/i18n/de.ts`, `bun run typecheck`, `bun test`, and `bun run lint`.
+2026-04-28T18:54:11+02:00 [USER] Requested committing and pushing local Haven app changes, with app version set for `2026.04.28`.
+2026-04-28T18:54:11+02:00 [ASSUMPTION] Used SemVer-safe package version `2026.4.28` instead of invalid `2026.04.28` because package versions cannot contain leading-zero numeric identifiers.

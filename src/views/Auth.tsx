@@ -5,6 +5,7 @@ import { Motion } from "solid-motionone";
 import { currentLang, t } from "../i18n";
 import { HttpApiError } from "../lib/api";
 import { authSession } from "../lib/auth/session";
+import { writeDetailedErrorLog } from "../lib/logging/detailed";
 
 export default function AuthView() {
 	const [view, setView] = createSignal<"welcome" | "login" | "register">(
@@ -23,6 +24,19 @@ export default function AuthView() {
 
 	const [error, setError] = createSignal("");
 	const [loading, setLoading] = createSignal(false);
+
+	const logAuthError = async (stage: string, err: unknown) => {
+		const apiError = err instanceof HttpApiError ? err.apiError : null;
+		await writeDetailedErrorLog("auth-ui", `${stage}-failed`, err, {
+			stage,
+			view: view(),
+			step: step(),
+			apiKind: apiError?.kind ?? null,
+			apiStatus: apiError?.status ?? null,
+			apiCode: apiError?.code ?? null,
+			apiMessage: apiError?.message ?? null,
+		});
+	};
 
 	const handleUsernameInput = (val: string) => {
 		setUsername(val.toLowerCase().replace(/[^a-z0-9]/g, ""));
@@ -156,6 +170,7 @@ export default function AuthView() {
 			setStep(6);
 		} catch (err: unknown) {
 			console.error("Auth error", err);
+			void logAuthError("register", err);
 			setError(readAuthError(err));
 		} finally {
 			setLoading(false);
@@ -175,6 +190,7 @@ export default function AuthView() {
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
+			void logAuthError("verify-email-login", err);
 			setError(readAuthError(err));
 		} finally {
 			setLoading(false);
@@ -190,6 +206,7 @@ export default function AuthView() {
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
+			void logAuthError("resend-verification", err);
 			setError(readAuthError(err));
 		} finally {
 			setLoading(false);
@@ -198,14 +215,50 @@ export default function AuthView() {
 
 	const readAuthError = (err: unknown): string => {
 		if (!(err instanceof HttpApiError)) {
+			if (err instanceof Error) {
+				if (
+					err.message.includes("missing ") ||
+					err.message.includes("invalid ")
+				) {
+					return t("auth", "errUnexpectedResponse");
+				}
+
+				if (err.message.includes("Server authentication failed")) {
+					return t("auth", "errServerProof");
+				}
+			}
+
 			return t("auth", "errorGeneric");
 		}
 
-		if (err.apiError.kind === "too-many-requests") {
-			return t("auth", "errTooManyRequests");
+		const message = err.apiError.message.toLowerCase();
+
+		switch (err.apiError.kind) {
+			case "network":
+				return t("auth", "errNetwork");
+			case "timeout":
+				return t("auth", "errTimeout");
+			case "aborted":
+				return t("auth", "errAborted");
+			case "server":
+				return t("auth", "errServer");
+			case "too-many-requests":
+				return t("auth", "errTooManyRequests");
+			case "conflict":
+				if (message.includes("email")) {
+					return t("auth", "errEmailAlreadyUsed");
+				}
+				if (message.includes("username")) {
+					return t("auth", "errUsernameTaken");
+				}
+				return t("auth", "errAccountAlreadyExists");
+			case "validation":
+			case "bad-request":
+				return err.apiError.message || t("auth", "errInvalidRequest");
+			default:
+				break;
 		}
 
-		const message = err.apiError.message.toLowerCase();
 		if (message.includes("invalid verification code")) {
 			return t("auth", "errVerificationCodeInvalid");
 		}
@@ -237,6 +290,7 @@ export default function AuthView() {
 			});
 		} catch (err: unknown) {
 			console.error("Auth error", err);
+			void logAuthError("login", err);
 			setError(readAuthError(err));
 		} finally {
 			setLoading(false);

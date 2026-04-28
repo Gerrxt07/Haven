@@ -152,6 +152,24 @@ export const de = {
 		errTooManyRequests:
 			"Zu viele Versuche. Bitte warte kurz und versuche es erneut.",
 		errInvalidCredentials: "Ungültige E-Mail oder ungültiges Passwort.",
+		errNetwork:
+			"Haven API nicht erreichbar. Prüfe deine Internetverbindung oder die API/CORS-Konfiguration.",
+		errTimeout:
+			"Die Haven API hat nicht rechtzeitig geantwortet. Bitte versuche es erneut.",
+		errAborted:
+			"Die Authentifizierungsanfrage wurde abgebrochen. Bitte versuche es erneut.",
+		errServer:
+			"Die Haven API hat einen Serverfehler zurückgegeben. Bitte versuche es gleich erneut.",
+		errUnexpectedResponse:
+			"Die Haven API hat eine unerwartete Antwort gesendet. Bitte App oder Backend aktualisieren.",
+		errServerProof:
+			"Die Serverauthentifizierung konnte nicht geprüft werden. Login wurde aus Sicherheitsgründen gestoppt.",
+		errEmailAlreadyUsed: "Diese E-Mail-Adresse ist bereits registriert.",
+		errUsernameTaken: "Dieser Benutzername ist bereits vergeben.",
+		errAccountAlreadyExists:
+			"Ein Account mit diesen Daten existiert bereits. Versuche dich einzuloggen.",
+		errInvalidRequest:
+			"Das Backend hat diese Anfrage abgelehnt. Bitte prüfe die markierten Felder.",
 		nextBtn: "Weiter",
 		backBtn: "Zurück",
 		finishBtn: "Bestätigen & Einloggen",

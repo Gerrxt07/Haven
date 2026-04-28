@@ -1,3 +1,4 @@
+import { writeDetailedLog } from "../logging/detailed";
 import { safeWarn } from "../security/redaction";
 import { mapHttpError, mapUnknownError } from "./errors";
 import type { ApiError } from "./models";
@@ -34,6 +35,28 @@ export type RequestOptions = {
 
 function resolveBaseUrl(): string {
 	return "https://havenapi.becloudly.eu/api/v1";
+}
+
+function isAuthPath(path: string): boolean {
+	return path === "/auth" || path.startsWith("/auth/");
+}
+
+function toLoggableApiError(error: ApiError): Record<string, unknown> {
+	return {
+		kind: error.kind,
+		status: error.status ?? null,
+		code: error.code ?? null,
+		message: error.message,
+		hasDetails: error.details !== undefined,
+	};
+}
+
+async function writeAuthApiLog(
+	event: string,
+	data: Record<string, unknown>,
+	level: "debug" | "info" | "warn" | "error" = "info",
+): Promise<void> {
+	await writeDetailedLog("auth-api", event, data, level);
 }
 
 function computeRetryDelayMs(attempt: number): number {
@@ -146,10 +169,11 @@ export class ApiClient {
 		options?: RequestOptions,
 	): Promise<T> {
 		const controller = new AbortController();
-		const timeout = setTimeout(
-			() => controller.abort("timeout"),
-			this.timeoutMs,
-		);
+		let didTimeout = false;
+		const timeout = setTimeout(() => {
+			didTimeout = true;
+			controller.abort("timeout");
+		}, this.timeoutMs);
 
 		const signals: AbortSignal[] = [controller.signal];
 		if (options?.signal) {
@@ -175,6 +199,15 @@ export class ApiClient {
 			headers.set("idempotency-key", options.idempotencyKey);
 		}
 
+		const shouldLogAuthRequest = isAuthPath(path);
+		if (shouldLogAuthRequest) {
+			await writeAuthApiLog("request-start", {
+				method,
+				path,
+				requiresAuth: Boolean(options?.requiresAuth),
+			});
+		}
+
 		try {
 			const response = await fetch(`${this.baseUrl}${path}`, {
 				method,
@@ -192,16 +225,48 @@ export class ApiClient {
 				throw new HttpApiError(await mapHttpError(response));
 			}
 
+			if (shouldLogAuthRequest) {
+				await writeAuthApiLog("request-success", {
+					method,
+					path,
+					status: response.status,
+				});
+			}
+
 			if (response.status === 204) {
 				return undefined as T;
 			}
 
 			return (await response.json()) as T;
 		} catch (error) {
-			if (error instanceof HttpApiError) {
-				throw error;
+			const apiError =
+				error instanceof HttpApiError
+					? error
+					: new HttpApiError(
+							didTimeout
+								? {
+										kind: "timeout",
+										message: `Request timed out after ${this.timeoutMs}ms`,
+									}
+								: mapUnknownError(error),
+						);
+
+			if (shouldLogAuthRequest) {
+				await writeAuthApiLog(
+					"request-failed",
+					{
+						method,
+						path,
+						error: toLoggableApiError(apiError.apiError),
+					},
+					apiError.apiError.kind === "network" ||
+						apiError.apiError.kind === "timeout"
+						? "warn"
+						: "error",
+				);
 			}
-			throw new HttpApiError(mapUnknownError(error));
+
+			throw apiError;
 		} finally {
 			clearTimeout(timeout);
 		}

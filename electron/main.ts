@@ -53,6 +53,10 @@ if (process.platform === "win32") {
 	app.setAppUserModelId(WINDOWS_APP_USER_MODEL_ID);
 }
 
+function isDevRuntime(): boolean {
+	return !app.isPackaged && Boolean(process.env.VITE_DEV_SERVER_URL);
+}
+
 // Initialize secure logging
 initializeSecureLogger();
 secureLogger.logLifecycle("app-starting", {
@@ -729,6 +733,12 @@ function createWindow() {
 	}
 
 	mainWindow.on("close", (event) => {
+		if (isDevRuntime()) {
+			isAppQuitting = true;
+			secureLogger.logWindowState("dev-window-closing");
+			return;
+		}
+
 		if (!isAppQuitting) {
 			secureLogger.logWindowState("close-prevented-hiding");
 			event.preventDefault();
@@ -855,7 +865,9 @@ app.commandLine.appendSwitch(
 app.whenReady().then(() => {
 	secureLogger.logLifecycle("app-ready");
 	nativeTheme.themeSource = "dark";
-	createTray();
+	if (!isDevRuntime()) {
+		createTray();
+	}
 
 	const contentSecurityPolicy = getContentSecurityPolicy();
 
@@ -1187,9 +1199,13 @@ app.whenReady().then(() => {
 	});
 });
 
+app.on("before-quit", () => {
+	isAppQuitting = true;
+});
+
 app.on("window-all-closed", () => {
 	secureLogger.logLifecycle("window-all-closed");
-	if (process.platform !== "darwin") {
+	if (process.platform !== "darwin" || isDevRuntime()) {
 		secureLogger.logLifecycle("app-quitting");
 		app.quit();
 	}
