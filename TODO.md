@@ -16,14 +16,6 @@ removed. Items below are not fully completed in the app code yet.
   - `Home.tsx` still has a server-list placeholder and no channel list,
     channel message panel, or channel composer.
 
-- [ ] Finish E2EE product integration.
-  - X3DH, Double Ratchet, secure storage, API helpers, and tests exist.
-  - Direct messages still send plaintext through `dmService.sendMessage`.
-  - Encrypted incoming messages render as a placeholder instead of decrypting in
-    the UI.
-  - No login/startup flow calls `bootstrapOwnBundle` or repairs missing local
-    key material.
-
 - [ ] Add voice/video calling.
   - No LiveKit dependency or LiveKit client integration exists.
   - Electron has media permission plumbing only.
@@ -80,6 +72,7 @@ removed. Items below are not fully completed in the app code yet.
     auth diagnostic logs.
 
 - [ ] Add product-flow tests for encrypted messaging.
-  - Crypto integration tests exist.
-  - No UI/service-level test proves a DM or channel message is encrypted,
-    decrypted, and displayed in the actual app flow.
+  - Crypto and DM transport integration tests exist.
+  - No UI-level test proves a decrypted DM is displayed in the actual app flow.
+  - Channel message encryption still needs a product-flow test when channel UI
+    returns.

@@ -60,3 +60,5 @@
 2026-04-28T20:15:35+02:00 [USER] Narrowed remediation request to HCVE-2026-0001 through HCVE-2026-0004 only.
 2026-04-28T20:15:35+02:00 [CODE] Wired DM sending through X3DH + Double Ratchet ciphertext payloads, bootstrapped E2EE bundles on session restore/login, decrypted incoming encrypted DMs when possible, removed generic secure-store preload access in favor of scoped auth/E2EE/cache IPC, and sanitized detailed logs before disk write.
 2026-04-28T20:15:35+02:00 [TOOL] Verified client changes with `bun run typecheck`, `bun test`, and `bun run lint`; lint passed with only the existing Biome schema-version info.
+2026-04-28T20:22:06+02:00 [USER] Requested pushing the client version to `2026.4.29`.
+2026-04-28T20:22:06+02:00 [CODE] Bumped `package.json` version from `2026.4.28` to `2026.4.29` before pushing client master.

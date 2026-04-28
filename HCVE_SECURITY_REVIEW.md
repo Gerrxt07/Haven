@@ -6,18 +6,18 @@ Method: source review only. No dynamic exploit, no reverse engineering, no backe
 
 ## Short Answer
 
-Haven has a good Electron baseline. The main window uses sandboxing, context isolation, no Node integration, blocked webviews, blocked untrusted navigation, a CSP, guarded IPC sender checks, Electron fuses, and safeStorage for local secrets.
+Haven has a good Electron baseline. The main window uses sandboxing, context isolation, no Node integration, blocked webviews, blocked untrusted navigation, a CSP, guarded IPC sender checks, scoped preload APIs, Electron fuses, and safeStorage for local secrets.
 
-But Haven is not yet secure enough to market as a Signal-like end-to-end encrypted chat. The current 1:1 direct message flow still sends plaintext by default. E2EE code exists, but the product path does not use it for DMs yet.
+The 1:1 direct message path now sends encrypted payloads through the backend and decrypts incoming encrypted DMs when local ratchet state is available.
 
-Against remote web attackers, the app is fairly hardened. Against a malicious backend, network MITM with trusted root, local malware, or forensic access to the same OS user, the current app is weaker.
+Against remote web attackers, the app is fairly hardened. Against network MITM with a trusted root, local malware, update supply-chain compromise, or forensic access to the same OS user, remaining issues still exist below.
 
 ## Security Posture
 
 | Threat | Current posture | Reason |
 | --- | --- | --- |
 | Drive-by web/XSS attacker | Medium to strong | Electron sandbox, context isolation, CSP, blocked navigation, no raw IPC. |
-| Malicious backend/operator | Weak for chat privacy | DM messages are plaintext unless E2EE path is wired in. |
+| Malicious backend/operator | Improved for DM content | Direct messages now send ciphertext through the backend path. |
 | Network attacker | Medium | TLS is used, SRP verifies server proof, but no API certificate/public-key pinning. |
 | Local malware in same user account | Weak | Tokens and E2EE private keys can be read through app context or runtime memory. |
 | Forensic access to user profile | Medium to weak | safeStorage protects at rest, but same-user/keychain access and logs/cache remain useful. |
@@ -34,115 +34,11 @@ Against remote web attackers, the app is fairly hardened. Against a malicious ba
 - `src/lib/auth/session.ts` uses SRP challenge/verify and verifies the server proof.
 - `src/lib/realtime/manager.ts` sends WebSocket auth as a first message instead of leaking tokens in the URL.
 - `src/lib/e2ee` has signed prekey checks, random one-time prekey IDs, X3DH, and Double Ratchet primitives.
+- `src/lib/dm/service.ts` sends direct messages as encrypted payloads and decrypts incoming encrypted DMs when possible.
+- `electron/preload.ts` exposes scoped auth, E2EE, and cache storage calls instead of one generic secure-store namespace API.
+- `electron/main.ts` sanitizes detailed logs before writing them to disk.
 
 ## HCVE Issues
-
-### HCVE-2026-0001: Direct Messages Send Plaintext By Default
-
-Severity: Critical
-Status: Fixed locally in client and backend.
-
-Affected files:
-- `src/lib/dm/service.ts`
-- `src/views/DirectMessagesPanel.tsx`
-- `src/lib/e2ee/client.ts`
-
-Evidence:
-- `dmService.sendMessage()` builds an optimistic message with `is_encrypted: false`.
-- It calls `apiCreateDmMessage(threadId, { content: trimmed })`.
-- `DirectMessagesPanel` shows a placeholder when `message.is_encrypted` is true instead of decrypting it.
-- E2EE helpers like `bootstrapOwnBundle()`, `encryptAndSendMessage()`, and `decryptIncomingMessage()` exist, but are not wired into the DM UI/service path.
-
-Impact:
-- Backend operators, backend compromise, database access, logs, and legal discovery can see message content.
-- A researcher can prove the app is not currently Signal-like E2EE by tracing the DM send path.
-
-Fix:
-- Client now bootstraps/uploads the user's E2EE bundle after session restore/login.
-- Client DM send now uses X3DH + Double Ratchet and sends only ciphertext, nonce, AAD envelope, and algorithm.
-- The first encrypted DM carries session setup metadata in the encrypted-message transport envelope.
-- Incoming encrypted DMs are decrypted before rendering when the local ratchet state allows it.
-- Backend DM creation now rejects plaintext DMs and stores direct messages as encrypted only.
-
-### HCVE-2026-0002: Broad Renderer Secure-Store API Exposes All Secret Namespaces After Renderer Compromise
-
-Severity: High
-Status: Fixed locally in client.
-
-Affected files:
-- `electron/preload.ts`
-- `electron/main.ts`
-- `src/lib/auth/session.ts`
-- `src/lib/e2ee/storage.ts`
-
-Evidence:
-- The preload exposes generic `secureStoreSet(namespace, key, value)`, `secureStoreGet(namespace, key)`, and `secureStoreDelete(namespace, key)`.
-- The main process validates sender and key shape, but not capability scope.
-- Any code execution in the trusted renderer can request `auth`, `e2ee`, `offline-cache`, `profile-image-cache`, and `friends-cache` namespaces.
-
-Impact:
-- XSS or malicious dependency execution in the renderer can read tokens, private E2EE material, ratchet state, cache keys, and social graph cache.
-- Context isolation helps against direct Node access, but the bridge is still too powerful.
-
-Fix:
-- Removed the generic `secureStoreSet/Get/Delete(namespace, key)` preload API.
-- Added scoped auth-token, E2EE, and cache IPC methods.
-- Cache IPC is allowlisted to known cache namespaces.
-- E2EE storage is pinned to the `e2ee` namespace.
-- Auth token storage is pinned to the `auth` namespace and no longer uses the legacy generic bridge.
-
-### HCVE-2026-0003: Local Malware Or Same-User Forensics Can Extract Tokens And E2EE Keys
-
-Severity: High
-Status: Partly mitigated locally. Same-user malware remains a hard platform limit.
-
-Affected files:
-- `electron/main.ts`
-- `src/lib/auth/session.ts`
-- `src/lib/e2ee/storage.ts`
-
-Evidence:
-- Tokens are stored with Electron `safeStorage`.
-- E2EE identities, signed prekeys, one-time prekeys, conversation secrets, and ratchet state are stored through the same secure-store layer.
-- `cachedAuthToken` keeps the access token in main-process memory.
-
-Impact:
-- `safeStorage` protects against simple disk theft, not against malware running as the same OS user.
-- Memory capture, app-context script execution, keychain access, or renderer compromise can expose secrets.
-- Forensic recovery can still learn social graph and maybe recover active secrets depending on machine state.
-
-Fix:
-- Removed the legacy `auth.enc` write path for new logins.
-- Auth token writes now use a scoped auth IPC route instead of generic secure-store IPC.
-- Detailed logs now redact sensitive fields before disk write.
-- Remaining residual risk: malware running as the same OS user can still attack runtime memory or the app's own authorized IPC surface. Fully fixing this needs an app passphrase, hardware-backed key policy, or OS-level isolation work.
-
-### HCVE-2026-0004: Detailed Log IPC Can Persist Sensitive Data
-
-Severity: High
-Status: Fixed locally in client.
-
-Affected files:
-- `electron/main.ts`
-- `src/lib/logging/detailed.ts`
-- `electron/secure-logger.ts`
-
-Evidence:
-- `write-detailed-log` accepts renderer-provided `data`.
-- `serializeDetailedLogLine()` writes the payload directly to `detailed.log`.
-- `writeDetailedErrorLog()` serializes error message and stack.
-- The secure logger sanitizes normal logger output, but detailed logs do not use the same deep sanitizer in main.
-
-Impact:
-- A bug, compromised renderer, or unsafe future call can write tokens, keys, message text, email, stack traces, URLs, or profile metadata to disk.
-- Logs are high-value forensic artifacts.
-
-Fix:
-- Detailed-log payloads are now sanitized in the main process before writing to disk.
-- Sensitive keys such as token, authorization, private key, ciphertext, nonce, AAD, and stack are redacted.
-- Log strings and total log line size are capped.
-- Renderer-side detailed error logging no longer serializes stack traces.
-- Detailed-log level, scope, and event are validated.
 
 ### HCVE-2026-0005: Auto-Update Trust Depends On GitHub Feed Without Visible Code-Signing Enforcement
 
@@ -204,7 +100,7 @@ Evidence:
 
 Impact:
 - Enterprise TLS interception, hostile trusted roots, compromised CA, or local malware proxy can inspect or modify traffic.
-- SRP helps password login, but plaintext DMs and update metadata remain exposed to trusted-root MITM scenarios.
+- SRP helps password login and DM bodies are encrypted, but update metadata and non-DM API metadata remain exposed to trusted-root MITM scenarios.
 
 Fix:
 - Add SPKI pinning in the main process for production API origins.
@@ -345,44 +241,19 @@ Fix:
 - Store less metadata where possible.
 - Keep all cache fallback paths out of localStorage in desktop builds.
 
-### HCVE-2026-0014: README Overstates Security Relative To Product Wiring
-
-Severity: Low
-
-Affected files:
-- `README.md`
-- `TODO.md`
-
-Evidence:
-- README says "End-to-end encryption key-bundle workflows".
-- TODO still lists E2EE product wiring as unfinished.
-- DM UI now presents itself as a private person-to-person chat.
-
-Impact:
-- Security researchers may treat the claim as misleading because the DM path is plaintext today.
-
-Fix:
-- Change docs to say "E2EE primitives are implemented, product wiring is pending".
-- Do not imply message-content E2EE until HCVE-2026-0001 is fixed.
-
 ## Recommended Fix Order
 
-1. Fix HCVE-2026-0001 first. Plaintext DMs are the biggest product-security gap.
-2. Reduce renderer secret access in HCVE-2026-0002.
-3. Sanitize or remove detailed logs from HCVE-2026-0004.
-4. Harden updater signing and release workflow in HCVE-2026-0005.
-5. Move from beta Electron to stable in HCVE-2026-0006.
-6. Tighten WebSocket schemas and heartbeat behavior.
-7. Clean token migration and cache privacy.
+1. Harden updater signing and release workflow in HCVE-2026-0005.
+2. Move from beta Electron to stable in HCVE-2026-0006.
+3. Add backend identity pinning or signed critical responses for HCVE-2026-0007.
+4. Tighten WebSocket schemas and heartbeat behavior.
+5. Clean token migration and cache privacy.
 
 ## Suggested Definition Of Secure Enough For Public Claim
 
-Haven should not claim Signal-like privacy until all of this is true:
+Haven should not claim broader production-grade secure-messenger hardening until all of this is true:
 
-- New DMs are encrypted client-side by default.
-- Plaintext send path is removed or explicitly marked non-secure.
-- Incoming encrypted DMs decrypt in the client.
-- Renderer cannot read all token/E2EE namespaces through generic secure-store IPC.
-- Detailed logs cannot persist message text, tokens, private keys, or stack traces with secrets.
 - Signed/notarized packages and update verification are enforced.
 - Stable Electron is used for production releases.
+- API/backend identity protection is stronger than default OS CA trust.
+- Realtime event schemas and heartbeat liveness are strict.
