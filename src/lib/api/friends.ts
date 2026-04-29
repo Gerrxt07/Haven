@@ -15,6 +15,10 @@ function quoteFriendRequestIds(raw: string): string {
 	return raw.replace(/("id"\s*:\s*)(\d+)/g, '$1"$2"');
 }
 
+function quoteFriendUserIds(raw: string): string {
+	return raw.replace(/("friend_user_id"\s*:\s*)(\d+)/g, '$1"$2"');
+}
+
 function parseFriendRequest(raw: string): FriendRequestDto {
 	const parsed: unknown = JSON.parse(quoteFriendRequestIds(raw));
 	assertFriendRequestDto(parsed);
@@ -96,10 +100,11 @@ export async function apiDeclineFriendRequest(
 export async function apiGetFriends(
 	signal?: AbortSignal,
 ): Promise<FriendDto[]> {
-	const response = await apiClient.get<FriendDto[]>("/friends", {
+	const response = await apiClient.getText("/friends", {
 		signal,
 		requiresAuth: true,
 	});
-	assertFriendDtoList(response);
-	return response;
+	const parsed: unknown = JSON.parse(quoteFriendUserIds(response));
+	assertFriendDtoList(parsed);
+	return parsed;
 }

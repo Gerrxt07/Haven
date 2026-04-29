@@ -225,8 +225,7 @@ export function assertCreateMessageRequest(
 export function assertCreateDmThreadRequest(
 	payload: CreateDmThreadRequestDto,
 ): void {
-	assert(isNumber(payload.peer_user_id), "invalid peer_user_id");
-	assert(payload.peer_user_id > 0, "invalid peer_user_id");
+	assert(isNumericIdString(payload.peer_user_id), "invalid peer_user_id");
 }
 
 export function assertCreateDmMessageRequest(
@@ -280,7 +279,10 @@ export function assertDmThreadDto(
 ): asserts value is DmThreadDto {
 	assert(isObject(value), "invalid dm thread response");
 	assert(isNumber(value.id), "missing dm_thread.id");
-	assert(isNumber(value.peer_user_id), "missing dm_thread.peer_user_id");
+	assert(
+		isNumericIdString(value.peer_user_id),
+		"missing dm_thread.peer_user_id",
+	);
 	assert(isString(value.peer_username), "missing dm_thread.peer_username");
 	assert(
 		isString(value.peer_display_name),
@@ -375,7 +377,10 @@ export function assertFriendDto(value: unknown): asserts value is FriendDto {
 	assert(isObject(value), "invalid friend response");
 	assert(isNumber(value.id), "missing friend.id");
 	assert(isNumber(value.user_id), "missing friend.user_id");
-	assert(isNumber(value.friend_user_id), "missing friend.friend_user_id");
+	assert(
+		isNumericIdString(value.friend_user_id),
+		"missing friend.friend_user_id",
+	);
 	assert(isString(value.friend_username), "missing friend.friend_username");
 	assert(
 		isString(value.friend_display_name),

@@ -99,7 +99,7 @@ export default function DirectMessagesPanel() {
 		}
 	};
 
-	const startChatWithFriend = async (peerUserId: number): Promise<void> => {
+	const startChatWithFriend = async (peerUserId: string): Promise<void> => {
 		setActionError(null);
 		try {
 			await dmService.startThreadWithPeer(peerUserId);

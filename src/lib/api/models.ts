@@ -158,7 +158,7 @@ export type MessageDto = {
 
 export type DmThreadDto = {
 	id: number;
-	peer_user_id: number;
+	peer_user_id: string;
 	peer_username: string;
 	peer_display_name: string;
 	peer_avatar_url?: string | null;
@@ -237,7 +237,7 @@ export type CreateMessageRequestDto = {
 };
 
 export type CreateDmThreadRequestDto = {
-	peer_user_id: number;
+	peer_user_id: string;
 };
 
 export type CreateDmMessageRequestDto = {
@@ -267,7 +267,7 @@ export type FriendRequestDto = {
 export type FriendDto = {
 	id: number;
 	user_id: number;
-	friend_user_id: number;
+	friend_user_id: string;
 	friend_username: string;
 	friend_display_name: string;
 	friend_avatar_url?: string | null;

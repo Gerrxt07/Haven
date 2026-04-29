@@ -15,22 +15,31 @@ import {
 	assertDmThreadDtoList,
 } from "./validation";
 
+function quoteDmThreadIds(raw: string): string {
+	return raw.replace(/("(?:peer_user_id)"\s*:\s*)(\d+)/g, '$1"$2"');
+}
+
+function parseDmThread(raw: string): DmThreadDto {
+	const parsed: unknown = JSON.parse(quoteDmThreadIds(raw));
+	assertDmThreadDto(parsed);
+	return parsed;
+}
+
 export async function apiCreateDmThread(
 	payload: CreateDmThreadRequestDto,
 	signal?: AbortSignal,
 ): Promise<DmThreadDto> {
 	assertCreateDmThreadRequest(payload);
-	const response = await apiClient.post<CreateDmThreadRequestDto, DmThreadDto>(
+	const response = await apiClient.postRawJsonText(
 		"/dm/threads",
-		payload,
+		`{"peer_user_id":${payload.peer_user_id}}`,
 		{
 			signal,
 			requiresAuth: true,
 			idempotencyKey: createIdempotencyKey("create-dm-thread"),
 		},
 	);
-	assertDmThreadDto(response);
-	return response;
+	return parseDmThread(response);
 }
 
 export async function apiListDmThreads(params?: {
@@ -47,15 +56,16 @@ export async function apiListDmThreads(params?: {
 	}
 	const query = search.toString();
 
-	const response = await apiClient.get<DmThreadDto[]>(
+	const response = await apiClient.getText(
 		`/dm/threads${query ? `?${query}` : ""}`,
 		{
 			signal: params?.signal,
 			requiresAuth: true,
 		},
 	);
-	assertDmThreadDtoList(response);
-	return response;
+	const parsed: unknown = JSON.parse(quoteDmThreadIds(response));
+	assertDmThreadDtoList(parsed);
+	return parsed;
 }
 
 export async function apiCreateDmMessage(

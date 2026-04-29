@@ -38,7 +38,7 @@ function isFriendRequestPayload(
 function isFriendPayload(payload: Record<string, unknown>): payload is {
 	id: number;
 	user_id: number;
-	friend_user_id: number;
+	friend_user_id: string | number;
 	friend_username: string;
 	friend_display_name: string;
 	friend_avatar_url?: string | null;
@@ -46,7 +46,8 @@ function isFriendPayload(payload: Record<string, unknown>): payload is {
 } {
 	return (
 		typeof payload.id === "number" &&
-		typeof payload.friend_user_id === "number" &&
+		(typeof payload.friend_user_id === "string" ||
+			typeof payload.friend_user_id === "number") &&
 		typeof payload.friend_username === "string"
 	);
 }
@@ -54,21 +55,27 @@ function isFriendPayload(payload: Record<string, unknown>): payload is {
 function extractFriendFromPayload(payload: Record<string, unknown>): {
 	id: number;
 	user_id: number;
-	friend_user_id: number;
+	friend_user_id: string;
 	friend_username: string;
 	friend_display_name: string;
 	friend_avatar_url?: string | null;
 	created_at: string;
 } | null {
 	if (isFriendPayload(payload)) {
-		return payload;
+		return {
+			...payload,
+			friend_user_id: String(payload.friend_user_id),
+		};
 	}
 
 	const nested = payload.friend;
 	if (nested !== null && typeof nested === "object") {
 		const candidate = nested as Record<string, unknown>;
 		if (isFriendPayload(candidate)) {
-			return candidate;
+			return {
+				...candidate,
+				friend_user_id: String(candidate.friend_user_id),
+			};
 		}
 	}
 

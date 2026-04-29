@@ -83,3 +83,6 @@
 2026-04-29T10:14:29+0200 [USER] Reported account 1 still cannot accept a real incoming request; backend logs showed accept URL with large request id returning `404`.
 2026-04-29T10:14:29+0200 [CODE] Preserved friend request ids as exact strings from raw JSON text before building accept/decline URLs, and added regression tests for large request ids.
 2026-04-29T10:14:29+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.
+2026-04-29T10:25:01+0200 [USER] Reported opening a DM from an accepted friend showed `forbidden`; backend logs showed `/api/v1/dm/threads` returned `403`.
+2026-04-29T10:25:01+0200 [CODE] Preserved exact `friend_user_id` and `peer_user_id` values, and sent DM thread creation with a raw JSON numeric id so the backend receives the true friend id.
+2026-04-29T10:25:01+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.

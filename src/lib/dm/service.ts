@@ -97,7 +97,7 @@ class DmService {
 		this.wsUnsubscribers.push(unsub);
 	}
 
-	private peerUserIdForThread(threadId: number): number | null {
+	private peerUserIdForThread(threadId: number): string | null {
 		return (
 			dmStore.threads.find((thread) => thread.id === threadId)?.peer_user_id ??
 			null
@@ -122,7 +122,7 @@ class DmService {
 		try {
 			const plaintext = await decryptDmMessage({
 				selfUserId,
-				peerUserId,
+				peerUserId: Number(peerUserId),
 				ciphertext: message.ciphertext,
 				nonce: message.nonce,
 				aad: message.aad,
@@ -157,7 +157,7 @@ class DmService {
 		}
 	}
 
-	async ensureThreadWithPeer(peerUserId: number): Promise<DmThreadDto> {
+	async ensureThreadWithPeer(peerUserId: string): Promise<DmThreadDto> {
 		const existing = dmStore.threads.find(
 			(thread) => thread.peer_user_id === peerUserId,
 		);
@@ -181,7 +181,7 @@ class DmService {
 		}
 	}
 
-	async startThreadWithPeer(peerUserId: number): Promise<void> {
+	async startThreadWithPeer(peerUserId: string): Promise<void> {
 		const thread = await this.ensureThreadWithPeer(peerUserId);
 		await this.openThread(thread.id);
 	}
@@ -228,7 +228,7 @@ class DmService {
 		}
 		const encrypted = await encryptDmMessage({
 			selfUserId: authorUserId,
-			peerUserId: thread.peer_user_id,
+			peerUserId: Number(thread.peer_user_id),
 			plaintext: trimmed,
 		});
 

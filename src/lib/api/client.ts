@@ -32,6 +32,7 @@ export type RequestOptions = {
 	requiresAuth?: boolean;
 	idempotencyKey?: string;
 	responseType?: "json" | "text";
+	rawJsonBody?: string;
 };
 
 function resolveBaseUrl(): string {
@@ -118,6 +119,18 @@ export class ApiClient {
 	): Promise<string> {
 		return this.request<string>("POST", path, body, {
 			...options,
+			responseType: "text",
+		});
+	}
+
+	async postRawJsonText(
+		path: string,
+		rawJsonBody: string,
+		options?: RequestOptions,
+	): Promise<string> {
+		return this.request<string>("POST", path, undefined, {
+			...options,
+			rawJsonBody,
 			responseType: "text",
 		});
 	}
@@ -232,11 +245,13 @@ export class ApiClient {
 				method,
 				headers,
 				body:
-					body === undefined
-						? undefined
-						: isFormDataBody
-							? (body as BodyInit)
-							: JSON.stringify(body),
+					options?.rawJsonBody !== undefined
+						? options.rawJsonBody
+						: body === undefined
+							? undefined
+							: isFormDataBody
+								? (body as BodyInit)
+								: JSON.stringify(body),
 				signal,
 			});
 

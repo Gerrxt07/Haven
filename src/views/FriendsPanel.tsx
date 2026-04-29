@@ -31,7 +31,7 @@ function getInitial(value: string): string {
 }
 
 export default function FriendsPanel(props: {
-	onOpenDirectMessage?: (peerUserId: number) => void;
+	onOpenDirectMessage?: (peerUserId: string) => void;
 }) {
 	const [addUsername, setAddUsername] = createSignal("");
 	const [addStatus, setAddStatus] = createSignal<

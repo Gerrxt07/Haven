@@ -5,7 +5,7 @@ import { authSession } from "../../lib/auth/session";
 import { resolveProfileImageForUser } from "../../lib/cache/profile-images";
 
 type ProfileAvatarProps = {
-	userId: number;
+	userId: number | string;
 	displayName: string;
 	avatarUrl?: string | null;
 	class?: string;

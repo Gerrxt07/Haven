@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 
 import { apiLogin, apiLoginChallenge, apiLoginVerify } from "../api/auth";
 import { apiCreateMessage } from "../api/chat";
+import { apiCreateDmThread } from "../api/dm";
 import {
 	apiAcceptFriendRequest,
+	apiGetFriends,
 	apiGetIncomingFriendRequests,
 } from "../api/friends";
 import { getPublicBundle } from "../e2ee/api";
@@ -195,6 +197,40 @@ describe("API contract validation", () => {
 		const response = await apiGetIncomingFriendRequests();
 
 		expect(response[0]?.id).toBe(exactRequestId);
+	});
+
+	it("keeps friend user ids exact in friend lists", async () => {
+		const exactFriendUserId = "616293754428465592";
+		setMockFetch(
+			async () =>
+				new Response(
+					`[{"id":1,"user_id":2,"friend_user_id":${exactFriendUserId},"friend_username":"one","friend_display_name":"One","created_at":"2026-01-01T00:00:00Z"}]`,
+					{ status: 200, headers: { "content-type": "application/json" } },
+				),
+		);
+
+		const response = await apiGetFriends();
+
+		expect(response[0]?.friend_user_id).toBe(exactFriendUserId);
+	});
+
+	it("sends exact friend user ids when creating DM threads", async () => {
+		const exactFriendUserId = "616293754428465592";
+		let capturedBody = "";
+		setMockFetch(async (_input, init) => {
+			capturedBody = String(init?.body ?? "");
+			return new Response(
+				`{"id":1,"peer_user_id":${exactFriendUserId},"peer_username":"one","peer_display_name":"One","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`,
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		});
+
+		const response = await apiCreateDmThread({
+			peer_user_id: exactFriendUserId,
+		});
+
+		expect(capturedBody).toBe(`{"peer_user_id":${exactFriendUserId}}`);
+		expect(response.peer_user_id).toBe(exactFriendUserId);
 	});
 
 	it("rejects invalid e2ee bundle contract", async () => {
