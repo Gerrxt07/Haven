@@ -171,6 +171,7 @@ const rendererObfuscationOptions: ObfuscatorOptions = {
 	stringArrayThreshold: 0.8,
 	transformObjectKeys: true,
 	unicodeEscapeSequence: false,
+	splitStrings: true,
 	// Reserved names that might be called from outside
 	reservedNames: ["electronAPI", "__havenUpdater"]
 		.map((name) => `^${name}$`)
@@ -185,6 +186,33 @@ export default defineConfig(({ mode }) => ({
 		__HAVEN_RELEASE_CHANNEL__: JSON.stringify(
 			process.env.HAVEN_RELEASE_CHANNEL ?? "nightly",
 		),
+	},
+	build: {
+		rollupOptions: {
+			output: {
+				// Erstellt separate Dateien für große Bibliotheken
+				manualChunks(id) {
+					if (id.includes("node_modules")) {
+						// Krypto separat halten (Sicherheit & Performance)
+						if (
+							id.includes("libsodium") ||
+							id.includes("secure-remote-password")
+						) {
+							return "vendor-crypto";
+						}
+						// Framework-Kern separat
+						if (id.includes("solid-js") || id.includes("@kobalte")) {
+							return "vendor-framework";
+						}
+						// Alle anderen Abhängigkeiten in einen allgemeinen Vendor-Chunk
+						return "vendor";
+					}
+				},
+			},
+		},
+		// Nutzt den schnellen esbuild-Minifier für Produktion
+		minify: mode === "production" ? "esbuild" : false,
+		sourcemap: mode !== "production", // Deaktiviert Sourcemaps in Produktion für mehr Sicherheit
 	},
 	resolve: {
 		alias: {

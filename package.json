@@ -77,6 +77,7 @@
 			"package.json"
 		],
 		"mac": {
+			"icon": "public/logo.png",
 			"target": [
 				"dmg",
 				"zip"
@@ -104,6 +105,7 @@
 			"differentialPackage": true
 		},
 		"linux": {
+			"icon": "public/logo.png",
 			"target": [
 				"AppImage",
 				"deb"
