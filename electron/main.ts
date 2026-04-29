@@ -695,7 +695,7 @@ function getContentSecurityPolicy(): string {
 		"frame-ancestors 'none'",
 		"form-action 'self'",
 		"object-src 'none'",
-		"img-src 'self' data: https://havenapi.becloudly.eu",
+		"img-src 'self' data:",
 		"font-src 'self' data:",
 		"media-src 'self' blob:",
 		"worker-src 'self' blob:",

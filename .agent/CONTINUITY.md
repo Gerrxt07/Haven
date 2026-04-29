@@ -68,3 +68,6 @@
 2026-04-29T09:34:54+0200 [USER] Requested fixes for HCVE-2026-0008 through HCVE-2026-0011 across client and backend WebSockets, auth token storage, and avatar privacy.
 2026-04-29T09:34:54+0200 [CODE] Added strict client WebSocket event schemas and size caps, explicit pong heartbeat timeout reconnects, backend JSON pong replies, removed legacy `auth.enc` read/write IPC, and restricted avatar image URLs/CSP to Haven API avatar media.
 2026-04-29T09:34:54+0200 [TOOL] Verified with client `bun run typecheck`, `bun run lint`, `bun test`; backend `cargo fmt --check`, `cargo check`, and `cargo test`.
+2026-04-29T09:44:04+0200 [USER] Reported avatar still shows default despite backend upload/download logs showing `200`.
+2026-04-29T09:44:04+0200 [CODE] Changed avatar cache to fetch trusted Haven API avatar media as image blobs, convert to data URLs, render only local data/self image sources, and ignore stale persisted source-url entries.
+2026-04-29T09:44:04+0200 [TOOL] Verified with `bun run typecheck`, `bun run lint`, and `bun test`.

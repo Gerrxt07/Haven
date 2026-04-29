@@ -5,6 +5,7 @@ const PROFILE_CACHE_PREFIX = "user:";
 const PROFILE_LOCAL_STORAGE_PREFIX = "haven.profile-image.";
 const API_ORIGIN = "https://havenapi.becloudly.eu";
 const MAX_INLINE_CACHE_PAYLOAD_LENGTH = 128_000;
+const MAX_REMOTE_AVATAR_BYTES = 512_000;
 const ALLOWED_AVATAR_PATH_PREFIX = "/api/v1/media/avatars/";
 
 type CacheMode = "inline" | "source-url";
@@ -43,15 +44,7 @@ function normalizePersistedEntry(raw: unknown): CachedProfileImage | null {
 	const mode = entry.mode === "source-url" ? "source-url" : "inline";
 
 	if (mode === "source-url") {
-		if (!isNonEmptyString(sourceUrl)) {
-			return null;
-		}
-		return {
-			imageSrc: sourceUrl,
-			sourceUrl,
-			cachedAt,
-			mode,
-		};
+		return null;
 	}
 
 	const imageSrc =
@@ -243,6 +236,41 @@ async function blobToDataUrl(blob: Blob): Promise<string> {
 	});
 }
 
+async function fetchAvatarDataUrl(
+	avatarUrl: string,
+	accessToken?: string | null,
+): Promise<string | null> {
+	try {
+		const headers = new Headers();
+		const token = accessToken?.trim();
+		if (token) {
+			headers.set("authorization", `Bearer ${token}`);
+		}
+
+		const response = await fetch(avatarUrl, {
+			headers,
+			cache: "no-store",
+		});
+		if (!response.ok) {
+			return null;
+		}
+
+		const contentType = response.headers.get("content-type") ?? "";
+		if (!contentType.toLowerCase().startsWith("image/")) {
+			return null;
+		}
+
+		const blob = await response.blob();
+		if (blob.size > MAX_REMOTE_AVATAR_BYTES) {
+			return null;
+		}
+
+		return blobToDataUrl(blob);
+	} catch {
+		return null;
+	}
+}
+
 export async function fileToImageDataUrl(file: File): Promise<string> {
 	return blobToDataUrl(file);
 }
@@ -275,8 +303,6 @@ export async function resolveProfileImageForUser(
 	fallbackImage: string,
 	accessToken?: string | null,
 ): Promise<string> {
-	void accessToken;
-
 	if (!user) {
 		return fallbackImage;
 	}
@@ -285,7 +311,10 @@ export async function resolveProfileImageForUser(
 	const rawAvatarUrl = pickAvatarUrl(user);
 	const avatarUrl = rawAvatarUrl ? normalizeAvatarUrl(rawAvatarUrl) : null;
 	const memory = memoryCache.get(userId);
-	if (memory && (!avatarUrl || memory.sourceUrl === avatarUrl)) {
+	if (
+		memory?.mode === "inline" &&
+		(!avatarUrl || memory.sourceUrl === avatarUrl)
+	) {
 		return memory.imageSrc;
 	}
 
@@ -296,7 +325,10 @@ export async function resolveProfileImageForUser(
 
 	const task = (async () => {
 		const persisted = await readPersisted(userId);
-		if (persisted && (!avatarUrl || persisted.sourceUrl === avatarUrl)) {
+		if (
+			persisted?.mode === "inline" &&
+			(!avatarUrl || persisted.sourceUrl === avatarUrl)
+		) {
 			memoryCache.set(userId, persisted);
 			return persisted.imageSrc;
 		}
@@ -310,13 +342,13 @@ export async function resolveProfileImageForUser(
 			return avatarUrl;
 		}
 
-		await persist(userId, {
-			imageSrc: avatarUrl,
-			sourceUrl: avatarUrl,
-			cachedAt: Date.now(),
-			mode: "source-url",
-		});
-		return avatarUrl;
+		const dataUrl = await fetchAvatarDataUrl(avatarUrl, accessToken);
+		if (!dataUrl) {
+			return fallbackImage;
+		}
+
+		await cacheProfileImageDataUrl(userId, dataUrl, avatarUrl);
+		return dataUrl;
 	})();
 
 	inFlightByUser.set(userId, task);
@@ -342,7 +374,7 @@ export async function primeRelatedUserAvatar(
 	}
 
 	const cached = memoryCache.get(userId) ?? (await readPersisted(userId));
-	if (cached?.sourceUrl === resolvedAvatarUrl) {
+	if (cached?.mode === "inline" && cached.sourceUrl === resolvedAvatarUrl) {
 		memoryCache.set(userId, cached);
 		return;
 	}
@@ -356,10 +388,8 @@ export async function primeRelatedUserAvatar(
 		return;
 	}
 
-	await persist(userId, {
-		imageSrc: resolvedAvatarUrl,
-		sourceUrl: resolvedAvatarUrl,
-		cachedAt: Date.now(),
-		mode: "source-url",
-	});
+	const dataUrl = await fetchAvatarDataUrl(resolvedAvatarUrl);
+	if (dataUrl) {
+		await cacheProfileImageDataUrl(userId, dataUrl, resolvedAvatarUrl);
+	}
 }
