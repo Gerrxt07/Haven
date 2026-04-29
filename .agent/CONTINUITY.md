@@ -74,3 +74,6 @@
 2026-04-29T09:50:18+0200 [USER] Requested UI settings and account menus with only already-functional app actions.
 2026-04-29T09:50:18+0200 [CODE] Added titlebar account menu with current user identity and logout, plus settings menu with theme toggle, command palette, and help actions.
 2026-04-29T09:50:18+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.
+2026-04-29T09:56:33+0200 [USER] Reported first login attempt shows auth failure but second click logs in without changing inputs.
+2026-04-29T09:56:33+0200 [CODE] Made post-login E2EE bundle bootstrap best-effort after UI session notification and passed the fresh access token to E2EE bundle upload.
+2026-04-29T09:56:33+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.

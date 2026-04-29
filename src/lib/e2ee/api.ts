@@ -82,9 +82,11 @@ async function apiFetch<T>(path: string, init?: ApiRequestInit): Promise<T> {
 
 export async function uploadKeyBundle(
 	payload: KeyBundleUploadPayload,
+	token?: string | null,
 ): Promise<void> {
 	await apiFetch<{ ok: boolean }>("/e2ee/keys/bundle", {
 		method: "POST",
+		token,
 		body: JSON.stringify(payload),
 	});
 }

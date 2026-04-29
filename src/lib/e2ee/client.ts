@@ -40,14 +40,17 @@ import {
 	x3dhResponderSharedSecret,
 } from "./x3dh";
 
-export async function bootstrapOwnBundle(userId: number): Promise<void> {
+export async function bootstrapOwnBundle(
+	userId: number,
+	accessToken?: string | null,
+): Promise<void> {
 	await initE2eeCrypto();
 	const generated = await generateBundleUploadPayload({
 		userId,
 		oneTimePrekeyCount: 100,
 	});
 
-	await uploadKeyBundle(generated.payload);
+	await uploadKeyBundle(generated.payload, accessToken);
 	await saveIdentity(userId, generated.identity);
 	await saveSignedPrekeyPrivate(userId, generated.signedPrekeyPrivate);
 
@@ -113,13 +116,16 @@ function assertDmTransportEnvelope(
 	}
 }
 
-export async function ensureOwnBundle(userId: number): Promise<void> {
+export async function ensureOwnBundle(
+	userId: number,
+	accessToken?: string | null,
+): Promise<void> {
 	await initE2eeCrypto();
 	const existing = await loadIdentity(userId);
 	if (existing) {
 		return;
 	}
-	await bootstrapOwnBundle(userId);
+	await bootstrapOwnBundle(userId, accessToken);
 }
 
 export async function establishSessionAsInitiator(params: {

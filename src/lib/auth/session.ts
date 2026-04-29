@@ -129,6 +129,21 @@ class AuthSessionManager {
 		}
 	}
 
+	private async ensureOwnBundleForSession(userId: number): Promise<void> {
+		try {
+			await ensureOwnBundle(userId, this.state.accessToken);
+		} catch (error) {
+			await writeDetailedErrorLog(
+				"auth-session",
+				"e2ee-bootstrap-failed",
+				error,
+				{
+					userId,
+				},
+			);
+		}
+	}
+
 	async bootstrapFromStorage(): Promise<void> {
 		if (!globalThis.electronAPI) {
 			this.state.isReady = true;
@@ -158,7 +173,7 @@ class AuthSessionManager {
 		if (this.state.accessToken) {
 			try {
 				this.state.currentUser = await apiMe();
-				await ensureOwnBundle(this.state.currentUser.id);
+				await this.ensureOwnBundleForSession(this.state.currentUser.id);
 			} catch {
 				// Keep persisted credentials and retry later instead of force-logging out
 				// on transient startup failures (network/timeout/backend unavailable).
@@ -287,8 +302,8 @@ class AuthSessionManager {
 	private async finalizeLogin(tokens: AuthTokens): Promise<AuthUserResponse> {
 		await this.persistTokens(tokens);
 		this.state.currentUser = await apiMe();
-		await ensureOwnBundle(this.state.currentUser.id);
 		this.notify();
+		await this.ensureOwnBundleForSession(this.state.currentUser.id);
 		return this.state.currentUser;
 	}
 
