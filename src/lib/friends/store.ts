@@ -10,6 +10,8 @@ const INCOMING_CACHE_KEY = "requests.incoming";
 const OUTGOING_CACHE_KEY = "requests.outgoing";
 const FRIENDS_CACHE_KEY = "friends";
 const PERSIST_DEBOUNCE_MS = 300;
+const cacheKeyForUser = (userId: number, key: string): string =>
+	`user:${userId}:${key}`;
 
 export type FriendsStore = {
 	incoming: FriendRequestDto[];
@@ -100,6 +102,38 @@ const persistTimers = new Map<
 	string,
 	ReturnType<typeof globalThis.setTimeout>
 >();
+let activeCacheUserId: number | null = null;
+
+function clearPendingPersists(): void {
+	for (const timer of persistTimers.values()) {
+		globalThis.clearTimeout(timer);
+	}
+	persistTimers.clear();
+	pendingPayloadByKey.clear();
+}
+
+export function setFriendsCacheUser(userId: number | null): void {
+	clearPendingPersists();
+	activeCacheUserId = userId;
+}
+
+export function resetFriendsStore(): void {
+	clearPendingPersists();
+	setFriendsStore({
+		incoming: [],
+		outgoing: [],
+		friends: [],
+		loading: false,
+		error: null,
+	});
+}
+
+function scopedCacheKey(key: string): string | null {
+	if (activeCacheUserId === null) {
+		return null;
+	}
+	return cacheKeyForUser(activeCacheUserId, key);
+}
 
 async function flushPersistKey(key: string): Promise<void> {
 	const timer = persistTimers.get(key);
@@ -127,16 +161,21 @@ async function flushPersistKey(key: string): Promise<void> {
 }
 
 function schedulePersist(key: string, payload: string): void {
-	pendingPayloadByKey.set(key, payload);
-	const existingTimer = persistTimers.get(key);
+	const scopedKey = scopedCacheKey(key);
+	if (!scopedKey) {
+		return;
+	}
+
+	pendingPayloadByKey.set(scopedKey, payload);
+	const existingTimer = persistTimers.get(scopedKey);
 	if (existingTimer) {
 		globalThis.clearTimeout(existingTimer);
 	}
 
 	const timer = globalThis.setTimeout(() => {
-		void flushPersistKey(key);
+		void flushPersistKey(scopedKey);
 	}, PERSIST_DEBOUNCE_MS);
-	persistTimers.set(key, timer);
+	persistTimers.set(scopedKey, timer);
 }
 
 async function persistIncoming(requests: FriendRequestDto[]): Promise<void> {
@@ -161,15 +200,20 @@ async function persistFriends(friends: FriendDto[]): Promise<void> {
 	schedulePersist(FRIENDS_CACHE_KEY, JSON.stringify(friends));
 }
 
-export async function loadFriendsFromCache(): Promise<void> {
+export async function loadFriendsFromCache(userId: number): Promise<void> {
 	const api = getElectronApi();
 	if (!api) return;
 
+	setFriendsCacheUser(userId);
+	const incomingKey = cacheKeyForUser(userId, INCOMING_CACHE_KEY);
+	const outgoingKey = cacheKeyForUser(userId, OUTGOING_CACHE_KEY);
+	const friendsKey = cacheKeyForUser(userId, FRIENDS_CACHE_KEY);
+
 	try {
 		const [rawIncoming, rawOutgoing, rawFriends] = await Promise.all([
-			api.cacheStoreGet(CACHE_NAMESPACE, INCOMING_CACHE_KEY),
-			api.cacheStoreGet(CACHE_NAMESPACE, OUTGOING_CACHE_KEY),
-			api.cacheStoreGet(CACHE_NAMESPACE, FRIENDS_CACHE_KEY),
+			api.cacheStoreGet(CACHE_NAMESPACE, incomingKey),
+			api.cacheStoreGet(CACHE_NAMESPACE, outgoingKey),
+			api.cacheStoreGet(CACHE_NAMESPACE, friendsKey),
 		]);
 
 		if (rawIncoming) {

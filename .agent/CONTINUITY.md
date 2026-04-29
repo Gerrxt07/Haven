@@ -77,3 +77,6 @@
 2026-04-29T09:56:33+0200 [USER] Reported first login attempt shows auth failure but second click logs in without changing inputs.
 2026-04-29T09:56:33+0200 [CODE] Made post-login E2EE bundle bootstrap best-effort after UI session notification and passed the fresh access token to E2EE bundle upload.
 2026-04-29T09:56:33+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.
+2026-04-29T10:06:36+0200 [USER] Reported friend requests show stale outgoing state after switching accounts and accepting the visible request does nothing.
+2026-04-29T10:06:36+0200 [CODE] Scoped friends cache by user id, reset friend state on session switch, and guarded refresh results against account-switch races.
+2026-04-29T10:06:36+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.

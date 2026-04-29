@@ -14,7 +14,9 @@ import { realtimeManager } from "../realtime";
 import {
 	addFriend,
 	loadFriendsFromCache,
+	resetFriendsStore,
 	setFriends,
+	setFriendsCacheUser,
 	setFriendsError,
 	setFriendsLoading,
 	setIncomingRequests,
@@ -80,12 +82,23 @@ function getCurrentUserId(): number | null {
 class FriendsService {
 	private wsUnsubscribers: Array<() => void> = [];
 	private initialized = false;
+	private activeUserId: number | null = null;
 
 	async init(): Promise<void> {
-		if (this.initialized) return;
-		this.initialized = true;
+		const userId = getCurrentUserId();
+		if (userId === null) {
+			this.destroy();
+			return;
+		}
 
-		await loadFriendsFromCache();
+		if (this.initialized && this.activeUserId === userId) return;
+
+		this.destroy();
+		this.initialized = true;
+		this.activeUserId = userId;
+
+		setFriendsCacheUser(userId);
+		await loadFriendsFromCache(userId);
 		this.setupRealtimeHandlers();
 		await this.refresh();
 	}
@@ -155,6 +168,11 @@ class FriendsService {
 	}
 
 	async refresh(): Promise<void> {
+		const userId = this.activeUserId;
+		if (userId === null) {
+			return;
+		}
+
 		setFriendsLoading(true);
 		setFriendsError(null);
 
@@ -164,17 +182,25 @@ class FriendsService {
 				apiGetOutgoingFriendRequests(),
 				apiGetFriends(),
 			]);
+			if (this.activeUserId !== userId) {
+				return;
+			}
 			setIncomingRequests(incoming);
 			setOutgoingRequests(outgoing);
 			setFriends(friends);
 		} catch (error) {
+			if (this.activeUserId !== userId) {
+				return;
+			}
 			const message =
 				error instanceof HttpApiError
 					? error.apiError.message
 					: "Failed to load friends data";
 			setFriendsError(message);
 		} finally {
-			setFriendsLoading(false);
+			if (this.activeUserId === userId) {
+				setFriendsLoading(false);
+			}
 		}
 	}
 
@@ -236,6 +262,9 @@ class FriendsService {
 		}
 		this.wsUnsubscribers = [];
 		this.initialized = false;
+		this.activeUserId = null;
+		resetFriendsStore();
+		setFriendsCacheUser(null);
 	}
 }
 
