@@ -71,3 +71,6 @@
 2026-04-29T09:44:04+0200 [USER] Reported avatar still shows default despite backend upload/download logs showing `200`.
 2026-04-29T09:44:04+0200 [CODE] Changed avatar cache to fetch trusted Haven API avatar media as image blobs, convert to data URLs, render only local data/self image sources, and ignore stale persisted source-url entries.
 2026-04-29T09:44:04+0200 [TOOL] Verified with `bun run typecheck`, `bun run lint`, and `bun test`.
+2026-04-29T09:50:18+0200 [USER] Requested UI settings and account menus with only already-functional app actions.
+2026-04-29T09:50:18+0200 [CODE] Added titlebar account menu with current user identity and logout, plus settings menu with theme toggle, command palette, and help actions.
+2026-04-29T09:50:18+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.

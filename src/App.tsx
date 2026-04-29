@@ -1,4 +1,5 @@
 import {
+	Command,
 	LogOut,
 	MessageCircleQuestion,
 	Minus,
@@ -44,6 +45,9 @@ export default function App() {
 	const [isExpanded, setIsExpanded] = createSignal(false);
 	const [authState, setAuthState] = createSignal(authSession.snapshot());
 	const [isCommandPaletteOpen, setIsCommandPaletteOpen] = createSignal(false);
+	const [openMenu, setOpenMenu] = createSignal<"account" | "settings" | null>(
+		null,
+	);
 	const [activeSurface, setActiveSurface] = createSignal<"auth" | "home">(
 		"auth",
 	);
@@ -62,6 +66,13 @@ export default function App() {
 
 	const openHelp = () => {
 		globalThis.electronAPI.confirmOpenUrl("https://haven.becloudly.eu/help");
+	};
+
+	const closeMenus = () => setOpenMenu(null);
+
+	const runMenuAction = (action: () => void | Promise<void>) => {
+		closeMenus();
+		void action();
 	};
 
 	const readLastSeenVersion = () => {
@@ -267,6 +278,12 @@ export default function App() {
 		});
 
 		const handleGlobalKeydown = (event: KeyboardEvent) => {
+			if (event.key === "Escape" && openMenu() !== null) {
+				event.preventDefault();
+				closeMenus();
+				return;
+			}
+
 			if (!authState().currentUser) {
 				return;
 			}
@@ -303,6 +320,22 @@ export default function App() {
 		onCleanup(() =>
 			globalThis.removeEventListener("keydown", handleGlobalKeydown),
 		);
+
+		const handlePointerDown = (event: PointerEvent) => {
+			const target = event.target;
+			if (!(target instanceof Element)) {
+				return;
+			}
+			if (target.closest("[data-app-menu]")) {
+				return;
+			}
+			closeMenus();
+		};
+
+		globalThis.addEventListener("pointerdown", handlePointerDown);
+		onCleanup(() =>
+			globalThis.removeEventListener("pointerdown", handlePointerDown),
+		);
 	});
 
 	return (
@@ -332,30 +365,121 @@ export default function App() {
 					</Show>
 
 					<Show when={authState().currentUser}>
-						<div class="h-full px-2 relative flex items-center">
+						<div
+							class="h-full px-2 relative flex items-center"
+							data-app-menu="account"
+						>
 							<Tooltip placement="bottom">
 								<TooltipTrigger
 									as="button"
 									id="account-btn"
+									aria-haspopup="menu"
+									aria-expanded={openMenu() === "account"}
+									onClick={() =>
+										setOpenMenu((menu) =>
+											menu === "account" ? null : "account",
+										)
+									}
 									class="h-full border-none bg-transparent text-[color:var(--titlebar-text)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[color:var(--titlebar-icon-hover)] p-0"
 								>
 									<User size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
 								<TooltipContent>{t("app", "account")}</TooltipContent>
 							</Tooltip>
+							<Show when={openMenu() === "account"}>
+								<div
+									role="menu"
+									aria-label={t("app", "account")}
+									class="absolute right-0 top-full z-[90] mt-1 w-64 overflow-hidden rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--surface-secondary)] shadow-[var(--shadow-float)]"
+								>
+									<div class="border-b border-[color:var(--border-subtle)] px-3 py-2.5">
+										<p class="truncate text-sm font-semibold text-[color:var(--text-primary)]">
+											{authState().currentUser?.display_name ||
+												authState().currentUser?.username}
+										</p>
+										<p class="truncate text-[11px] text-[color:var(--text-secondary)]">
+											@{authState().currentUser?.username}
+										</p>
+									</div>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => runMenuAction(() => authSession.logout())}
+										class="flex h-9 w-full items-center gap-2 border-none bg-transparent px-3 text-left text-sm text-[color:var(--text-primary)] transition-colors duration-150 hover:bg-[color:var(--surface-primary)]"
+									>
+										<LogOut size={14} aria-hidden="true" />
+										{t("app", "commandLogout")}
+									</button>
+								</div>
+							</Show>
 						</div>
 
-						<div class="h-full px-2 relative flex items-center">
+						<div
+							class="h-full px-2 relative flex items-center"
+							data-app-menu="settings"
+						>
 							<Tooltip placement="bottom">
 								<TooltipTrigger
 									as="button"
 									id="settings-btn"
+									aria-haspopup="menu"
+									aria-expanded={openMenu() === "settings"}
+									onClick={() =>
+										setOpenMenu((menu) =>
+											menu === "settings" ? null : "settings",
+										)
+									}
 									class="h-full border-none bg-transparent text-[color:var(--titlebar-text)] flex justify-center items-center cursor-pointer transition-colors duration-200 hover:text-[color:var(--titlebar-icon-hover)] p-0"
 								>
 									<Settings size={15} stroke-width={2} aria-hidden="true" />
 								</TooltipTrigger>
 								<TooltipContent>{t("app", "settings")}</TooltipContent>
 							</Tooltip>
+							<Show when={openMenu() === "settings"}>
+								<div
+									role="menu"
+									aria-label={t("app", "settings")}
+									class="absolute right-0 top-full z-[90] mt-1 w-64 overflow-hidden rounded-lg border border-[color:var(--border-subtle)] bg-[color:var(--surface-secondary)] py-1 shadow-[var(--shadow-float)]"
+								>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => runMenuAction(() => toggleTheme())}
+										class="flex h-9 w-full items-center gap-2 border-none bg-transparent px-3 text-left text-sm text-[color:var(--text-primary)] transition-colors duration-150 hover:bg-[color:var(--surface-primary)]"
+									>
+										{currentTheme() === "dark" ? (
+											<Sun size={14} aria-hidden="true" />
+										) : (
+											<Moon size={14} aria-hidden="true" />
+										)}
+										{currentTheme() === "dark"
+											? t("app", "commandThemeLight")
+											: t("app", "commandThemeDark")}
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() =>
+											runMenuAction(() => {
+												setIsCommandPaletteOpen(true);
+											})
+										}
+										class="flex h-9 w-full items-center gap-2 border-none bg-transparent px-3 text-left text-sm text-[color:var(--text-primary)] transition-colors duration-150 hover:bg-[color:var(--surface-primary)]"
+									>
+										<Command size={14} aria-hidden="true" />
+										{t("app", "commandPalette")}
+									</button>
+									<button
+										type="button"
+										role="menuitem"
+										onClick={() => runMenuAction(openHelp)}
+										class="flex h-9 w-full items-center gap-2 border-none bg-transparent px-3 text-left text-sm text-[color:var(--text-primary)] transition-colors duration-150 hover:bg-[color:var(--surface-primary)]"
+									>
+										<MessageCircleQuestion size={14} aria-hidden="true" />
+										{t("app", "commandOpenHelp")}
+									</button>
+								</div>
+							</Show>
 						</div>
 					</Show>
 
