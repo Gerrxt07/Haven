@@ -7,6 +7,7 @@ import {
 	onMount,
 	Show,
 } from "solid-js";
+import { ProfileAvatar } from "../components/ui/profile-avatar";
 import { t } from "../i18n";
 import { authSession } from "../lib/auth/session";
 import { dmService } from "../lib/dm/service";
@@ -46,10 +47,6 @@ export default function DirectMessagesPanel() {
 	const [composerText, setComposerText] = createSignal("");
 	const [sending, setSending] = createSignal(false);
 	const [actionError, setActionError] = createSignal<string | null>(null);
-	const fallbackProfileImage = new URL(
-		"profile.png",
-		globalThis.location.href,
-	).toString();
 	let messagesContainer: HTMLDivElement | undefined;
 
 	const activeThreadId = createMemo(() => dmStore.activeThreadId);
@@ -200,13 +197,11 @@ export default function DirectMessagesPanel() {
 										}
 										class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors duration-150 hover:bg-(--surface-primary)"
 									>
-										<img
-											src={friend.friend_avatar_url ?? fallbackProfileImage}
-											alt={friend.friend_display_name}
+										<ProfileAvatar
+											userId={friend.friend_user_id}
+											displayName={friend.friend_display_name}
+											avatarUrl={friend.friend_avatar_url}
 											class="h-7 w-7 rounded-lg object-cover"
-											onError={(event) => {
-												event.currentTarget.src = fallbackProfileImage;
-											}}
 										/>
 										<div class="min-w-0">
 											<p class="truncate text-sm text-(--text-primary)">
@@ -252,13 +247,11 @@ export default function DirectMessagesPanel() {
 										}`}
 									>
 										<div class="flex items-center gap-2">
-											<img
-												src={thread.peer_avatar_url ?? fallbackProfileImage}
-												alt={thread.peer_display_name}
+											<ProfileAvatar
+												userId={thread.peer_user_id}
+												displayName={thread.peer_display_name}
+												avatarUrl={thread.peer_avatar_url}
 												class="h-8 w-8 rounded-lg object-cover"
-												onError={(event) => {
-													event.currentTarget.src = fallbackProfileImage;
-												}}
 											/>
 											<div class="min-w-0 flex-1">
 												<p class="truncate text-sm font-medium text-(--text-primary)">
@@ -298,13 +291,11 @@ export default function DirectMessagesPanel() {
 					>
 						{(thread) => (
 							<div class="flex items-center gap-3">
-								<img
-									src={thread().peer_avatar_url ?? fallbackProfileImage}
-									alt={thread().peer_display_name}
+								<ProfileAvatar
+									userId={thread().peer_user_id}
+									displayName={thread().peer_display_name}
+									avatarUrl={thread().peer_avatar_url}
 									class="h-9 w-9 rounded-xl object-cover"
-									onError={(event) => {
-										event.currentTarget.src = fallbackProfileImage;
-									}}
 								/>
 								<div>
 									<p class="text-sm font-semibold text-(--text-primary)">

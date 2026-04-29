@@ -8,7 +8,6 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-solid";
-import type { JSX } from "solid-js";
 import {
 	createEffect,
 	createSignal,
@@ -17,56 +16,10 @@ import {
 	onMount,
 	Show,
 } from "solid-js";
+import { ProfileAvatar } from "../components/ui/profile-avatar";
 import { t, tf } from "../i18n";
-import type { AuthUserResponse } from "../lib/api";
-import { authSession } from "../lib/auth/session";
-import { resolveProfileImageForUser } from "../lib/cache/profile-images";
 import { friendsService } from "../lib/friends/service";
 import { friendsStore } from "../lib/friends/store";
-
-function FriendAvatar(props: {
-	userId: number;
-	displayName: string;
-	avatarUrl?: string | null;
-}): JSX.Element {
-	const fallbackProfileImage = new URL(
-		"profile.png",
-		globalThis.location.href,
-	).toString();
-	const [avatarSrc, setAvatarSrc] = createSignal(fallbackProfileImage);
-	let resolveToken = 0;
-
-	createEffect(() => {
-		const token = ++resolveToken;
-		const friendUser = {
-			id: props.userId,
-			avatar_url: props.avatarUrl,
-		} as unknown as AuthUserResponse;
-
-		void resolveProfileImageForUser(
-			friendUser,
-			fallbackProfileImage,
-			authSession.accessToken,
-		).then((src) => {
-			if (token !== resolveToken) {
-				return;
-			}
-			setAvatarSrc(src);
-		});
-	});
-
-	return (
-		<img
-			src={avatarSrc()}
-			alt={`${props.displayName} avatar`}
-			class="h-10 w-10 rounded-2xl object-cover shrink-0 border border-(--border-subtle) shadow-sm"
-			loading="lazy"
-			onError={(e) => {
-				e.currentTarget.src = fallbackProfileImage;
-			}}
-		/>
-	);
-}
 
 function getInitial(value: string): string {
 	const normalized = value.trim();
@@ -388,10 +341,12 @@ export default function FriendsPanel(props: {
 								{(friend, index) => (
 									<div class="group flex items-center gap-3 rounded-md px-2.5 py-2 transition-colors duration-150 hover:bg-(--surface-primary)">
 										<div class="relative shrink-0">
-											<FriendAvatar
+											<ProfileAvatar
 												userId={friend.friend_user_id}
 												displayName={friend.friend_display_name}
 												avatarUrl={friend.friend_avatar_url}
+												class="h-10 w-10 rounded-2xl object-cover shrink-0 border border-(--border-subtle) shadow-sm"
+												loading="lazy"
 											/>
 											<span
 												class={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-(--surface-secondary) ${

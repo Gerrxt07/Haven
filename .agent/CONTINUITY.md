@@ -62,3 +62,6 @@
 2026-04-28T20:15:35+02:00 [TOOL] Verified client changes with `bun run typecheck`, `bun test`, and `bun run lint`; lint passed with only the existing Biome schema-version info.
 2026-04-28T20:22:06+02:00 [USER] Requested pushing the client version to `2026.4.29`.
 2026-04-28T20:22:06+02:00 [CODE] Bumped `package.json` version from `2026.4.28` to `2026.4.29` before pushing client master.
+2026-04-29T09:08:58+0200 [USER] Reported profile picture upload succeeds server-side but client does not update/show it; provided `log.txt`.
+2026-04-29T09:08:58+0200 [CODE] Added shared `ProfileAvatar` resolver component for friend/DM avatar rendering and expanded own-profile avatar change key to all supported backend avatar fields.
+2026-04-29T09:08:58+0200 [TOOL] `log.txt` showed upload success, `/auth/me` success, and avatar media GET `200`, so client URL normalization/render path was the likely fault.

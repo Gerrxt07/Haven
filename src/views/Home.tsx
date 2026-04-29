@@ -47,6 +47,11 @@ export default function Home() {
 			currentUser?.avatar_url ??
 			currentUser?.profile_image_url ??
 			currentUser?.profile_picture_url ??
+			currentUser?.profile_picture ??
+			currentUser?.image_url ??
+			currentUser?.photo_url ??
+			currentUser?.avatarUrl ??
+			currentUser?.profilePictureUrl ??
 			currentUser?.avatar ??
 			null
 		);
