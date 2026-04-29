@@ -188,8 +188,8 @@ export type DmMessageDto = {
 
 export type PresenceEvent = {
 	event_type: string;
-	user_id?: number;
-	channel?: string;
+	user_id?: number | null;
+	channel?: string | null;
 	payload: Record<string, unknown>;
 	ts: number;
 };

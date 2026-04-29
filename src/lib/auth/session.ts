@@ -136,20 +136,13 @@ class AuthSessionManager {
 			return;
 		}
 
-		const [legacyToken, storedTokens] = await Promise.all([
-			globalThis.electronAPI.loadToken(),
-			globalThis.electronAPI.loadAuthTokens(),
-		]);
+		const storedTokens = await globalThis.electronAPI.loadAuthTokens();
 		const accessToken = storedTokens?.accessToken ?? null;
 		const refreshToken = storedTokens?.refreshToken ?? null;
 
-		this.state.accessToken = accessToken ?? legacyToken;
+		this.state.accessToken = accessToken;
 		this.state.refreshToken = refreshToken;
 		this.notify();
-
-		if (legacyToken && accessToken !== legacyToken) {
-			await globalThis.electronAPI.deleteToken();
-		}
 
 		if (!this.state.accessToken && this.state.refreshToken) {
 			const refreshed = await this.refreshAccessToken({
@@ -312,10 +305,7 @@ class AuthSessionManager {
 			return;
 		}
 
-		await Promise.all([
-			globalThis.electronAPI.deleteToken(),
-			globalThis.electronAPI.deleteAuthTokens(),
-		]);
+		await globalThis.electronAPI.deleteAuthTokens();
 	}
 
 	async uploadProfilePicture(file: File): Promise<AuthUserResponse> {

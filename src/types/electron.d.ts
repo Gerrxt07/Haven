@@ -36,9 +36,6 @@ export interface IElectronAPI {
 	) => () => void;
 	onExternalLinkWarning: (callback: (url: string) => void) => () => void;
 	confirmOpenUrl: (url: string) => void;
-	storeToken: (token: string) => Promise<boolean>;
-	loadToken: () => Promise<string | null>;
-	deleteToken: () => Promise<boolean>;
 	storeAuthTokens: (
 		accessToken: string,
 		refreshToken: string,

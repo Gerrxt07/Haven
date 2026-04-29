@@ -57,13 +57,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return () => ipcRenderer.removeListener("window-state-changed", listener);
 	},
 
-	// Add to your existing electronAPI context bridge
-	storeToken: (token: string) =>
-		ipcRenderer.invoke("secure-store-token", token),
-	loadToken: () =>
-		ipcRenderer.invoke("secure-load-token") as Promise<string | null>,
-	deleteToken: () =>
-		ipcRenderer.invoke("secure-delete-token") as Promise<boolean>,
 	storeAuthTokens: (accessToken: string, refreshToken: string) =>
 		ipcRenderer.invoke(
 			"auth-store-tokens",

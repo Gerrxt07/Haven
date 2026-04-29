@@ -70,11 +70,14 @@ class ChatSyncService {
 			const authorUserId = Number(payload.author_user_id);
 			const createdAt = String(payload.created_at ?? new Date().toISOString());
 			const authorAvatarUrl = pickAvatarFromPayload(payload);
+			if (!Number.isFinite(messageId) || !Number.isFinite(authorUserId)) {
+				return;
+			}
 
 			const message: MessageDto = {
-				id: Number.isFinite(messageId) ? messageId : Date.now(),
+				id: messageId,
 				channel_id: channelId,
-				author_user_id: Number.isFinite(authorUserId) ? authorUserId : 0,
+				author_user_id: authorUserId,
 				author_avatar_url: authorAvatarUrl,
 				content: typeof payload.content === "string" ? payload.content : "",
 				is_encrypted: Boolean(payload.is_encrypted),

@@ -5,6 +5,7 @@ const PROFILE_CACHE_PREFIX = "user:";
 const PROFILE_LOCAL_STORAGE_PREFIX = "haven.profile-image.";
 const API_ORIGIN = "https://havenapi.becloudly.eu";
 const MAX_INLINE_CACHE_PAYLOAD_LENGTH = 128_000;
+const ALLOWED_AVATAR_PATH_PREFIX = "/api/v1/media/avatars/";
 
 type CacheMode = "inline" | "source-url";
 
@@ -107,12 +108,24 @@ function isDataUrl(value: string): boolean {
 	return /^data:image\//.test(value);
 }
 
-function normalizeAvatarUrl(value: string): string {
-	if (/^(data:|blob:|https?:)/i.test(value)) {
+function normalizeAvatarUrl(value: string): string | null {
+	if (isDataUrl(value)) {
 		return value;
 	}
 
-	return new URL(value, API_ORIGIN).toString();
+	try {
+		const parsed = new URL(value, API_ORIGIN);
+		if (
+			parsed.origin === API_ORIGIN &&
+			parsed.pathname.startsWith(ALLOWED_AVATAR_PATH_PREFIX)
+		) {
+			return parsed.toString();
+		}
+	} catch {
+		return null;
+	}
+
+	return null;
 }
 
 function secureStoreAvailable(): boolean {
@@ -324,6 +337,9 @@ export async function primeRelatedUserAvatar(
 	}
 
 	const resolvedAvatarUrl = normalizeAvatarUrl(avatarUrl);
+	if (!resolvedAvatarUrl) {
+		return;
+	}
 
 	const cached = memoryCache.get(userId) ?? (await readPersisted(userId));
 	if (cached?.sourceUrl === resolvedAvatarUrl) {

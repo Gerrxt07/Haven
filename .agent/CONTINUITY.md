@@ -65,3 +65,6 @@
 2026-04-29T09:08:58+0200 [USER] Reported profile picture upload succeeds server-side but client does not update/show it; provided `log.txt`.
 2026-04-29T09:08:58+0200 [CODE] Added shared `ProfileAvatar` resolver component for friend/DM avatar rendering and expanded own-profile avatar change key to all supported backend avatar fields.
 2026-04-29T09:08:58+0200 [TOOL] `log.txt` showed upload success, `/auth/me` success, and avatar media GET `200`, so client URL normalization/render path was the likely fault.
+2026-04-29T09:34:54+0200 [USER] Requested fixes for HCVE-2026-0008 through HCVE-2026-0011 across client and backend WebSockets, auth token storage, and avatar privacy.
+2026-04-29T09:34:54+0200 [CODE] Added strict client WebSocket event schemas and size caps, explicit pong heartbeat timeout reconnects, backend JSON pong replies, removed legacy `auth.enc` read/write IPC, and restricted avatar image URLs/CSP to Haven API avatar media.
+2026-04-29T09:34:54+0200 [TOOL] Verified with client `bun run typecheck`, `bun run lint`, `bun test`; backend `cargo fmt --check`, `cargo check`, and `cargo test`.

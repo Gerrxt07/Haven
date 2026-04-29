@@ -40,9 +40,6 @@ function createMockElectronApi(
 		onWindowStateChanged: () => () => {},
 		onExternalLinkWarning: () => () => {},
 		confirmOpenUrl: () => {},
-		storeToken: async () => true,
-		loadToken: async () => values.legacyToken ?? null,
-		deleteToken: async () => true,
 		storeAuthTokens: async (accessToken, refreshToken) => {
 			values["token.access"] = accessToken;
 			values["token.refresh"] = refreshToken;

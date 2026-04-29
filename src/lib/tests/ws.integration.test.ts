@@ -76,19 +76,46 @@ describe("Realtime integration", () => {
 		expect(ws.sent[0]).toBe(
 			JSON.stringify({ type: "authenticate", token: "access-token-123" }),
 		);
+		expect(ws.sent[1]).toBe(JSON.stringify({ type: "ping" }));
+
+		ws.emit("message", {
+			data: JSON.stringify({
+				event_type: "pong",
+				user_id: null,
+				channel: null,
+				ts: Date.now(),
+				payload: { status: "ok" },
+			}),
+		});
 
 		ws.emit("message", {
 			data: JSON.stringify({
 				event_type: "new_message",
 				ts: Date.now(),
-				payload: { content: "one" },
+				channel: "42",
+				payload: {
+					message_id: 1,
+					channel_id: 42,
+					author_user_id: 7,
+					is_encrypted: false,
+					content: "one",
+					created_at: "2026-01-01T00:00:00Z",
+				},
 			}),
 		});
 		ws.emit("message", {
 			data: JSON.stringify({
 				event_type: "new_message",
 				ts: Date.now(),
-				payload: { content: "two" },
+				channel: "42",
+				payload: {
+					message_id: 2,
+					channel_id: 42,
+					author_user_id: 7,
+					is_encrypted: false,
+					content: "two",
+					created_at: "2026-01-01T00:00:01Z",
+				},
 			}),
 		});
 
@@ -96,6 +123,61 @@ describe("Realtime integration", () => {
 
 		ws.emit("close");
 		expect(realtimeStore.connectionState).toBe("reconnecting");
+	});
+
+	it("drops unknown, invalid, and oversized websocket events", () => {
+		globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+		authSession.restore({
+			accessToken: "access-token-789",
+			refreshToken: "refresh-token-789",
+			expiresAt: Date.now() + 60_000,
+		});
+
+		const received: string[] = [];
+		realtimeManager.on("new_message", (event) => {
+			received.push(String(event.payload.content));
+		});
+
+		realtimeManager.connect();
+		const ws = FakeWebSocket.instances.at(-1);
+		expect(ws).toBeDefined();
+		if (!ws) {
+			throw new Error("missing websocket instance");
+		}
+		ws.readyState = FakeWebSocket.OPEN;
+		ws.emit("open");
+
+		ws.emit("message", {
+			data: JSON.stringify({
+				event_type: "state_poison",
+				ts: Date.now(),
+				payload: { content: "bad" },
+			}),
+		});
+		ws.emit("message", {
+			data: JSON.stringify({
+				event_type: "new_message",
+				ts: Date.now(),
+				payload: { content: "missing required ids" },
+			}),
+		});
+		ws.emit("message", {
+			data: JSON.stringify({
+				event_type: "new_message",
+				ts: Date.now(),
+				channel: "42",
+				payload: {
+					message_id: 3,
+					channel_id: 42,
+					author_user_id: 7,
+					is_encrypted: false,
+					content: "x".repeat(70 * 1024),
+					created_at: "2026-01-01T00:00:02Z",
+				},
+			}),
+		});
+
+		expect(received).toEqual([]);
 	});
 
 	it("sends join, presence, and broadcast messages without client user_id", () => {

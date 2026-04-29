@@ -30,9 +30,8 @@ import {
 	type UpdateChannelCandidate,
 } from "./updater";
 
-// Set up a path to store your encrypted auth data
-const authFilePath = path.join(app.getPath("userData"), "auth.enc");
 const secureStoreBasePath = path.join(app.getPath("userData"), "secure-store");
+const legacyAuthFilePath = path.join(app.getPath("userData"), "auth.enc");
 const maxStoredSecretLength = 8192;
 const SECURE_STORE_FLUSH_DEBOUNCE_MS = 120;
 
@@ -214,84 +213,6 @@ function isTrustedSender(sender: Electron.WebContents): boolean {
 	if (!mainWindow) return false;
 	return sender === mainWindow.webContents;
 }
-
-// Listeners to save and load tokens securely
-ipcMain.handle("secure-store-token", async (event, token: string) => {
-	secureLogger.logIpc("in", "secure-store-token", "main", {
-		hasToken: !!token,
-	});
-	if (!isTrustedSender(event.sender)) {
-		secureLogger.logSecurity("untrusted-sender-rejected", {
-			channel: "secure-store-token",
-		});
-		return false;
-	}
-	if (typeof token !== "string" || token.length < 1) return false;
-	if (token.length > maxStoredSecretLength) return false;
-
-	if (safeStorage.isEncryptionAvailable()) {
-		const encryptedToken = safeStorage.encryptString(token);
-		await writeEncryptedFile(authFilePath, encryptedToken);
-		// Update the in-memory cache
-		cachedAuthToken = token;
-		secureLogger.logSecurity("token-stored", { path: authFilePath });
-		return true;
-	}
-	secureLogger.logSecurity(
-		"token-storage-failed",
-		{ reason: "encryption-unavailable" },
-		"error",
-	);
-	return false; // Handle fallback if encryption isn't available
-});
-
-ipcMain.handle("secure-load-token", async (event) => {
-	secureLogger.logIpc("in", "secure-load-token", "main");
-	if (!isTrustedSender(event.sender)) {
-		secureLogger.logSecurity("untrusted-sender-rejected", {
-			channel: "secure-load-token",
-		});
-		return null;
-	}
-	if (!safeStorage.isEncryptionAvailable()) return null;
-
-	try {
-		const encryptedToken = await fs.readFile(authFilePath);
-		const decryptedToken = safeStorage.decryptString(encryptedToken);
-		// Update the in-memory cache
-		cachedAuthToken = decryptedToken;
-		secureLogger.logSecurity("token-loaded");
-		return decryptedToken;
-	} catch {
-		secureLogger.debug("auth", "token-load-failed", {
-			reason: "file-not-found-or-decryption-failed",
-		});
-		return null;
-	}
-});
-
-ipcMain.handle("secure-delete-token", async (event) => {
-	secureLogger.logIpc("in", "secure-delete-token", "main");
-	if (!isTrustedSender(event.sender)) {
-		secureLogger.logSecurity("untrusted-sender-rejected", {
-			channel: "secure-delete-token",
-		});
-		return false;
-	}
-
-	try {
-		await fs.unlink(authFilePath);
-		// Clear the in-memory cache
-		cachedAuthToken = null;
-		secureLogger.logSecurity("token-deleted");
-		return true;
-	} catch {
-		secureLogger.debug("auth", "token-delete-failed", {
-			reason: "file-not-found",
-		});
-		return false;
-	}
-});
 
 function sanitizeNamespace(value: string): string | null {
 	if (!/^[a-zA-Z0-9_-]{1,64}$/.test(value)) {
@@ -530,11 +451,6 @@ ipcMain.handle("auth-delete-tokens", async (event) => {
 	delete current["token.access"];
 	delete current["token.refresh"];
 	cachedAuthToken = null;
-	try {
-		await fs.rm(authFilePath, { force: true });
-	} catch {
-		/* ignore */
-	}
 	return writeSecureNamespace("auth", current, { deferred: false });
 });
 
@@ -779,7 +695,7 @@ function getContentSecurityPolicy(): string {
 		"frame-ancestors 'none'",
 		"form-action 'self'",
 		"object-src 'none'",
-		"img-src 'self' data: https:",
+		"img-src 'self' data: https://havenapi.becloudly.eu",
 		"font-src 'self' data:",
 		"media-src 'self' blob:",
 		"worker-src 'self' blob:",
@@ -1087,6 +1003,10 @@ app.whenReady().then(() => {
 		}
 	});
 
+	void fs.rm(legacyAuthFilePath, { force: true }).catch(() => {
+		/* best-effort legacy token cleanup */
+	});
+
 	session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
 		const responseHeaders = details.responseHeaders ?? {};
 
@@ -1100,23 +1020,8 @@ app.whenReady().then(() => {
 	session.defaultSession.webRequest.onBeforeSendHeaders(
 		{ urls: ["https://havenapi.becloudly.eu/*"] }, // Only attach to your trusted backend API
 		async (details, callback) => {
-			// Use the cached token instead of reading from disk on every request
-			let token = cachedAuthToken;
-
-			// Fallback to loading from disk if cache is empty
-			if (!token && safeStorage.isEncryptionAvailable()) {
-				try {
-					const encryptedToken = await fs.readFile(authFilePath);
-					token = safeStorage.decryptString(encryptedToken);
-					// Update the cache for future requests
-					cachedAuthToken = token;
-				} catch {
-					/* ignore */
-				}
-			}
-
-			if (token) {
-				details.requestHeaders.Authorization = `Bearer ${token}`;
+			if (cachedAuthToken) {
+				details.requestHeaders.Authorization = `Bearer ${cachedAuthToken}`;
 			}
 
 			callback({ requestHeaders: details.requestHeaders });

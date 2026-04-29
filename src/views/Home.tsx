@@ -194,7 +194,9 @@ export default function Home() {
 							alt={user()?.display_name || user()?.username || "User profile"}
 							class="h-full w-full object-cover"
 							onError={(event) => {
-								event.currentTarget.src = fallbackProfileImage;
+								if (event.currentTarget.src !== fallbackProfileImage) {
+									event.currentTarget.src = fallbackProfileImage;
+								}
 							}}
 						/>
 					</TooltipTrigger>
