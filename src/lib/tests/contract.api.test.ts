@@ -2,6 +2,10 @@ import { afterEach, describe, expect, it } from "bun:test";
 
 import { apiLogin, apiLoginChallenge, apiLoginVerify } from "../api/auth";
 import { apiCreateMessage } from "../api/chat";
+import {
+	apiAcceptFriendRequest,
+	apiGetIncomingFriendRequests,
+} from "../api/friends";
 import { getPublicBundle } from "../e2ee/api";
 
 const originalFetch = globalThis.fetch;
@@ -157,6 +161,40 @@ describe("API contract validation", () => {
 		await expect(
 			apiCreateMessage({ channel_id: 1, author_user_id: 5, content: "hello" }),
 		).rejects.toThrow();
+	});
+
+	it("keeps friend request ids exact for action URLs", async () => {
+		const exactRequestId = "617267492905079583";
+		let capturedPath = "";
+		setMockFetch(async (input) => {
+			capturedPath = String(input);
+			return new Response(
+				`{"id":${exactRequestId},"from_user_id":1,"from_username":"one","from_display_name":"One","to_user_id":2,"to_username":"two","to_display_name":"Two","status":"accepted","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}`,
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		});
+
+		const response = await apiAcceptFriendRequest(exactRequestId);
+
+		expect(response.id).toBe(exactRequestId);
+		expect(capturedPath).toContain(
+			`/friends/requests/${exactRequestId}/accept`,
+		);
+	});
+
+	it("keeps friend request ids exact in request lists", async () => {
+		const exactRequestId = "617267492905079583";
+		setMockFetch(
+			async () =>
+				new Response(
+					`[{"id":${exactRequestId},"from_user_id":1,"from_username":"one","from_display_name":"One","to_user_id":2,"to_username":"two","to_display_name":"Two","status":"pending","created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}]`,
+					{ status: 200, headers: { "content-type": "application/json" } },
+				),
+		);
+
+		const response = await apiGetIncomingFriendRequests();
+
+		expect(response[0]?.id).toBe(exactRequestId);
 	});
 
 	it("rejects invalid e2ee bundle contract", async () => {

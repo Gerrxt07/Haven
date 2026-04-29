@@ -31,7 +31,7 @@ function isFriendRequestPayload(
 	return (
 		payload.request !== null &&
 		typeof payload.request === "object" &&
-		typeof (payload.request as Record<string, unknown>).id === "number"
+		typeof (payload.request as Record<string, unknown>).id === "string"
 	);
 }
 
@@ -107,6 +107,7 @@ class FriendsService {
 		const unsubReceived = realtimeManager.on(
 			"friend_request_received",
 			(event: PresenceEvent) => {
+				void this.refresh();
 				if (isFriendRequestPayload(event.payload)) {
 					const currentUserId = getCurrentUserId();
 					if (currentUserId === null) return;
@@ -127,6 +128,7 @@ class FriendsService {
 		const unsubAccepted = realtimeManager.on(
 			"friend_request_accepted",
 			(event: PresenceEvent) => {
+				void this.refresh();
 				if (isFriendRequestPayload(event.payload)) {
 					const currentUserId = getCurrentUserId();
 					if (currentUserId === null) return;
@@ -149,6 +151,7 @@ class FriendsService {
 		const unsubDeclined = realtimeManager.on(
 			"friend_request_declined",
 			(event: PresenceEvent) => {
+				void this.refresh();
 				if (isFriendRequestPayload(event.payload)) {
 					const currentUserId = getCurrentUserId();
 					if (currentUserId === null) return;
@@ -221,7 +224,7 @@ class FriendsService {
 	}
 
 	async acceptRequest(
-		requestId: number,
+		requestId: string,
 	): Promise<{ ok: boolean; error?: string }> {
 		try {
 			const [request, friends] = await Promise.all([
@@ -241,7 +244,7 @@ class FriendsService {
 	}
 
 	async declineRequest(
-		requestId: number,
+		requestId: string,
 	): Promise<{ ok: boolean; error?: string }> {
 		try {
 			const request = await apiDeclineFriendRequest(requestId);

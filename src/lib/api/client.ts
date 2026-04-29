@@ -31,6 +31,7 @@ export type RequestOptions = {
 	headers?: HeadersInit;
 	requiresAuth?: boolean;
 	idempotencyKey?: string;
+	responseType?: "json" | "text";
 };
 
 function resolveBaseUrl(): string {
@@ -95,12 +96,30 @@ export class ApiClient {
 		return this.request<T>("GET", path, undefined, options);
 	}
 
+	async getText(path: string, options?: RequestOptions): Promise<string> {
+		return this.request<string>("GET", path, undefined, {
+			...options,
+			responseType: "text",
+		});
+	}
+
 	async post<TBody, TResponse>(
 		path: string,
 		body: TBody,
 		options?: RequestOptions,
 	): Promise<TResponse> {
 		return this.request<TResponse>("POST", path, body, options);
+	}
+
+	async postText<TBody>(
+		path: string,
+		body: TBody,
+		options?: RequestOptions,
+	): Promise<string> {
+		return this.request<string>("POST", path, body, {
+			...options,
+			responseType: "text",
+		});
 	}
 
 	async request<T>(
@@ -237,7 +256,11 @@ export class ApiClient {
 				return undefined as T;
 			}
 
-			return (await response.json()) as T;
+			const text = await response.text();
+			if (options?.responseType === "text") {
+				return text as T;
+			}
+			return JSON.parse(text) as T;
 		} catch (error) {
 			const apiError =
 				error instanceof HttpApiError

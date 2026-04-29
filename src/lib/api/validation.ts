@@ -40,6 +40,10 @@ function isNumber(value: unknown): value is number {
 	return typeof value === "number" && Number.isFinite(value);
 }
 
+function isNumericIdString(value: unknown): value is string {
+	return typeof value === "string" && /^\d+$/.test(value);
+}
+
 export function assertRegisterRequest(payload: RegisterRequest): void {
 	assert(payload.username.trim().length >= 3, "invalid username");
 	assert(payload.display_name.trim().length >= 1, "invalid display_name");
@@ -340,7 +344,7 @@ export function assertFriendRequestDto(
 	value: unknown,
 ): asserts value is FriendRequestDto {
 	assert(isObject(value), "invalid friend request response");
-	assert(isNumber(value.id), "missing friend_request.id");
+	assert(isNumericIdString(value.id), "missing friend_request.id");
 	assert(isNumber(value.from_user_id), "missing friend_request.from_user_id");
 	assert(isString(value.from_username), "missing friend_request.from_username");
 	assert(

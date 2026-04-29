@@ -38,8 +38,8 @@ export default function FriendsPanel(props: {
 		"idle" | "sending" | "success" | "error"
 	>("idle");
 	const [addError, setAddError] = createSignal<string | null>(null);
-	const [acceptingId, setAcceptingId] = createSignal<number | null>(null);
-	const [decliningId, setDecliningId] = createSignal<number | null>(null);
+	const [acceptingId, setAcceptingId] = createSignal<string | null>(null);
+	const [decliningId, setDecliningId] = createSignal<string | null>(null);
 	let addInputRef: HTMLInputElement | undefined;
 	let statusResetTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
@@ -91,14 +91,14 @@ export default function FriendsPanel(props: {
 		}
 	};
 
-	const handleAccept = async (requestId: number): Promise<void> => {
+	const handleAccept = async (requestId: string): Promise<void> => {
 		if (acceptingId() !== null) return;
 		setAcceptingId(requestId);
 		await friendsService.acceptRequest(requestId);
 		setAcceptingId(null);
 	};
 
-	const handleDecline = async (requestId: number): Promise<void> => {
+	const handleDecline = async (requestId: string): Promise<void> => {
 		if (decliningId() !== null) return;
 		setDecliningId(requestId);
 		await friendsService.declineRequest(requestId);

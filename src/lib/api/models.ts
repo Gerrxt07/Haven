@@ -251,7 +251,7 @@ export type CreateDmMessageRequestDto = {
 export type FriendRequestStatus = "pending" | "accepted" | "declined";
 
 export type FriendRequestDto = {
-	id: number;
+	id: string;
 	from_user_id: number;
 	from_username: string;
 	from_display_name: string;

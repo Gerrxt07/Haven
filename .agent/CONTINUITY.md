@@ -80,3 +80,6 @@
 2026-04-29T10:06:36+0200 [USER] Reported friend requests show stale outgoing state after switching accounts and accepting the visible request does nothing.
 2026-04-29T10:06:36+0200 [CODE] Scoped friends cache by user id, reset friend state on session switch, and guarded refresh results against account-switch races.
 2026-04-29T10:06:36+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.
+2026-04-29T10:14:29+0200 [USER] Reported account 1 still cannot accept a real incoming request; backend logs showed accept URL with large request id returning `404`.
+2026-04-29T10:14:29+0200 [CODE] Preserved friend request ids as exact strings from raw JSON text before building accept/decline URLs, and added regression tests for large request ids.
+2026-04-29T10:14:29+0200 [TOOL] Verified with `bun run typecheck`, `bun test`, and `bun run lint`.

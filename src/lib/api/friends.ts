@@ -11,12 +11,28 @@ import {
 	assertSendFriendRequest,
 } from "./validation";
 
+function quoteFriendRequestIds(raw: string): string {
+	return raw.replace(/("id"\s*:\s*)(\d+)/g, '$1"$2"');
+}
+
+function parseFriendRequest(raw: string): FriendRequestDto {
+	const parsed: unknown = JSON.parse(quoteFriendRequestIds(raw));
+	assertFriendRequestDto(parsed);
+	return parsed;
+}
+
+function parseFriendRequestList(raw: string): FriendRequestDto[] {
+	const parsed: unknown = JSON.parse(quoteFriendRequestIds(raw));
+	assertFriendRequestDtoList(parsed);
+	return parsed;
+}
+
 export async function apiSendFriendRequest(
 	payload: SendFriendRequestDto,
 	signal?: AbortSignal,
 ): Promise<FriendRequestDto> {
 	assertSendFriendRequest(payload);
-	const response = await apiClient.post<SendFriendRequestDto, FriendRequestDto>(
+	const response = await apiClient.postText<SendFriendRequestDto>(
 		"/friends/request",
 		payload,
 		{
@@ -24,46 +40,34 @@ export async function apiSendFriendRequest(
 			requiresAuth: true,
 		},
 	);
-	assertFriendRequestDto(response);
-	return response;
+	return parseFriendRequest(response);
 }
 
 export async function apiGetIncomingFriendRequests(
 	signal?: AbortSignal,
 ): Promise<FriendRequestDto[]> {
-	const response = await apiClient.get<FriendRequestDto[]>(
-		"/friends/requests/incoming",
-		{
-			signal,
-			requiresAuth: true,
-		},
-	);
-	assertFriendRequestDtoList(response);
-	return response;
+	const response = await apiClient.getText("/friends/requests/incoming", {
+		signal,
+		requiresAuth: true,
+	});
+	return parseFriendRequestList(response);
 }
 
 export async function apiGetOutgoingFriendRequests(
 	signal?: AbortSignal,
 ): Promise<FriendRequestDto[]> {
-	const response = await apiClient.get<FriendRequestDto[]>(
-		"/friends/requests/outgoing",
-		{
-			signal,
-			requiresAuth: true,
-		},
-	);
-	assertFriendRequestDtoList(response);
-	return response;
+	const response = await apiClient.getText("/friends/requests/outgoing", {
+		signal,
+		requiresAuth: true,
+	});
+	return parseFriendRequestList(response);
 }
 
 export async function apiAcceptFriendRequest(
-	requestId: number,
+	requestId: string,
 	signal?: AbortSignal,
 ): Promise<FriendRequestDto> {
-	const response = await apiClient.post<
-		Record<string, never>,
-		FriendRequestDto
-	>(
+	const response = await apiClient.postText<Record<string, never>>(
 		`/friends/requests/${requestId}/accept`,
 		{},
 		{
@@ -71,18 +75,14 @@ export async function apiAcceptFriendRequest(
 			requiresAuth: true,
 		},
 	);
-	assertFriendRequestDto(response);
-	return response;
+	return parseFriendRequest(response);
 }
 
 export async function apiDeclineFriendRequest(
-	requestId: number,
+	requestId: string,
 	signal?: AbortSignal,
 ): Promise<FriendRequestDto> {
-	const response = await apiClient.post<
-		Record<string, never>,
-		FriendRequestDto
-	>(
+	const response = await apiClient.postText<Record<string, never>>(
 		`/friends/requests/${requestId}/decline`,
 		{},
 		{
@@ -90,8 +90,7 @@ export async function apiDeclineFriendRequest(
 			requiresAuth: true,
 		},
 	);
-	assertFriendRequestDto(response);
-	return response;
+	return parseFriendRequest(response);
 }
 
 export async function apiGetFriends(
